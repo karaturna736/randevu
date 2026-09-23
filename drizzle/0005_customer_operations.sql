@@ -1,23 +1,3 @@
-CREATE TABLE `journey_mutations` (
-	`tenant_id` text NOT NULL,
-	`journey_id` text NOT NULL,
-	`version` integer NOT NULL,
-	PRIMARY KEY(`tenant_id`, `journey_id`, `version`),
-	FOREIGN KEY (`tenant_id`,`journey_id`) REFERENCES `journeys`(`tenant_id`,`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE TABLE `journey_steps` (
-	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
-	`journey_id` text NOT NULL,
-	`position` integer NOT NULL,
-	`title` text NOT NULL,
-	`due_date` text,
-	`completed_at` text,
-	FOREIGN KEY (`tenant_id`,`journey_id`) REFERENCES `journeys`(`tenant_id`,`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `journey_steps_order` ON `journey_steps` (`tenant_id`,`journey_id`,`position`);--> statement-breakpoint
 CREATE TABLE `journeys` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
@@ -36,24 +16,26 @@ CREATE TABLE `journeys` (
 CREATE UNIQUE INDEX `journeys_share_hash_unique` ON `journeys` (`share_hash`);--> statement-breakpoint
 CREATE UNIQUE INDEX `journeys_tenant_id` ON `journeys` (`tenant_id`,`id`);--> statement-breakpoint
 CREATE INDEX `journeys_customer` ON `journeys` (`tenant_id`,`customer_id`);--> statement-breakpoint
-CREATE TABLE `receivable_payments` (
+CREATE TABLE `journey_steps` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
-	`receivable_id` text NOT NULL,
-	`amount` integer NOT NULL,
-	`method` text NOT NULL,
-	`note` text DEFAULT '' NOT NULL,
-	`status` text DEFAULT 'recorded' NOT NULL,
-	`reversal_reason` text DEFAULT '' NOT NULL,
-	`created_by` text NOT NULL,
-	`created_at` text NOT NULL,
-	`reversed_at` text,
-	`idempotency_key` text NOT NULL,
-	FOREIGN KEY (`tenant_id`,`receivable_id`) REFERENCES `receivables`(`tenant_id`,`id`) ON UPDATE no action ON DELETE no action
+	`journey_id` text NOT NULL,
+	`position` integer NOT NULL,
+	`title` text NOT NULL,
+	`due_date` text,
+	`completed_at` text,
+	FOREIGN KEY (`tenant_id`,`journey_id`) REFERENCES `journeys`(`tenant_id`,`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `receivable_payments_request` ON `receivable_payments` (`tenant_id`,`idempotency_key`);--> statement-breakpoint
-CREATE INDEX `receivable_payments_debt` ON `receivable_payments` (`tenant_id`,`receivable_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `journey_steps_order` ON `journey_steps` (`tenant_id`,`journey_id`,`position`);--> statement-breakpoint
+CREATE TABLE `journey_mutations` (
+	`tenant_id` text NOT NULL,
+	`journey_id` text NOT NULL,
+	`version` integer NOT NULL,
+	PRIMARY KEY(`tenant_id`, `journey_id`, `version`),
+	FOREIGN KEY (`tenant_id`,`journey_id`) REFERENCES `journeys`(`tenant_id`,`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `receivables` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
@@ -75,6 +57,24 @@ CREATE TABLE `receivables` (
 CREATE UNIQUE INDEX `receivables_tenant_id` ON `receivables` (`tenant_id`,`id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `receivables_request` ON `receivables` (`tenant_id`,`idempotency_key`);--> statement-breakpoint
 CREATE INDEX `receivables_customer` ON `receivables` (`tenant_id`,`customer_id`,`status`);--> statement-breakpoint
+CREATE TABLE `receivable_payments` (
+	`id` text PRIMARY KEY NOT NULL,
+	`tenant_id` text NOT NULL,
+	`receivable_id` text NOT NULL,
+	`amount` integer NOT NULL,
+	`method` text NOT NULL,
+	`note` text DEFAULT '' NOT NULL,
+	`status` text DEFAULT 'recorded' NOT NULL,
+	`reversal_reason` text DEFAULT '' NOT NULL,
+	`created_by` text NOT NULL,
+	`created_at` text NOT NULL,
+	`reversed_at` text,
+	`idempotency_key` text NOT NULL,
+	FOREIGN KEY (`tenant_id`,`receivable_id`) REFERENCES `receivables`(`tenant_id`,`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `receivable_payments_request` ON `receivable_payments` (`tenant_id`,`idempotency_key`);--> statement-breakpoint
+CREATE INDEX `receivable_payments_debt` ON `receivable_payments` (`tenant_id`,`receivable_id`);--> statement-breakpoint
 CREATE TRIGGER receivable_valid BEFORE INSERT ON receivables BEGIN
  SELECT CASE WHEN NEW.amount<=0 OR NEW.amount!=CAST(NEW.amount AS INTEGER) OR NEW.remaining!=NEW.amount OR NEW.status!='open' THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END;
 END;
