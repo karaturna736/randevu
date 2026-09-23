@@ -32,6 +32,7 @@ import {
   Send,
   MessageSquare,
   Check,
+  Building2,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -89,6 +90,7 @@ import { WelcomeWorkspace, BusinessChecklist } from "./onboarding";
 import { Receivables, Journeys } from "./customer-operations";
 import { BookingLink, Growth, WhatsAppPanel, HelpCenter } from "./growth";
 import { RecoveryEngine, SetupCenter } from "./recovery-setup";
+import { BranchProfitability } from "./branches";
 
 const NAV = [
   { id: "overview", title: "Genel bakış", icon: LayoutDashboard },
@@ -105,6 +107,7 @@ const NAV = [
   { id: "demand", title: "Talep fırsatları", icon: Radar },
   { id: "service-report", title: "İşlem analizi", icon: BarChart3 },
   { id: "reports", title: "Gelir raporu", icon: ChartNoAxesCombined },
+  { id: "branches", title: "Şube kârlılığı", icon: Building2 },
   { id: "whatsapp", title: "WhatsApp", icon: MessageSquare },
   { id: "setup-center", title: "Kurulum Merkezi", icon: Store },
   { id: "help", title: "Yardım merkezi", icon: LifeBuoy },
@@ -179,6 +182,10 @@ const TITLES: Record<string, [string, string]> = {
   reports: [
     "İşinizi rakamlarla tanıyın.",
     "Randevularınızdan doğan içgörüler.",
+  ],
+  branches: [
+    "Şubelerinizi rakamlarla yönetin.",
+    "Hangi şube kârda, hangisi zararda; gelir, gider ve net sonucu karşılaştırın.",
   ],
   integrations: [
     "İşletmenize yeni yetenekler.",
@@ -553,6 +560,9 @@ export default function Dashboard({
           {view === "demand" && <DemandInsights w={w} onNavigate={setView} />}{" "}
           {view === "service-report" && <ServiceInsights w={w} />}{" "}
           {view === "reports" && <Reports w={w} />}{" "}
+          {view === "branches" && (
+            <BranchProfitability key={w.business.id} w={w} />
+          )}{" "}
           {view === "receivables" && (
             <Receivables key={w.business.id} w={w} requireReal={requireReal} />
           )}{" "}

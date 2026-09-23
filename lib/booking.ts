@@ -15,7 +15,7 @@ import {
   date as dateSchema,
 } from "./server";
 import { today, addDays, time } from "./types";
-export const SELECT_APPOINTMENTS = `SELECT a.id,a.tenant_id,a.customer_id,a.service_id,a.staff_id,a.date,a.minute,a.duration,a.price,a.status,a.source,a.version,a.early_from,a.customer_note,a.service_description_snapshot service_description,c.name customer_name,c.phone customer_phone,COALESCE(NULLIF(a.service_name_snapshot,''),s.name) service_name,p.name staff_name,p.color staff_color FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id JOIN services s ON s.tenant_id=a.tenant_id AND s.id=a.service_id JOIN staff p ON p.tenant_id=a.tenant_id AND p.id=a.staff_id`;
+export const SELECT_APPOINTMENTS = `SELECT a.id,a.tenant_id,a.branch_id,a.customer_id,a.service_id,a.staff_id,a.date,a.minute,a.duration,a.price,a.status,a.source,a.version,a.early_from,a.customer_note,a.service_description_snapshot service_description,c.name customer_name,c.phone customer_phone,COALESCE(NULLIF(a.service_name_snapshot,''),s.name) service_name,p.name staff_name,p.color staff_color,br.name branch_name FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id JOIN services s ON s.tenant_id=a.tenant_id AND s.id=a.service_id JOIN staff p ON p.tenant_id=a.tenant_id AND p.id=a.staff_id LEFT JOIN branches br ON br.tenant_id=a.tenant_id AND br.id=a.branch_id`;
 export async function publicBusiness(slug: string) {
   const b = await one(
     "SELECT * FROM businesses WHERE slug=? AND status='approved' AND demo=0",
@@ -37,6 +37,7 @@ export async function available(
   person = "any",
   exclude = "",
   durationOverride?: number,
+  branchId?: string,
 ) {
   dateSchema.parse(d);
   if (d < today() || d > addDays(today(), 90))
@@ -48,9 +49,21 @@ export async function available(
   );
   if (!s) throw new ApiError("Hizmet bulunamadı.", 404);
   const duration = durationOverride ?? s.duration;
+  const branch =
+    branchId ||
+    String(
+      (
+        await one(
+          "SELECT id FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC,created_at LIMIT 1",
+          b.id,
+        )
+      )?.id || "",
+    );
+  if (!branch) throw new ApiError("Aktif şube bulunamadı.", 404);
   const team = await all(
-      "SELECT * FROM staff WHERE tenant_id=? AND active=1",
+      "SELECT * FROM staff WHERE tenant_id=? AND branch_id=? AND active=1",
       b.id,
+      branch,
     ),
     closed = await all(
       "SELECT staff_id FROM closures WHERE tenant_id=? AND date=?",
@@ -165,6 +178,13 @@ export async function book(
       x.service_id,
     );
   if (!service) throw new ApiError("Hizmet bulunamadı.", 404);
+  const staffBranch = await one(
+    "SELECT branch_id FROM staff WHERE tenant_id=? AND id=? AND active=1",
+    b.id,
+    x.staff_id,
+  );
+  if (!staffBranch?.branch_id)
+    throw new ApiError("Personel bu işletme veya şube için uygun değil.", 409);
   if (x.early_from != null && x.early_from >= x.minute)
     throw new ApiError("Erken geliş saati randevunuzdan önce olmalı.");
   const slots = await available(
@@ -174,6 +194,7 @@ export async function book(
     x.staff_id,
     "",
     service.duration,
+    staffBranch.branch_id,
   );
   if (!slots.some((s) => s.minute === x.minute))
     throw new ApiError("Bu saat dolu. Başka bir saat seçin.", 409);
@@ -191,9 +212,10 @@ export async function book(
       now(),
     ),
     q(
-      "INSERT INTO appointments (id,tenant_id,customer_id,service_id,staff_id,date,minute,duration,price,status,token_hash,created_at,service_name_snapshot,service_description_snapshot,customer_note,early_from,source) VALUES (?,?,(SELECT id FROM customers WHERE tenant_id=? AND phone=?),?,?,?,?,?,?,'confirmed',?,?,?,?,?,?,?)",
+      "INSERT INTO appointments (id,tenant_id,branch_id,customer_id,service_id,staff_id,date,minute,duration,price,status,token_hash,created_at,service_name_snapshot,service_description_snapshot,customer_note,early_from,source) VALUES (?,?,?,(SELECT id FROM customers WHERE tenant_id=? AND phone=?),?,?,?,?,?,?,'confirmed',?,?,?,?,?,?,?)",
       id,
       b.id,
+      staffBranch.branch_id,
       b.id,
       x.phone,
       x.service_id,

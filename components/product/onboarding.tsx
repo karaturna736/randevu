@@ -1,38 +1,726 @@
-'use client';
-import {useState} from 'react';
-import {ArrowLeft,ArrowRight,Check,Store,Scissors,Users,Clock,ShieldCheck,CalendarDays,Plus,ClipboardCheck,AlertCircle,CreditCard} from 'lucide-react';
-import {Input} from '@/components/ui/input';
-import {PublicShell} from './public';
-import {AccountGate,useSession} from './session';
-import {Hours} from './management';
-import {api,Field,Pick,Busy} from './common';
-import {CATEGORIES,HOURS,money,time,today} from '@/lib/types';
+"use client";
+import { useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Store,
+  Scissors,
+  Users,
+  Clock,
+  ShieldCheck,
+  CalendarDays,
+  Plus,
+  ClipboardCheck,
+  AlertCircle,
+  CreditCard,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { PublicShell } from "./public";
+import { AccountGate, useSession } from "./session";
+import { Hours } from "./management";
+import { api, Field, Pick, Busy } from "./common";
+import { CATEGORIES, HOURS, money, time, today } from "@/lib/types";
 
-const slugify=(s:string)=>s.toLocaleLowerCase('tr-TR').replace(/[ışğüöç]/g,c=>({'ı':'i','ş':'s','ğ':'g','ü':'u','ö':'o','ç':'c'}[c]!)).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-const steps=['İşletmeniz','İlk hizmetiniz','Ekibiniz','Paketiniz','Son kontrol'];
-const plans=[
- {code:'normal',name:'Neta Standart',price:99000,description:'Randevu sistemine hızlı ve güvenli başlangıç.',features:['Web randevuları ve ortak takvim','Hizmet, ekip ve müşteri yönetimi','AI yardım: günde 10 soru']},
- {code:'pro',name:'Neta Pro',price:200000,description:'Büyüyen işletmeler için gelişmiş operasyon.',features:['Standart paket özellikleri','Borç / veresiye ve hizmet yolculuğu','WhatsApp: ayda 1.000 mesaj']},
- {code:'plus',name:'Neta Plus',price:350000,description:'Otomasyon ve yüksek kullanım ihtiyacı için.',features:['Pro paket özellikleri','Çift taraflı WhatsApp bağlantısı','AI yardım: günde 200 soru']}
+const slugify = (s: string) =>
+  s
+    .toLocaleLowerCase("tr-TR")
+    .replace(
+      /[ışğüöç]/g,
+      (c) => ({ ı: "i", ş: "s", ğ: "g", ü: "u", ö: "o", ç: "c" })[c]!,
+    )
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+const steps = [
+  "İşletmeniz",
+  "İlk hizmetiniz",
+  "Ekibiniz",
+  "Paketiniz",
+  "Son kontrol",
+];
+const plans = [
+  {
+    code: "normal",
+    name: "Neta Starter",
+    price: 60000,
+    description: "Tek şubeyle randevu sistemine hızlı ve güvenli başlangıç.",
+    features: [
+      "1 işletme · 1 şube · 5 personel",
+      "Web randevuları ve ortak takvim",
+      "Hizmet ve müşteri yönetimi",
+    ],
+  },
+  {
+    code: "pro",
+    name: "Neta Business",
+    price: 99900,
+    description: "Boş saatleri gelire dönüştürmek ve şubeleri büyütmek için.",
+    features: [
+      "5 şubeye kadar · sınırsız personel",
+      "AI, WhatsApp ve online ödeme",
+      "Gelir kurtarma ve şube kâr/zarar takibi",
+    ],
+  },
+  {
+    code: "plus",
+    name: "Neta Kurumsal",
+    price: 250000,
+    description: "Tüm şubelerin sonucunu tek merkezden yönetin.",
+    features: [
+      "Sınırsız şube ve personel",
+      "Yüksek kullanım limitli AI ve WhatsApp",
+      "API, otomasyon ve gelişmiş raporlama",
+    ],
+  },
 ] as const;
-type PlanCode=typeof plans[number]['code'];
-export default function Onboarding(){return <PublicShell><main className="onboarding-page"><AccountGate returnTo="/kurulum"><BusinessWizard/></AccountGate></main></PublicShell>}
-function BusinessWizard(){
- const {data}=useSession();const [step,setStep]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(''),[plan,setPlan]=useState<PlanCode>('normal');
- const [form,setForm]=useState({name:'',slug:'',category:CATEGORIES[0],city:data.profile.city||'',address:'',phone:data.profile.phone||'',service_name:'',duration:30,price:'',staff_name:data.profile.name,staff_title:'Uzman',hours:JSON.parse(HOURS)});
- const set=(key:string,value:any)=>setForm(f=>({...f,[key]:value}));
- async function next(e:React.FormEvent){e.preventDefault();setError('');if(step<4){if(step===2&&!Object.keys(form.hours).length){setError('En az bir çalışma günü belirleyin.');return}setStep(s=>s+1);window.scrollTo({top:0,behavior:'smooth'});return}setBusy(true);try{const r=await api('businesses',{ref:sessionStorage.getItem('neta-ref')||undefined,name:form.name,slug:form.slug,category:form.category,city:form.city,address:form.address,phone:form.phone,plan,starter:{service_name:form.service_name,duration:Number(form.duration),price:Math.round(Number(form.price)*100),staff_name:form.staff_name,staff_title:form.staff_title,hours:form.hours}});location.assign('/abonelik?tenant='+encodeURIComponent(r.id)+'&plan='+encodeURIComponent(plan)+'&onboarding=1')}catch(e:any){setError(e.message);setBusy(false)}}
- const selectedPlan=plans.find(p=>p.code===plan)!;
- if(data.businesses?.length)return <section className="panel account-gate single-business-gate"><Store size={32}/><span className="eyebrow">TEK İŞLETME HESABI</span><h1>İşletmeniz zaten hazır.</h1><p>Her işletme hesabı yalnızca bir işletmeye bağlıdır. Yeni işletme açmak yerine mevcut işletmenizi ve randevu bağlantınızı yönetebilirsiniz.</p><a className="button primary" href="/panel">İşletme paneline git <ArrowRight size={16}/></a><a className="text-button" href="/abonelik">Abonelik ve ödemeler</a></section>;
- return <><div className="member-heading"><div><span className="eyebrow">İLK RANDEVUNUZA DOĞRU</span><h1>İşletmenize yer açalım.</h1><p>İlk hizmetinizi, ekibinizi ve size uygun paketi hazırlayın. Sonradan her zaman düzenleyebilirsiniz.</p></div><span className="badge neutral">{step+1} / 5 adım</span></div><ol className="setup-progress">{steps.map((s,i)=><li className={i===step?'current':i<step?'complete':''} key={s} aria-current={i===step?'step':undefined}><span>{i<step?<Check size={17}/>:i+1}</span><strong>{s}</strong></li>)}</ol><div className="wizard-layout"><form className="panel wizard-form form-stack" onSubmit={next}><div className="wizard-heading"><span className="eyebrow">ADIM 0{step+1}</span><h2>{['Önce sizi tanıyalım.','Müşteriniz ne için gelecek?','Bu hizmeti kim verecek?','Size uygun paketi seçin.','Hazırsanız başlayalım.'][step]}</h2></div>{step===0&&<><Field label="İşletme adı"><Input required minLength={2} maxLength={100} placeholder="Örn. Ahmet Berber" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value,slug:slugify(e.target.value)}))}/></Field><Field label="Size özel randevu bağlantısı"><div className="slug-input"><span>/</span><Input required minLength={3} maxLength={60} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="ahmet-berber" value={form.slug} onChange={e=>set('slug',e.target.value)}/></div><small>Müşterilerinize bu bağlantıyı vereceksiniz.</small></Field><div className="form-grid"><Field label="Sektör"><Pick label="Sektör" value={form.category} onChange={v=>set('category',v)} options={CATEGORIES.map(v=>({value:v,label:v}))}/></Field><Field label="Şehir"><Input required maxLength={80} placeholder="İstanbul" value={form.city} onChange={e=>set('city',e.target.value)}/></Field></div><Field label="İşletme adresi"><Input required maxLength={300} autoComplete="street-address" placeholder="Mahalle, cadde ve kapı numarası" value={form.address} onChange={e=>set('address',e.target.value)}/></Field><Field label="İşletme telefonu"><Input type="tel" required autoComplete="tel" placeholder="05XX XXX XX XX" value={form.phone} onChange={e=>set('phone',e.target.value)}/></Field></>}{step===1&&<><Field label="İlk hizmetinizin adı"><Input required minLength={2} maxLength={100} placeholder="Örn. Saç kesimi veya birebir danışmanlık" value={form.service_name} onChange={e=>set('service_name',e.target.value)}/></Field><div className="form-grid"><Field label="Süre (dakika)"><Input type="number" required min={15} max={480} step={15} value={form.duration} onChange={e=>set('duration',e.target.value)}/></Field><Field label="Hizmet fiyatı (₺)"><Input type="number" required min={0} max={1000000} step="0.01" placeholder="500" value={form.price} onChange={e=>set('price',e.target.value)}/></Field></div><div className="wizard-tip"><Scissors size={21}/><p><strong>Küçük başlayın.</strong> En çok tercih edilen hizmetinizi ekleyin. Diğer hizmetlerinizi panelinizden oluşturabilirsiniz.</p></div></>}{step===2&&<><div className="form-grid"><Field label="İlk personelin adı"><Input required minLength={2} maxLength={100} value={form.staff_name} onChange={e=>set('staff_name',e.target.value)}/></Field><Field label="Unvan"><Input required minLength={2} maxLength={80} placeholder="Uzman" value={form.staff_title} onChange={e=>set('staff_title',e.target.value)}/></Field></div><p className="helper">Tek başınıza çalışıyorsanız kendinizi ekleyebilirsiniz.</p><h3>Çalışma saatleriniz</h3><Hours value={form.hours} onChange={(v:any)=>set('hours',v)}/><p className="helper">Türkiye saati. Bu program ilk personeliniz için de uygulanır. Ekip bölümünde ayrı saatler ve izinler belirleyebilirsiniz.</p></>}{step===3&&<><div className="onboarding-plans" role="radiogroup" aria-label="Abonelik paketi">{plans.map(p=><button type="button" role="radio" aria-checked={plan===p.code} className={'onboarding-plan '+(plan===p.code?'selected':'')} key={p.code} onClick={()=>setPlan(p.code)}><span className="onboarding-plan-check">{plan===p.code?<Check size={16}/>:null}</span><span><strong>{p.name}</strong><small>{p.description}</small></span><b>{money(p.price)}<small> / ay</small></b><ul>{p.features.map(f=><li key={f}><Check size={14}/>{f}</li>)}</ul></button>)}</div><p className="helper">Bu ödeme yalnızca işletmenizin Neta aboneliğidir. Salon müşterilerinizden aldığınız ödemeler Neta üzerinden geçmez.</p></>}{step===4&&<><div className="wizard-review"><div><Store size={21}/><span><strong>{form.name}</strong><small>{form.category} · {form.city}<br/>{form.address}<br/>{form.phone}</small></span><button type="button" className="text-button" onClick={()=>setStep(0)}>Düzenle</button></div><div><Scissors size={21}/><span><strong>{form.service_name}</strong><small>{form.duration} dakika · {money(Math.round(Number(form.price)*100))}</small></span><button type="button" className="text-button" onClick={()=>setStep(1)}>Düzenle</button></div><div><Users size={21}/><span><strong>{form.staff_name}</strong><small>{form.staff_title} · Haftada {Object.keys(form.hours).length} gün</small></span><button type="button" className="text-button" onClick={()=>setStep(2)}>Düzenle</button></div><div><CreditCard size={21}/><span><strong>{selectedPlan.name}</strong><small>{money(selectedPlan.price)} / ay · Kart bilgileri ödeme sağlayıcısında yönetilir.</small></span><button type="button" className="text-button" onClick={()=>setStep(3)}>Düzenle</button></div></div><div className="notice"><ShieldCheck size={21}/><p>İşletmeniz oluşturulduktan sonra güvenli abonelik ekranına geçersiniz. Gerçek ödeme yalnızca sağlayıcı hesabı satışa açıldığında başlatılır.</p></div></>}{error&&<p className="error-message" role="alert">{error}</p>}<div className="form-footer"><button type="button" className="button" disabled={step===0||busy} onClick={()=>{setError('');setStep(s=>s-1)}}><ArrowLeft size={16}/>Geri</button><button className="button primary" disabled={busy}>{busy?<Busy/>:step===4?<Check size={17}/>:null}{step===4?'İşletmemi oluştur':'Devam et'}{step<4&&<ArrowRight size={17}/>}</button></div></form><aside className="wizard-aside"><div className="wizard-preview"><span className="eyebrow">RANDEVU SAYFANIZ</span><span className="wizard-store-icon"><Store size={30}/></span><h2>{form.name||'İşletmenizin adı'}</h2><p>{form.category}{form.city?' · '+form.city:''}</p><div className="wizard-preview-service"><Scissors size={19}/><div><strong>{form.service_name||'İlk hizmetiniz'}</strong><small>{form.duration} dakika</small></div><b>{form.price?money(Number(form.price)*100):'—'}</b></div><div className="wizard-preview-url">/{form.slug||'isletmeniz'}</div></div><div className="wizard-aside-note"><Clock size={18}/><p>Hazırladığınız bu bilgiler, müşterinizin uygun hizmeti ve zamanı seçmesini kolaylaştırır.</p></div></aside></div></>;
+type PlanCode = (typeof plans)[number]["code"];
+export default function Onboarding() {
+  return (
+    <PublicShell>
+      <main className="onboarding-page">
+        <AccountGate returnTo="/kurulum">
+          <BusinessWizard />
+        </AccountGate>
+      </main>
+    </PublicShell>
+  );
+}
+function BusinessWizard() {
+  const { data } = useSession();
+  const [step, setStep] = useState(0),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [plan, setPlan] = useState<PlanCode>("normal");
+  const [form, setForm] = useState({
+    name: "",
+    slug: "",
+    category: CATEGORIES[0],
+    city: data.profile.city || "",
+    address: "",
+    phone: data.profile.phone || "",
+    service_name: "",
+    duration: 30,
+    price: "",
+    staff_name: data.profile.name,
+    staff_title: "Uzman",
+    hours: JSON.parse(HOURS),
+  });
+  const set = (key: string, value: any) =>
+    setForm((f) => ({ ...f, [key]: value }));
+  async function next(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (step < 4) {
+      if (step === 2 && !Object.keys(form.hours).length) {
+        setError("En az bir çalışma günü belirleyin.");
+        return;
+      }
+      setStep((s) => s + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await api("businesses", {
+        ref: sessionStorage.getItem("neta-ref") || undefined,
+        name: form.name,
+        slug: form.slug,
+        category: form.category,
+        city: form.city,
+        address: form.address,
+        phone: form.phone,
+        plan,
+        starter: {
+          service_name: form.service_name,
+          duration: Number(form.duration),
+          price: Math.round(Number(form.price) * 100),
+          staff_name: form.staff_name,
+          staff_title: form.staff_title,
+          hours: form.hours,
+        },
+      });
+      location.assign(
+        "/abonelik?tenant=" +
+          encodeURIComponent(r.id) +
+          "&plan=" +
+          encodeURIComponent(plan) +
+          "&onboarding=1",
+      );
+    } catch (e: any) {
+      setError(e.message);
+      setBusy(false);
+    }
+  }
+  const selectedPlan = plans.find((p) => p.code === plan)!;
+  if (data.businesses?.length)
+    return (
+      <section className="panel account-gate single-business-gate">
+        <Store size={32} />
+        <span className="eyebrow">TEK İŞLETME HESABI</span>
+        <h1>İşletmeniz zaten hazır.</h1>
+        <p>
+          Her işletme hesabı yalnızca bir işletmeye bağlıdır. Yeni işletme açmak
+          yerine mevcut işletmenizi ve randevu bağlantınızı yönetebilirsiniz.
+        </p>
+        <a className="button primary" href="/panel">
+          İşletme paneline git <ArrowRight size={16} />
+        </a>
+        <a className="text-button" href="/abonelik">
+          Abonelik ve ödemeler
+        </a>
+      </section>
+    );
+  return (
+    <>
+      <div className="member-heading">
+        <div>
+          <span className="eyebrow">İLK RANDEVUNUZA DOĞRU</span>
+          <h1>İşletmenize yer açalım.</h1>
+          <p>
+            İlk hizmetinizi, ekibinizi ve size uygun paketi hazırlayın. Sonradan
+            her zaman düzenleyebilirsiniz.
+          </p>
+        </div>
+        <span className="badge neutral">{step + 1} / 5 adım</span>
+      </div>
+      <ol className="setup-progress">
+        {steps.map((s, i) => (
+          <li
+            className={i === step ? "current" : i < step ? "complete" : ""}
+            key={s}
+            aria-current={i === step ? "step" : undefined}
+          >
+            <span>{i < step ? <Check size={17} /> : i + 1}</span>
+            <strong>{s}</strong>
+          </li>
+        ))}
+      </ol>
+      <div className="wizard-layout">
+        <form className="panel wizard-form form-stack" onSubmit={next}>
+          <div className="wizard-heading">
+            <span className="eyebrow">ADIM 0{step + 1}</span>
+            <h2>
+              {
+                [
+                  "Önce sizi tanıyalım.",
+                  "Müşteriniz ne için gelecek?",
+                  "Bu hizmeti kim verecek?",
+                  "Size uygun paketi seçin.",
+                  "Hazırsanız başlayalım.",
+                ][step]
+              }
+            </h2>
+          </div>
+          {step === 0 && (
+            <>
+              <Field label="İşletme adı">
+                <Input
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  placeholder="Örn. Ahmet Berber"
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      name: e.target.value,
+                      slug: slugify(e.target.value),
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="Size özel randevu bağlantısı">
+                <div className="slug-input">
+                  <span>/</span>
+                  <Input
+                    required
+                    minLength={3}
+                    maxLength={60}
+                    pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                    placeholder="ahmet-berber"
+                    value={form.slug}
+                    onChange={(e) => set("slug", e.target.value)}
+                  />
+                </div>
+                <small>Müşterilerinize bu bağlantıyı vereceksiniz.</small>
+              </Field>
+              <div className="form-grid">
+                <Field label="Sektör">
+                  <Pick
+                    label="Sektör"
+                    value={form.category}
+                    onChange={(v) => set("category", v)}
+                    options={CATEGORIES.map((v) => ({ value: v, label: v }))}
+                  />
+                </Field>
+                <Field label="Şehir">
+                  <Input
+                    required
+                    maxLength={80}
+                    placeholder="İstanbul"
+                    value={form.city}
+                    onChange={(e) => set("city", e.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label="İşletme adresi">
+                <Input
+                  required
+                  maxLength={300}
+                  autoComplete="street-address"
+                  placeholder="Mahalle, cadde ve kapı numarası"
+                  value={form.address}
+                  onChange={(e) => set("address", e.target.value)}
+                />
+              </Field>
+              <Field label="İşletme telefonu">
+                <Input
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  placeholder="05XX XXX XX XX"
+                  value={form.phone}
+                  onChange={(e) => set("phone", e.target.value)}
+                />
+              </Field>
+            </>
+          )}
+          {step === 1 && (
+            <>
+              <Field label="İlk hizmetinizin adı">
+                <Input
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  placeholder="Örn. Saç kesimi veya birebir danışmanlık"
+                  value={form.service_name}
+                  onChange={(e) => set("service_name", e.target.value)}
+                />
+              </Field>
+              <div className="form-grid">
+                <Field label="Süre (dakika)">
+                  <Input
+                    type="number"
+                    required
+                    min={15}
+                    max={480}
+                    step={15}
+                    value={form.duration}
+                    onChange={(e) => set("duration", e.target.value)}
+                  />
+                </Field>
+                <Field label="Hizmet fiyatı (₺)">
+                  <Input
+                    type="number"
+                    required
+                    min={0}
+                    max={1000000}
+                    step="0.01"
+                    placeholder="500"
+                    value={form.price}
+                    onChange={(e) => set("price", e.target.value)}
+                  />
+                </Field>
+              </div>
+              <div className="wizard-tip">
+                <Scissors size={21} />
+                <p>
+                  <strong>Küçük başlayın.</strong> En çok tercih edilen
+                  hizmetinizi ekleyin. Diğer hizmetlerinizi panelinizden
+                  oluşturabilirsiniz.
+                </p>
+              </div>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <div className="form-grid">
+                <Field label="İlk personelin adı">
+                  <Input
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    value={form.staff_name}
+                    onChange={(e) => set("staff_name", e.target.value)}
+                  />
+                </Field>
+                <Field label="Unvan">
+                  <Input
+                    required
+                    minLength={2}
+                    maxLength={80}
+                    placeholder="Uzman"
+                    value={form.staff_title}
+                    onChange={(e) => set("staff_title", e.target.value)}
+                  />
+                </Field>
+              </div>
+              <p className="helper">
+                Tek başınıza çalışıyorsanız kendinizi ekleyebilirsiniz.
+              </p>
+              <h3>Çalışma saatleriniz</h3>
+              <Hours
+                value={form.hours}
+                onChange={(v: any) => set("hours", v)}
+              />
+              <p className="helper">
+                Türkiye saati. Bu program ilk personeliniz için de uygulanır.
+                Ekip bölümünde ayrı saatler ve izinler belirleyebilirsiniz.
+              </p>
+            </>
+          )}
+          {step === 3 && (
+            <>
+              <div
+                className="onboarding-plans"
+                role="radiogroup"
+                aria-label="Abonelik paketi"
+              >
+                {plans.map((p) => (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={plan === p.code}
+                    className={
+                      "onboarding-plan " + (plan === p.code ? "selected" : "")
+                    }
+                    key={p.code}
+                    onClick={() => setPlan(p.code)}
+                  >
+                    <span className="onboarding-plan-check">
+                      {plan === p.code ? <Check size={16} /> : null}
+                    </span>
+                    <span>
+                      <strong>{p.name}</strong>
+                      <small>{p.description}</small>
+                    </span>
+                    <b>
+                      {money(p.price)}
+                      <small> / ay</small>
+                    </b>
+                    <ul>
+                      {p.features.map((f) => (
+                        <li key={f}>
+                          <Check size={14} />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </button>
+                ))}
+              </div>
+              <p className="helper">
+                Bu ödeme yalnızca işletmenizin Neta aboneliğidir. Salon
+                müşterilerinizden aldığınız ödemeler Neta üzerinden geçmez.
+              </p>
+            </>
+          )}
+          {step === 4 && (
+            <>
+              <div className="wizard-review">
+                <div>
+                  <Store size={21} />
+                  <span>
+                    <strong>{form.name}</strong>
+                    <small>
+                      {form.category} · {form.city}
+                      <br />
+                      {form.address}
+                      <br />
+                      {form.phone}
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setStep(0)}
+                  >
+                    Düzenle
+                  </button>
+                </div>
+                <div>
+                  <Scissors size={21} />
+                  <span>
+                    <strong>{form.service_name}</strong>
+                    <small>
+                      {form.duration} dakika ·{" "}
+                      {money(Math.round(Number(form.price) * 100))}
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setStep(1)}
+                  >
+                    Düzenle
+                  </button>
+                </div>
+                <div>
+                  <Users size={21} />
+                  <span>
+                    <strong>{form.staff_name}</strong>
+                    <small>
+                      {form.staff_title} · Haftada{" "}
+                      {Object.keys(form.hours).length} gün
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setStep(2)}
+                  >
+                    Düzenle
+                  </button>
+                </div>
+                <div>
+                  <CreditCard size={21} />
+                  <span>
+                    <strong>{selectedPlan.name}</strong>
+                    <small>
+                      {money(selectedPlan.price)} / ay · Kart bilgileri ödeme
+                      sağlayıcısında yönetilir.
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setStep(3)}
+                  >
+                    Düzenle
+                  </button>
+                </div>
+              </div>
+              <div className="notice">
+                <ShieldCheck size={21} />
+                <p>
+                  İşletmeniz oluşturulduktan sonra güvenli abonelik ekranına
+                  geçersiniz. Gerçek ödeme yalnızca sağlayıcı hesabı satışa
+                  açıldığında başlatılır.
+                </p>
+              </div>
+            </>
+          )}
+          {error && (
+            <p className="error-message" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="form-footer">
+            <button
+              type="button"
+              className="button"
+              disabled={step === 0 || busy}
+              onClick={() => {
+                setError("");
+                setStep((s) => s - 1);
+              }}
+            >
+              <ArrowLeft size={16} />
+              Geri
+            </button>
+            <button className="button primary" disabled={busy}>
+              {busy ? <Busy /> : step === 4 ? <Check size={17} /> : null}
+              {step === 4 ? "İşletmemi oluştur" : "Devam et"}
+              {step < 4 && <ArrowRight size={17} />}
+            </button>
+          </div>
+        </form>
+        <aside className="wizard-aside">
+          <div className="wizard-preview">
+            <span className="eyebrow">RANDEVU SAYFANIZ</span>
+            <span className="wizard-store-icon">
+              <Store size={30} />
+            </span>
+            <h2>{form.name || "İşletmenizin adı"}</h2>
+            <p>
+              {form.category}
+              {form.city ? " · " + form.city : ""}
+            </p>
+            <div className="wizard-preview-service">
+              <Scissors size={19} />
+              <div>
+                <strong>{form.service_name || "İlk hizmetiniz"}</strong>
+                <small>{form.duration} dakika</small>
+              </div>
+              <b>{form.price ? money(Number(form.price) * 100) : "—"}</b>
+            </div>
+            <div className="wizard-preview-url">
+              /{form.slug || "isletmeniz"}
+            </div>
+          </div>
+          <div className="wizard-aside-note">
+            <Clock size={18} />
+            <p>
+              Hazırladığınız bu bilgiler, müşterinizin uygun hizmeti ve zamanı
+              seçmesini kolaylaştırır.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </>
+  );
 }
 
-export function WelcomeWorkspace({isAdmin}:any){const {data}=useSession();if(data?.staff_memberships?.length)return <PublicShell><main className="member-page"><section className="panel workspace-welcome"><span className="account-gate-icon"><Users size={32}/></span><span className="eyebrow">EKİP ÇALIŞMA ALANI</span><h1>Gününüz hazır.</h1><p>Size atanmış randevuları, seçilen işlemleri ve müşteri tercihlerini görün. Tamamladığınız işleri buradan işaretleyin.</p><a className="button primary large-button" href="/ekibim"><CalendarDays size={18}/>Ekip alanıma git</a><a className="text-button" href="/randevularim">Kişisel randevularım <ArrowRight size={16}/></a><a className="text-button" href="/kurulum">Kendi işletmemi oluştur</a>{isAdmin&&<a className="text-button" href="/admin">Platform yönetimi</a>}</section></main></PublicShell>;return <PublicShell><main className="member-page"><section className="panel workspace-welcome"><span className="account-gate-icon"><Store size={32}/></span><span className="eyebrow">YENİ BİR BAŞLANGIÇ</span><h1>İşletmenize hazır bir yer var.</h1><p>İlk işletmenizi oluşturun; randevularınız, ekibiniz ve müşterileriniz için kendi çalışma alanınız açılsın.</p><div className="welcome-features"><span><Check size={16}/>Size özel randevu sayfası</span><span><Check size={16}/>Hizmet ve ekip yönetimi</span><span><Check size={16}/>Günlük takvim ve raporlar</span></div><a className="button primary large-button" href="/kurulum"><Plus size={18}/>İşletmemi oluştur</a><a className="text-button" href="/randevularim">Müşteri olarak randevularıma git <ArrowRight size={16}/></a>{isAdmin&&<a className="text-button" href="/admin"><ShieldCheck size={17}/>Platform yönetimine git</a>}</section></main></PublicShell>}
+export function WelcomeWorkspace({ isAdmin }: any) {
+  const { data } = useSession();
+  if (data?.staff_memberships?.length)
+    return (
+      <PublicShell>
+        <main className="member-page">
+          <section className="panel workspace-welcome">
+            <span className="account-gate-icon">
+              <Users size={32} />
+            </span>
+            <span className="eyebrow">EKİP ÇALIŞMA ALANI</span>
+            <h1>Gününüz hazır.</h1>
+            <p>
+              Size atanmış randevuları, seçilen işlemleri ve müşteri
+              tercihlerini görün. Tamamladığınız işleri buradan işaretleyin.
+            </p>
+            <a className="button primary large-button" href="/ekibim">
+              <CalendarDays size={18} />
+              Ekip alanıma git
+            </a>
+            <a className="text-button" href="/randevularim">
+              Kişisel randevularım <ArrowRight size={16} />
+            </a>
+            <a className="text-button" href="/kurulum">
+              Kendi işletmemi oluştur
+            </a>
+            {isAdmin && (
+              <a className="text-button" href="/admin">
+                Platform yönetimi
+              </a>
+            )}
+          </section>
+        </main>
+      </PublicShell>
+    );
+  return (
+    <PublicShell>
+      <main className="member-page">
+        <section className="panel workspace-welcome">
+          <span className="account-gate-icon">
+            <Store size={32} />
+          </span>
+          <span className="eyebrow">YENİ BİR BAŞLANGIÇ</span>
+          <h1>İşletmenize hazır bir yer var.</h1>
+          <p>
+            İlk işletmenizi oluşturun; randevularınız, ekibiniz ve
+            müşterileriniz için kendi çalışma alanınız açılsın.
+          </p>
+          <div className="welcome-features">
+            <span>
+              <Check size={16} />
+              Size özel randevu sayfası
+            </span>
+            <span>
+              <Check size={16} />
+              Hizmet ve ekip yönetimi
+            </span>
+            <span>
+              <Check size={16} />
+              Günlük takvim ve raporlar
+            </span>
+          </div>
+          <a className="button primary large-button" href="/kurulum">
+            <Plus size={18} />
+            İşletmemi oluştur
+          </a>
+          <a className="text-button" href="/randevularim">
+            Müşteri olarak randevularıma git <ArrowRight size={16} />
+          </a>
+          {isAdmin && (
+            <a className="text-button" href="/admin">
+              <ShieldCheck size={17} />
+              Platform yönetimine git
+            </a>
+          )}
+        </section>
+      </main>
+    </PublicShell>
+  );
+}
 
-export function BusinessChecklist({w,onNavigate,onSelect}:any){
- if(w.preview||w.business.demo)return null;
- const steps=[{label:'İşletme bilgileri',done:!!(w.business.address&&w.business.phone),view:'settings'},{label:'İlk hizmet',done:w.services.some((s:any)=>s.active),view:'services'},{label:'Ekip ve saatler',done:w.staff.some((s:any)=>s.active&&Object.keys(JSON.parse(s.hours)).length),view:'staff'}];
- const complete=steps.filter(s=>s.done).length,overdue=w.appointments.filter((a:any)=>a.status==='confirmed'&&a.date<=today()&&new Date(a.date+'T'+time(a.minute+a.duration)+':00+03:00').getTime()<Date.now());
- if(complete===3&&!overdue.length)return null;
- return <div className="business-action-center">{complete<3&&<section className="panel start-checklist"><div className="section-heading"><div><h2><ClipboardCheck size={19}/>İlk randevuya hazır olun</h2><p className="muted">Hazırlığı tamamlayın, müşteriniz kolayca randevu alsın.</p></div><span className="badge neutral">{complete} / 3 hazır</span></div><div className="checklist-items">{steps.map(s=><button className={s.done?'complete':''} key={s.label} onClick={()=>onNavigate(s.view)}><span>{s.done?<Check size={16}/>:<Plus size={16}/>}</span>{s.label}<ArrowRight size={15}/></button>)}</div></section>}{overdue.length>0&&<section className="panel overdue-check"><span className="overdue-icon"><AlertCircle size={21}/></span><div><h2>{overdue.length} randevunun sonucu bekleniyor</h2><p>Geçmiş randevuları tamamlandı veya gelmedi olarak işaretleyin; raporlarınız güncel kalsın.</p></div><button className="button" onClick={()=>onSelect(overdue[0])}>Gözden geçir <ArrowRight size={15}/></button></section>}</div>;
+export function BusinessChecklist({ w, onNavigate, onSelect }: any) {
+  if (w.preview || w.business.demo) return null;
+  const steps = [
+    {
+      label: "İşletme bilgileri",
+      done: !!(w.business.address && w.business.phone),
+      view: "settings",
+    },
+    {
+      label: "İlk hizmet",
+      done: w.services.some((s: any) => s.active),
+      view: "services",
+    },
+    {
+      label: "Ekip ve saatler",
+      done: w.staff.some(
+        (s: any) => s.active && Object.keys(JSON.parse(s.hours)).length,
+      ),
+      view: "staff",
+    },
+  ];
+  const complete = steps.filter((s) => s.done).length,
+    overdue = w.appointments.filter(
+      (a: any) =>
+        a.status === "confirmed" &&
+        a.date <= today() &&
+        new Date(
+          a.date + "T" + time(a.minute + a.duration) + ":00+03:00",
+        ).getTime() < Date.now(),
+    );
+  if (complete === 3 && !overdue.length) return null;
+  return (
+    <div className="business-action-center">
+      {complete < 3 && (
+        <section className="panel start-checklist">
+          <div className="section-heading">
+            <div>
+              <h2>
+                <ClipboardCheck size={19} />
+                İlk randevuya hazır olun
+              </h2>
+              <p className="muted">
+                Hazırlığı tamamlayın, müşteriniz kolayca randevu alsın.
+              </p>
+            </div>
+            <span className="badge neutral">{complete} / 3 hazır</span>
+          </div>
+          <div className="checklist-items">
+            {steps.map((s) => (
+              <button
+                className={s.done ? "complete" : ""}
+                key={s.label}
+                onClick={() => onNavigate(s.view)}
+              >
+                <span>{s.done ? <Check size={16} /> : <Plus size={16} />}</span>
+                {s.label}
+                <ArrowRight size={15} />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {overdue.length > 0 && (
+        <section className="panel overdue-check">
+          <span className="overdue-icon">
+            <AlertCircle size={21} />
+          </span>
+          <div>
+            <h2>{overdue.length} randevunun sonucu bekleniyor</h2>
+            <p>
+              Geçmiş randevuları tamamlandı veya gelmedi olarak işaretleyin;
+              raporlarınız güncel kalsın.
+            </p>
+          </div>
+          <button className="button" onClick={() => onSelect(overdue[0])}>
+            Gözden geçir <ArrowRight size={15} />
+          </button>
+        </section>
+      )}
+    </div>
+  );
 }

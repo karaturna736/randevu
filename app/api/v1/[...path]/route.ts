@@ -7,6 +7,12 @@ import {
 } from "@/lib/recovery";
 import { setupSnapshot, importSetup, requestTraining } from "@/lib/setup";
 import {
+  branchSnapshot,
+  saveBranch,
+  saveBranchExpense,
+  branchAction,
+} from "@/lib/branches";
+import {
   getBusinessConfig,
   getBusinessConfigCatalog,
 } from "@/lib/business-config";
@@ -118,6 +124,10 @@ export async function GET(req: Request) {
       );
     }
     if (p[0] === "setup-center") return ok(await setupSnapshot(id));
+    if (p[0] === "branches")
+      return ok(
+        await branchSnapshot(id, u.searchParams.get("month") || undefined),
+      );
     if (p[0] === "help-status") return ok(helpStatus());
     if (p[0] === "recurring") return ok(await recurringSnapshot(id));
     if (p[0] === "platform-recurring") return ok(await platformRecurring());
@@ -177,6 +187,9 @@ export async function GET(req: Request) {
           u.searchParams.get("service") || "",
           date.parse(u.searchParams.get("date")),
           u.searchParams.get("staff") || "any",
+          "",
+          undefined,
+          u.searchParams.get("branch") || undefined,
         ),
       });
     }
@@ -197,7 +210,11 @@ export async function GET(req: Request) {
           b.id,
         ),
         staff: await all(
-          "SELECT id,name,title,color,active FROM staff WHERE tenant_id=? AND active=1",
+          "SELECT id,branch_id,name,title,color,active FROM staff WHERE tenant_id=? AND active=1",
+          b.id,
+        ),
+        branches: await all(
+          "SELECT id,name,city,address FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC,name",
           b.id,
         ),
         reviews: await all(
@@ -274,6 +291,9 @@ export async function POST(req: Request) {
       await limit(req, "setup-training", 10);
       return ok(await requestTraining(id, x), 201);
     }
+    if (p[0] === "branches")
+      return ok(x.action ? await branchAction(id, x) : await saveBranch(id, x));
+    if (p[0] === "branch-expenses") return ok(await saveBranchExpense(id, x));
     if (p[0] === "recurring") {
       await limit(req, "recurring", 10);
       return ok(

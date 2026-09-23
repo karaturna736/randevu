@@ -9,13 +9,29 @@ Temel randevu takvimi, işletme/personel/hizmet yönetimi, misafir rezervasyonu,
 müşteri geçmişi, yönetici paneli, borç/veresiye takibi, Hizmet Yolculuğu,
 paylaşılabilir randevu linki, kayıp talep analitiği, müşteri geri kazanımı,
 sektör temaları, tavsiye kredisi, WhatsApp konuşma adaptörü, yardım merkezi ve
-Neta aylık abonelik adaptörü birlikte bulunur.
+Neta aylık abonelik adaptörü, çoklu şube yönetimi ve şube kâr/zarar analizi
+birlikte bulunur.
 
 Randevu oluşturma/taşıma/iptal/hatırlatma olayları güvenli bir outbox işçisine
 bağlıdır (`/api/automation/outbox`). İşletme sahibi numarası tanımlanırsa yeni
 randevu bildirimi alır; müşteri mesajları aynı D1 takvimindeki kilitlerle
-çakışmaz. AI ve WhatsApp kullanımı paket kotasıyla sınırlıdır: Pro hedef fiyatı
-2.000 TL/aydır ve sınırsız kullanım değildir.
+çakışmaz. AI ve WhatsApp kullanımı paket kotasıyla sınırlıdır; dış sağlayıcı
+kullanımı hiçbir pakette kontrolsüz biçimde sınırsız değildir.
+
+## Paketler ve çoklu şube
+
+- **Starter — 600 TL/ay:** 1 işletme, 1 şube, en fazla 5 personel ve temel
+  web randevu yönetimi.
+- **Business — 999 TL/ay:** 5 şubeye kadar, sınırsız personel, gelir kurtarma,
+  AI, çift yönlü WhatsApp, online ödeme ve şube kâr/zarar takibi.
+- **Kurumsal — 2.500 TL/ay:** sınırsız şube ve personel, yüksek kullanım
+  limitleri, API, şubeler arası otomasyon ve gelişmiş raporlama.
+
+Her hesap tek bir yasal işletme/tenant oluşturur; şubeler bu işletmenin altında
+yer alır. Personel ve randevular `branch_id` ile şubeye bağlanır. Şube raporu,
+yalnızca tamamlanmış randevuların kayıtlı fiyatlarını gelir; işletmenin girdiği
+giderleri maliyet kabul eder. Ay giderleri onaylanmadıysa net sonuç açıkça
+“tahmini” gösterilir ve rapor muhasebe belgesi olarak sunulmaz.
 
 ZIP'ten gelen fikirlerin ve örneklerin nasıl değerlendirildiği için
 [ZIP entegrasyon notlarına](docs/neta-zip-review.md) bakın. Ham ZIP'teki eski
@@ -31,6 +47,7 @@ node tests/scheduling.mjs
 node tests/opportunities.mjs
 node tests/identity-billing.mjs
 node tests/customer-operations.mjs
+node tests/recovery-setup.mjs
 ```
 
 Testler izole bir D1 veritabanı ve sentetik kullanıcılarla çalışır. Üretimde

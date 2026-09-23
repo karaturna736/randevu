@@ -34,6 +34,9 @@ export default function BookingForm({
   const { data: session } = useSession();
   const business = data.business,
     services = data.services.filter((s: any) => s.active !== 0),
+    branches = data.branches?.length
+      ? data.branches
+      : [{ id: "default", name: "Merkez Şube", city: business.city }],
     staff = data.staff.filter((p: any) => p.active !== 0);
   const [demand, setDemand] = useState<any>(null),
     [early, setEarly] = useState(false),
@@ -42,6 +45,7 @@ export default function BookingForm({
     [service, setService] = useState(
       initial?.service_id || services[0]?.id || "",
     ),
+    [branch, setBranch] = useState(initial?.branch_id || branches[0]?.id || ""),
     [person, setPerson] = useState(initial?.slot?.staff_id || "any"),
     [date, setDate] = useState(initial?.date || today()),
     [slots, setSlots] = useState<any[]>([]),
@@ -102,7 +106,7 @@ export default function BookingForm({
       return;
     }
     api(
-      `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&date=${date}&staff=${person}`,
+      `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&date=${date}&staff=${person}&branch=${branch}`,
     )
       .then((r) => !stopped && setSlots(r.slots))
       .catch((e) => !stopped && setError(e.message))
@@ -110,7 +114,7 @@ export default function BookingForm({
     return () => {
       stopped = true;
     };
-  }, [step, service, person, date]);
+  }, [step, service, person, date, branch]);
   async function submit(e: any) {
     e.preventDefault();
     if (!selected) return;
@@ -259,6 +263,22 @@ export default function BookingForm({
       {step === 0 && (
         <>
           <h3>Size nasıl yardımcı olabiliriz?</h3>
+          {branches.length > 1 && (
+            <Field label="Şube seçin">
+              <Pick
+                label="Şube"
+                value={branch}
+                onChange={(v) => {
+                  setBranch(v);
+                  setPerson("any");
+                }}
+                options={branches.map((b: any) => ({
+                  value: b.id,
+                  label: b.name + (b.city ? " · " + b.city : ""),
+                }))}
+              />
+            </Field>
+          )}
           <div className="service-options">
             {services
               .filter((s: any) => s.active !== 0)
@@ -304,6 +324,7 @@ export default function BookingForm({
                 options={[
                   { value: "any", label: "Fark etmez · İlk uygun uzman" },
                   ...staff
+                    .filter((p: any) => !p.branch_id || p.branch_id === branch)
                     .filter((p: any) => p.active !== 0)
                     .map((p: any) => ({ value: p.id, label: p.name })),
                 ]}
@@ -380,7 +401,7 @@ export default function BookingForm({
                     setSlots(
                       (
                         await api(
-                          `availability?slug=${business.slug}&service=${service}&date=${date}&staff=${person}`,
+                          `availability?slug=${business.slug}&service=${service}&date=${date}&staff=${person}&branch=${branch}`,
                         )
                       ).slots,
                     );

@@ -23,6 +23,26 @@ export const businesses = sqliteTable("businesses", {
   selectedPlan: text("selected_plan").notNull().default("normal"),
   createdAt: text("created_at").notNull(),
 });
+export const branches = sqliteTable(
+  "branches",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => businesses.id),
+    name: text("name").notNull(),
+    city: text("city").notNull().default(""),
+    address: text("address").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    active: integer("active").notNull().default(1),
+    isPrimary: integer("is_primary").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("branches_tenant_id").on(t.tenantId, t.id),
+    index("branches_tenant_active").on(t.tenantId, t.active),
+  ],
+);
 export const members = sqliteTable(
   "members",
   {
@@ -68,13 +88,21 @@ export const staff = sqliteTable(
     tenantId: text("tenant_id")
       .notNull()
       .references(() => businesses.id),
+    branchId: text("branch_id"),
     name: text("name").notNull(),
     title: text("title").notNull().default("Uzman"),
     hours: text("hours").notNull(),
     color: text("color").notNull().default("#e1eccd"),
     active: integer("active").notNull().default(1),
   },
-  (t) => [uniqueIndex("staff_tenant_id").on(t.tenantId, t.id)],
+  (t) => [
+    uniqueIndex("staff_tenant_id").on(t.tenantId, t.id),
+    index("staff_branch").on(t.tenantId, t.branchId, t.active),
+    foreignKey({
+      columns: [t.tenantId, t.branchId],
+      foreignColumns: [branches.tenantId, branches.id],
+    }),
+  ],
 );
 export const customers = sqliteTable(
   "customers",
@@ -101,6 +129,7 @@ export const appointments = sqliteTable(
     tenantId: text("tenant_id")
       .notNull()
       .references(() => businesses.id),
+    branchId: text("branch_id"),
     customerId: text("customer_id").notNull(),
     serviceId: text("service_id").notNull(),
     staffId: text("staff_id").notNull(),
@@ -125,6 +154,12 @@ export const appointments = sqliteTable(
     index("appointments_date").on(t.tenantId, t.date),
     index("appointments_customer").on(t.tenantId, t.customerId),
     index("appointments_source").on(t.tenantId, t.source, t.createdAt),
+    index("appointments_branch_date").on(
+      t.tenantId,
+      t.branchId,
+      t.date,
+      t.status,
+    ),
     foreignKey({
       columns: [t.tenantId, t.customerId],
       foreignColumns: [customers.tenantId, customers.id],
@@ -261,6 +296,44 @@ export const payments = sqliteTable("payments", {
   providerRef: text("provider_ref"),
   createdAt: text("created_at").notNull(),
 });
+export const branchExpenses = sqliteTable(
+  "branch_expenses",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id").notNull(),
+    branchId: text("branch_id").notNull(),
+    month: text("month").notNull(),
+    category: text("category").notNull(),
+    amount: integer("amount").notNull(),
+    note: text("note").notNull().default(""),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    index("branch_expenses_month").on(t.tenantId, t.month, t.branchId),
+    foreignKey({
+      columns: [t.tenantId, t.branchId],
+      foreignColumns: [branches.tenantId, branches.id],
+    }),
+  ],
+);
+export const branchMonthClosings = sqliteTable(
+  "branch_month_closings",
+  {
+    tenantId: text("tenant_id").notNull(),
+    branchId: text("branch_id").notNull(),
+    month: text("month").notNull(),
+    expensesConfirmed: integer("expenses_confirmed").notNull().default(0),
+    confirmedAt: text("confirmed_at"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.branchId, t.month] }),
+    foreignKey({
+      columns: [t.tenantId, t.branchId],
+      foreignColumns: [branches.tenantId, branches.id],
+    }),
+  ],
+);
 export const admins = sqliteTable("admins", {
   userId: text("user_id").primaryKey(),
   email: text("email").notNull(),
