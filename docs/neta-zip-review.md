@@ -44,6 +44,16 @@ tamamlandıktan sonra etkinleştirilmelidir.
    uygun Worker/Node ve kalıcı veritabanı mimarisine dönüştürülmesi. GitHub
    deposunun public olması tek başına bu dönüşümü yapmaz.
 
+## Üretim migration hatasının düzeltmesi
+
+Üretim D1 yayınında görülen `incomplete input: SQLITE_ERROR`, yeni trigger'lardaki
+`SELECT CASE ... END` ifadesinin bulut parser'ı tarafından eksik okunmasından
+kaynaklanıyordu. `0005` ve `0006` içindeki bu ifadeler D1'in uyumlu olduğu
+`SELECT (CASE ... END);` biçimine çevrildi. Ayrıca alt tablolar, referans
+verdikleri üst tabloların ardından oluşturulacak şekilde sıralandı. Yerel
+Wrangler D1, Node SQLite ve müşteri operasyon testleri bu düzeltmeden sonra
+başarıyla çalışıyor.
+
 ## Kaynak haritası
 
 - `lib/receivables.ts`: borç ve tahsilat kuralları
