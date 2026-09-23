@@ -19,3 +19,15 @@ verifyDepsBeforeRun: false
 optimisticRepeatInstall: false
 overrides:
   miniflare>sharp: 0.35.4
+  undici: 7.29.0
+  ws: 8.21.0
+  image-size: 2.0.3
+  browserslist: 4.28.7
+  js-yaml: 4.3.2
+  brace-expansion@1: 1.1.18
+  brace-expansion@5: 5.0.9
+  react-server-dom-webpack: 19.2.8
+  "@babel/core": 7.29.7
+  baseline-browser-mapping: 2.11.24
+  fflate: 0.8.3
+  esbuild: 0.28.1
