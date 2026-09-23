@@ -76,15 +76,15 @@ CREATE TABLE `receivable_payments` (
 CREATE UNIQUE INDEX `receivable_payments_request` ON `receivable_payments` (`tenant_id`,`idempotency_key`);--> statement-breakpoint
 CREATE INDEX `receivable_payments_debt` ON `receivable_payments` (`tenant_id`,`receivable_id`);--> statement-breakpoint
 CREATE TRIGGER receivable_valid BEFORE INSERT ON receivables BEGIN
- SELECT CASE WHEN NEW.amount<=0 OR NEW.amount!=CAST(NEW.amount AS INTEGER) OR NEW.remaining!=NEW.amount OR NEW.status!='open' THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END;
+ SELECT (CASE WHEN NEW.amount<=0 OR NEW.amount!=CAST(NEW.amount AS INTEGER) OR NEW.remaining!=NEW.amount OR NEW.status!='open' THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER receivable_update_valid BEFORE UPDATE ON receivables BEGIN
- SELECT CASE WHEN NEW.amount!=OLD.amount OR NEW.tenant_id!=OLD.tenant_id OR NEW.customer_id!=OLD.customer_id OR NEW.remaining<0 OR NEW.remaining>NEW.amount OR (NEW.status='void' AND NEW.remaining!=NEW.amount) THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END;
+ SELECT (CASE WHEN NEW.amount!=OLD.amount OR NEW.tenant_id!=OLD.tenant_id OR NEW.customer_id!=OLD.customer_id OR NEW.remaining<0 OR NEW.remaining>NEW.amount OR (NEW.status='void' AND NEW.remaining!=NEW.amount) THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER collection_valid BEFORE INSERT ON receivable_payments BEGIN
- SELECT CASE WHEN NEW.status!='recorded' OR NEW.amount<=0 OR NEW.amount!=CAST(NEW.amount AS INTEGER) OR NOT EXISTS(SELECT 1 FROM receivables WHERE tenant_id=NEW.tenant_id AND id=NEW.receivable_id AND status='open' AND remaining>=NEW.amount) THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END;
+ SELECT (CASE WHEN NEW.status!='recorded' OR NEW.amount<=0 OR NEW.amount!=CAST(NEW.amount AS INTEGER) OR NOT EXISTS(SELECT 1 FROM receivables WHERE tenant_id=NEW.tenant_id AND id=NEW.receivable_id AND status='open' AND remaining>=NEW.amount) THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER collection_apply AFTER INSERT ON receivable_payments BEGIN
@@ -92,7 +92,7 @@ CREATE TRIGGER collection_apply AFTER INSERT ON receivable_payments BEGIN
 END;
 --> statement-breakpoint
 CREATE TRIGGER collection_reversal_valid BEFORE UPDATE ON receivable_payments BEGIN
- SELECT CASE WHEN NEW.amount!=OLD.amount OR NEW.tenant_id!=OLD.tenant_id OR NEW.receivable_id!=OLD.receivable_id OR OLD.status!='recorded' OR NEW.status!='reversed' OR LENGTH(NEW.reversal_reason)<3 THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END;
+ SELECT (CASE WHEN NEW.amount!=OLD.amount OR NEW.tenant_id!=OLD.tenant_id OR NEW.receivable_id!=OLD.receivable_id OR OLD.status!='recorded' OR NEW.status!='reversed' OR LENGTH(NEW.reversal_reason)<3 THEN RAISE(ABORT,'RECEIVABLE_CONFLICT') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER collection_reverse AFTER UPDATE ON receivable_payments WHEN OLD.status='recorded' AND NEW.status='reversed' BEGIN
