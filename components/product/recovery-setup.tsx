@@ -232,15 +232,12 @@ export function SetupCenter({ w }: any) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [training, setTraining] = useState({ preferred_date: "", note: "" });
-  const load = useCallback(
-    () => {
-      if (w.preview) return;
-      void api("setup-center?tenant=" + w.business.id)
-        .then(setD)
-        .catch((e) => setError(e.message));
-    },
-    [w.business.id, w.preview],
-  );
+  const load = useCallback(() => {
+    if (w.preview) return;
+    void api("setup-center?tenant=" + w.business.id)
+      .then(setD)
+      .catch((e) => setError(e.message));
+  }, [w.business.id, w.preview]);
   useEffect(load, [load]);
   async function file(e: any) {
     const f = e.target.files?.[0];
@@ -415,10 +412,24 @@ export function SetupCenter({ w }: any) {
           Takvim, randevu linki, WhatsApp, ödeme ve gelir kurtarma akışı
           birlikte hazırlanır.
         </p>
+        <p className="helper margin-top">
+          Talep Platform Yönetimi ekranındaki Eğitim talepleri listesine düşer.
+          Yönetici, kayıtlı işletme telefonu veya hesap e-postası üzerinden
+          sizinle iletişime geçer.
+        </p>
         {d?.training ? (
           <div className="notice margin-top">
             <Check size={17} />
-            Talebiniz alındı. Durum: {d.training.status}
+            Talebiniz yönetici paneline iletildi. Durum:{" "}
+            {(
+              {
+                pending: "Bekliyor",
+                contacted: "İletişime geçildi",
+                scheduled: "Planlandı",
+                completed: "Tamamlandı",
+                cancelled: "İptal edildi",
+              } as any
+            )[d.training.status] || d.training.status}
           </div>
         ) : (
           <form

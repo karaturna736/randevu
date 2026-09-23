@@ -6,6 +6,7 @@ import {
   uniqueIndex,
   index,
   foreignKey,
+  real,
 } from "drizzle-orm/sqlite-core";
 export const businesses = sqliteTable("businesses", {
   id: text("id").primaryKey(),
@@ -305,6 +306,9 @@ export const branchExpenses = sqliteTable(
     month: text("month").notNull(),
     category: text("category").notNull(),
     amount: integer("amount").notNull(),
+    catalogItemId: text("catalog_item_id"),
+    quantity: real("quantity").notNull().default(1),
+    unit: text("unit").notNull().default("adet"),
     note: text("note").notNull().default(""),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
@@ -315,6 +319,27 @@ export const branchExpenses = sqliteTable(
       columns: [t.tenantId, t.branchId],
       foreignColumns: [branches.tenantId, branches.id],
     }),
+  ],
+);
+export const expenseCatalogItems = sqliteTable(
+  "expense_catalog_items",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => businesses.id),
+    name: text("name").notNull(),
+    category: text("category").notNull(),
+    unit: text("unit").notNull().default("adet"),
+    defaultUnitAmount: integer("default_unit_amount").notNull().default(0),
+    note: text("note").notNull().default(""),
+    active: integer("active").notNull().default(1),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("expense_catalog_name").on(t.tenantId, t.name),
+    index("expense_catalog_tenant").on(t.tenantId, t.active, t.name),
   ],
 );
 export const branchMonthClosings = sqliteTable(

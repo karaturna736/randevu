@@ -84,13 +84,8 @@ export async function createBusiness(input: any) {
     u.userId,
     demo ? 1 : 0,
   );
-  if (owned.n >= 1)
-    throw new ApiError(
-      demo
-        ? "Bu hesap için bir demo işletme zaten var."
-        : "Her işletme hesabı yalnızca bir işletme oluşturabilir. Mevcut işletmenizi panelden yönetebilirsiniz.",
-      409,
-    );
+  if (demo && owned.n >= 1)
+    throw new ApiError("Bu hesap için bir demo işletme zaten var.", 409);
   const starter = z
     .object({
       service_name: name,

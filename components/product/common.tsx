@@ -1,12 +1,204 @@
-'use client';
-import {useState,useEffect} from 'react';import {Sun,Moon,Inbox,Loader2} from 'lucide-react';import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from '@/components/ui/dialog';import {Select,SelectContent,SelectTrigger,SelectValue,SelectItem} from '@/components/ui/select';import {Empty,EmptyHeader,EmptyTitle,EmptyDescription,EmptyMedia} from '@/components/ui/empty';import {AlertDialog,AlertDialogContent,AlertDialogHeader,AlertDialogTitle,AlertDialogDescription,AlertDialogFooter,AlertDialogCancel,AlertDialogAction} from '@/components/ui/alert-dialog';import {initials} from '@/lib/types';
-export async function api(path:string,body?:any,token?:string):Promise<any>{const r=await fetch('/api/v1/'+path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});let data:any;try{data=await r.json()}catch{throw new Error('Bağlantı kurulamadı. Tekrar deneyin.')}if(!r.ok){const e:any=new Error(data.error||'İşlem tamamlanamadı.');e.status=r.status;throw e}return data;}
-export function Pick({value,onChange,options,label}:{value:string;onChange:(s:string)=>void;options:{value:string;label:string}[];label:string}){return <Select value={value||undefined} onValueChange={onChange}><SelectTrigger aria-label={label} className="pick"><SelectValue placeholder={label}/></SelectTrigger><SelectContent position="popper">{options.map(o=><SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>}
-export function Modal({open,onClose,title,description,children,wide=false}:any){return <Dialog open={open} onOpenChange={v=>!v&&onClose()}><DialogContent className={'product-dialog '+(wide?'wide-dialog':'')}><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{description||'Bilgileri tamamlayın ve kaydedin.'}</DialogDescription></DialogHeader>{children}</DialogContent></Dialog>}
-export function Field({label,children}:any){return <label className="field"><span>{label}</span>{children}</label>}
-export function Avatar({name,color,large=false}:any){return <span className={'avatar '+(large?'large':'')} style={color?{background:color,color:'#3e513a'}:{}}>{initials(name||'İşletme')}</span>}
-export function Blank({title='Henüz kayıt yok',description='İlk kaydınız burada görünecek.'}:any){return <Empty className="blank"><EmptyHeader><EmptyMedia variant="icon"><Inbox/></EmptyMedia><EmptyTitle>{title}</EmptyTitle><EmptyDescription>{description}</EmptyDescription></EmptyHeader></Empty>}
-export function Busy(){return <Loader2 className="animate-spin" size={17}/>}
-export function Brand(){return <a className="brand" href="/"><img className="neta-brand-symbol" src="/neta-symbol.svg" alt="" width="36" height="36"/><span className="neta-wordmark">neta<span>randevu</span></span></a>}
-export function ThemeToggle(){const [dark,setDark]=useState(true);useEffect(()=>{let d=true;try{d=localStorage.getItem('randevu-theme')!=='light'}catch{};setDark(d);document.documentElement.classList.toggle('dark',d)},[]);return <button className="icon-button" aria-label={dark?'Açık temaya geç':'Koyu temaya geç'} onClick={()=>{setDark(!dark);document.documentElement.classList.toggle('dark',!dark);try{localStorage.setItem('randevu-theme',dark?'light':'dark')}catch{}}}>{dark?<Sun size={18}/>:<Moon size={18}/>}</button>}
-export function Confirm({open,onClose,onConfirm,title,description}:any){return <AlertDialog open={open} onOpenChange={v=>!v&&onClose()}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>{description}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Vazgeç</AlertDialogCancel><AlertDialogAction onClick={onConfirm}>Onayla</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}
+"use client";
+import { useState, useEffect } from "react";
+import { Sun, Moon, Inbox, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { initials } from "@/lib/types";
+export async function api(
+  path: string,
+  body?: any,
+  token?: string,
+): Promise<any> {
+  const r = await fetch("/api/v1/" + path, {
+    method: body ? "POST" : "GET",
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  let data: any;
+  try {
+    data = await r.json();
+  } catch {
+    throw new Error("Bağlantı kurulamadı. Tekrar deneyin.");
+  }
+  if (!r.ok) {
+    const e: any = new Error(data.error || "İşlem tamamlanamadı.");
+    e.status = r.status;
+    throw e;
+  }
+  return data;
+}
+export function Pick({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: string;
+  onChange: (s: string) => void;
+  options: { value: string; label: string }[];
+  label: string;
+}) {
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger aria-label={label} className="pick">
+        <SelectValue placeholder={label} />
+      </SelectTrigger>
+      <SelectContent position="popper">
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  wide = false,
+}: any) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent
+        className={"product-dialog " + (wide ? "wide-dialog" : "")}
+      >
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {description || "Bilgileri tamamlayın ve kaydedin."}
+          </DialogDescription>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
+  );
+}
+export function Field({ label, children }: any) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+export function Avatar({ name, color, large = false }: any) {
+  return (
+    <span
+      className={"avatar " + (large ? "large" : "")}
+      style={color ? { background: color, color: "#3e513a" } : {}}
+    >
+      {initials(name || "İşletme")}
+    </span>
+  );
+}
+export function Blank({
+  title = "Henüz kayıt yok",
+  description = "İlk kaydınız burada görünecek.",
+}: any) {
+  return (
+    <Empty className="blank">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Inbox />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+export function Busy() {
+  return <Loader2 className="animate-spin" size={17} />;
+}
+export function Brand() {
+  return (
+    <a className="brand" href="/" aria-label="Neta Randevu">
+      <img
+        className="neta-brand-logo"
+        src="/neta-logo.png"
+        alt="Neta"
+        width="132"
+        height="49"
+      />
+      <span className="brand-product">RANDEVU</span>
+    </a>
+  );
+}
+export function ThemeToggle() {
+  const [dark, setDark] = useState(true);
+  useEffect(() => {
+    let d = true;
+    try {
+      d = localStorage.getItem("randevu-theme") !== "light";
+    } catch {}
+    setDark(d);
+    document.documentElement.classList.toggle("dark", d);
+  }, []);
+  return (
+    <button
+      className="icon-button"
+      aria-label={dark ? "Açık temaya geç" : "Koyu temaya geç"}
+      onClick={() => {
+        setDark(!dark);
+        document.documentElement.classList.toggle("dark", !dark);
+        try {
+          localStorage.setItem("randevu-theme", dark ? "light" : "dark");
+        } catch {}
+      }}
+    >
+      {dark ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
+  );
+}
+export function Confirm({ open, onClose, onConfirm, title, description }: any) {
+  return (
+    <AlertDialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Onayla</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

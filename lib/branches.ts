@@ -27,6 +27,25 @@ const expenseSchema = z.object({
     "diger",
   ]),
   amount: z.coerce.number().int().min(1).max(1000000000),
+  catalog_item_id: z.string().nullable().optional(),
+  quantity: z.coerce.number().positive().max(100000).default(1),
+  unit: z.string().trim().min(1).max(20).default("adet"),
+  note: z.string().trim().max(300).default(""),
+});
+const catalogSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(2).max(80),
+  category: z.enum([
+    "kira",
+    "personel",
+    "malzeme",
+    "fatura",
+    "pazarlama",
+    "vergi",
+    "diger",
+  ]),
+  unit: z.string().trim().min(1).max(20).default("adet"),
+  default_unit_amount: z.coerce.number().int().min(0).max(1000000000),
   note: z.string().trim().max(300).default(""),
 });
 
@@ -61,9 +80,13 @@ export async function branchSnapshot(tenantId: string, monthInput?: string) {
     tenantId,
   );
   const expenses = await all(
-    "SELECT e.*,b.name branch_name FROM branch_expenses e JOIN branches b ON b.tenant_id=e.tenant_id AND b.id=e.branch_id WHERE e.tenant_id=? AND e.month=? ORDER BY e.created_at DESC",
+    "SELECT e.*,b.name branch_name,c.name catalog_name FROM branch_expenses e JOIN branches b ON b.tenant_id=e.tenant_id AND b.id=e.branch_id LEFT JOIN expense_catalog_items c ON c.tenant_id=e.tenant_id AND c.id=e.catalog_item_id WHERE e.tenant_id=? AND e.month=? ORDER BY e.created_at DESC",
     tenantId,
     month,
+  );
+  const catalog = await all(
+    "SELECT * FROM expense_catalog_items WHERE tenant_id=? AND active=1 ORDER BY category,name",
+    tenantId,
   );
   const rows = branches.map((b: any) => ({
     ...b,
@@ -79,6 +102,7 @@ export async function branchSnapshot(tenantId: string, monthInput?: string) {
     limits,
     branches: rows,
     expenses,
+    catalog,
     summary: {
       revenue: rows.reduce((n: number, b: any) => n + b.revenue, 0),
       expenses: rows.reduce((n: number, b: any) => n + b.expenses, 0),
@@ -145,28 +169,42 @@ export async function saveBranchExpense(tenantId: string, input: any) {
     );
   const x = expenseSchema.parse(input);
   await ownedBranch(tenantId, x.branch_id);
+  if (x.catalog_item_id) {
+    const item = await one(
+      "SELECT id FROM expense_catalog_items WHERE tenant_id=? AND id=? AND active=1",
+      tenantId,
+      x.catalog_item_id,
+    );
+    if (!item) throw new ApiError("Kayıtlı gider kalemi bulunamadı.", 404);
+  }
   const id = x.id || uid(),
     stamp = now();
   const r = x.id
     ? await q(
-        "UPDATE branch_expenses SET branch_id=?,month=?,category=?,amount=?,note=?,updated_at=? WHERE tenant_id=? AND id=?",
+        "UPDATE branch_expenses SET branch_id=?,month=?,category=?,amount=?,catalog_item_id=?,quantity=?,unit=?,note=?,updated_at=? WHERE tenant_id=? AND id=?",
         x.branch_id,
         x.month,
         x.category,
         x.amount,
+        x.catalog_item_id || null,
+        x.quantity,
+        x.unit,
         x.note,
         stamp,
         tenantId,
         x.id,
       ).run()
     : await q(
-        "INSERT INTO branch_expenses(id,tenant_id,branch_id,month,category,amount,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO branch_expenses(id,tenant_id,branch_id,month,category,amount,catalog_item_id,quantity,unit,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
         id,
         tenantId,
         x.branch_id,
         x.month,
         x.category,
         x.amount,
+        x.catalog_item_id || null,
+        x.quantity,
+        x.unit,
         x.note,
         stamp,
         stamp,
@@ -179,6 +217,51 @@ export async function saveBranchExpense(tenantId: string, input: any) {
     x.month,
   ).run();
   return { ok: true, id };
+}
+
+export async function saveExpenseCatalogItem(tenantId: string, input: any) {
+  await tenant(tenantId);
+  if ((await tenantPlan(tenantId)) === "normal")
+    throw new ApiError(
+      "Kayıtlı gider kalemleri Business veya Kurumsal pakette kullanılabilir.",
+      403,
+    );
+  const x = catalogSchema.parse(input),
+    id = x.id || uid(),
+    stamp = now();
+  try {
+    const result = x.id
+      ? await q(
+          "UPDATE expense_catalog_items SET name=?,category=?,unit=?,default_unit_amount=?,note=?,updated_at=? WHERE tenant_id=? AND id=?",
+          x.name,
+          x.category,
+          x.unit,
+          x.default_unit_amount,
+          x.note,
+          stamp,
+          tenantId,
+          x.id,
+        ).run()
+      : await q(
+          "INSERT INTO expense_catalog_items(id,tenant_id,name,category,unit,default_unit_amount,note,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)",
+          id,
+          tenantId,
+          x.name,
+          x.category,
+          x.unit,
+          x.default_unit_amount,
+          x.note,
+          stamp,
+          stamp,
+        ).run();
+    if (!result.meta.changes)
+      throw new ApiError("Gider kalemi bulunamadı.", 404);
+    return { ok: true, id };
+  } catch (error: any) {
+    if (String(error?.message || error).includes("UNIQUE"))
+      throw new ApiError("Bu isimde bir gider kalemi zaten var.", 409);
+    throw error;
+  }
 }
 
 export async function branchAction(tenantId: string, input: any) {

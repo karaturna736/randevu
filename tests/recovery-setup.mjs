@@ -322,6 +322,10 @@ try {
       setup.training.status === "pending",
     "Setup center reports migration and training progress",
   );
+  const adminTraining = (await call("admin", { user: "admin" })).data.training;
+  check(adminTraining.length === 1 && adminTraining[0].business_name === "Kurtarma A" && adminTraining[0].owner_email === "owner-a@example.test", "Training request reaches platform admin with business contact details");
+  check((await call("admin", { user: "admin", body: { action: "training-status", id: adminTraining[0].id, status: "scheduled" } })).status === 200, "Platform admin can schedule a training request");
+  check((await call("setup-center?tenant=" + A, { user: "owner-a" })).data.training.status === "scheduled", "Business sees the updated training status");
   check(
     (await db.prepare("PRAGMA foreign_key_check").all()).results.length === 0,
     "Recovery and setup records preserve tenant foreign keys",

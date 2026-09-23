@@ -3,8 +3,8 @@ import { useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   Store,
+  Check,
   Scissors,
   Users,
   Clock,
@@ -152,33 +152,22 @@ function BusinessWizard() {
     }
   }
   const selectedPlan = plans.find((p) => p.code === plan)!;
-  if (data.businesses?.length)
-    return (
-      <section className="panel account-gate single-business-gate">
-        <Store size={32} />
-        <span className="eyebrow">TEK İŞLETME HESABI</span>
-        <h1>İşletmeniz zaten hazır.</h1>
-        <p>
-          Her işletme hesabı yalnızca bir işletmeye bağlıdır. Yeni işletme açmak
-          yerine mevcut işletmenizi ve randevu bağlantınızı yönetebilirsiniz.
-        </p>
-        <a className="button primary" href="/panel">
-          İşletme paneline git <ArrowRight size={16} />
-        </a>
-        <a className="text-button" href="/abonelik">
-          Abonelik ve ödemeler
-        </a>
-      </section>
-    );
   return (
     <>
       <div className="member-heading">
         <div>
-          <span className="eyebrow">İLK RANDEVUNUZA DOĞRU</span>
-          <h1>İşletmenize yer açalım.</h1>
+          <span className="eyebrow">
+            {data.businesses?.length ? "YENİ İŞLETME" : "İLK RANDEVUNUZA DOĞRU"}
+          </span>
+          <h1>
+            {data.businesses?.length
+              ? "Yeni işletmenizi oluşturalım."
+              : "İşletmenize yer açalım."}
+          </h1>
           <p>
-            İlk hizmetinizi, ekibinizi ve size uygun paketi hazırlayın. Sonradan
-            her zaman düzenleyebilirsiniz.
+            {data.businesses?.length
+              ? "Her işletmenin verisi, randevu bağlantısı ve aboneliği birbirinden ayrı yönetilir."
+              : "İlk hizmetinizi, ekibinizi ve size uygun paketi hazırlayın. Sonradan her zaman düzenleyebilirsiniz."}
           </p>
         </div>
         <span className="badge neutral">{step + 1} / 5 adım</span>

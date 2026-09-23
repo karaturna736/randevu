@@ -10,6 +10,7 @@ import {
   branchSnapshot,
   saveBranch,
   saveBranchExpense,
+  saveExpenseCatalogItem,
   branchAction,
 } from "@/lib/branches";
 import {
@@ -251,6 +252,9 @@ export async function GET(req: Request) {
         complaints: await all(
           "SELECT c.*,b.name business_name FROM complaints c JOIN businesses b ON b.id=c.tenant_id ORDER BY c.created_at DESC LIMIT 100",
         ),
+        training: await all(
+          "SELECT t.*,b.name business_name,b.phone business_phone,(SELECT email FROM members m WHERE m.tenant_id=t.tenant_id AND m.role='owner' LIMIT 1) owner_email,(SELECT name FROM members m WHERE m.tenant_id=t.tenant_id AND m.role='owner' LIMIT 1) owner_name FROM setup_training_requests t JOIN businesses b ON b.id=t.tenant_id ORDER BY t.created_at DESC LIMIT 200",
+        ),
         payments: await all(
           "SELECT * FROM payments ORDER BY created_at DESC LIMIT 100",
         ),
@@ -294,6 +298,8 @@ export async function POST(req: Request) {
     if (p[0] === "branches")
       return ok(x.action ? await branchAction(id, x) : await saveBranch(id, x));
     if (p[0] === "branch-expenses") return ok(await saveBranchExpense(id, x));
+    if (p[0] === "expense-catalog")
+      return ok(await saveExpenseCatalogItem(id, x));
     if (p[0] === "recurring") {
       await limit(req, "recurring", 10);
       return ok(
@@ -501,6 +507,22 @@ export async function POST(req: Request) {
       else if (x.action === "complaint-resolve")
         ops.push(
           q("UPDATE complaints SET status='resolved' WHERE id=?", target),
+        );
+      else if (x.action === "training-status")
+        ops.push(
+          q(
+            "UPDATE setup_training_requests SET status=? WHERE id=?",
+            z
+              .enum([
+                "pending",
+                "contacted",
+                "scheduled",
+                "completed",
+                "cancelled",
+              ])
+              .parse(x.status),
+            target,
+          ),
         );
       else throw new ApiError("Geçersiz işlem.");
       ops.push(

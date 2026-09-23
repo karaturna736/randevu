@@ -28,6 +28,8 @@ const cards = [
   {
     code: "normal",
     name: "Neta Starter",
+    description:
+      "Tek şubenizde randevu düzenini hızlıca kurun ve günlük operasyonu sadeleştirin.",
     features: [
       "1 işletme · 1 şube · 5 personel",
       "Web randevuları ve ortak takvim",
@@ -38,6 +40,8 @@ const cards = [
   {
     code: "pro",
     name: "Neta Business",
+    description:
+      "Boş saatleri doldurun, eski müşterileri geri kazanın ve şubelerinizin net sonucunu görün.",
     features: [
       "1 işletme · 5 şubeye kadar",
       "Sınırsız personel",
@@ -49,6 +53,8 @@ const cards = [
   {
     code: "plus",
     name: "Neta Kurumsal",
+    description:
+      "Tüm şubeleri tek merkezden yönetin; büyümeyi gelişmiş raporlar ve otomasyonla hızlandırın.",
     features: [
       "Sınırsız şube ve personel",
       "Yüksek kullanım limitli AI ve WhatsApp",
@@ -128,6 +134,12 @@ export function RecurringPlans({ tenantId, beforeCheckout, initialPlan }: any) {
             : "Satışa açılmadı"}
         </span>
       </div>
+      <div className="notice subscription-disclosure">
+        <b>Şeffaf abonelik:</b> Paket ücreti yalnızca Neta yazılımı içindir.
+        Salonunuzun müşterilerinden aldığı hizmet ödemelerine Neta karışmaz. Her
+        işletme ayrı planlanır; kart verisi Neta sunucularında saklanmaz ve
+        güvenli ödeme kuruluşu tarafından işlenir.
+      </div>
       {initialPlan && !data.available && (
         <p className="notice">
           {cards.find((c) => c.code === initialPlan)?.name} seçiminiz hazır.
@@ -155,6 +167,7 @@ export function RecurringPlans({ tenantId, beforeCheckout, initialPlan }: any) {
                     : "NETA ABONELİK"}
               </span>
               <h3>{card.name}</h3>
+              <p className="plan-card-description">{card.description}</p>
               <div className="plan-card-price">
                 {p ? money(p.amount) : "Fiyat belirlenecek"}
                 {p && <small> / ay</small>}

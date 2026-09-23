@@ -137,8 +137,10 @@ export default function Landing() {
           </div>
           <div className="neta-hero-visual">
             <div className="neta-orbit-caption">
-              <span className="neta-mini-logo">n</span>Atölye Studio{" "}
-              <span>Örnek görünüm</span>
+              <span className="neta-mini-logo">
+                <img src="/neta-logo.png" alt="" />
+              </span>
+              Atölye Studio <span>Örnek görünüm</span>
             </div>
             <div className="neta-booking-example">
               <div className="neta-example-head">
@@ -320,7 +322,9 @@ export default function Landing() {
           </div>
           <article className="neta-plan">
             <div className="neta-plan-title">
-              <span className="neta-mini-logo">n</span>
+              <span className="neta-mini-logo">
+                <img src="/neta-logo.png" alt="" />
+              </span>
               <h3>Neta Business</h3>
               <span>İşletme büyüme paketi</span>
             </div>

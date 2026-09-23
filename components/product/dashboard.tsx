@@ -76,6 +76,7 @@ import {
   Field,
   Blank,
   Busy,
+  Pick,
 } from "./common";
 import { DemandInsights, ServiceInsights } from "./insights";
 import { Overview, Reports, AppointmentTable } from "./overview";
@@ -228,7 +229,7 @@ function sectorHeading(view: string, w: any): [string, string] {
   return TITLES[view] || TITLES.overview;
 }
 
-function SideNavigation({ w, view, navigate, onSetup }: any) {
+function SideNavigation({ w, view, navigate, onSetup, selectBusiness }: any) {
   const { setOpenMobile } = useSidebar();
   return (
     <Sidebar className="app-sidebar">
@@ -243,6 +244,17 @@ function SideNavigation({ w, view, navigate, onSetup }: any) {
             <small>{w.business.city || "İşletme paneli"}</small>
           </div>
         </div>
+        {w.businesses?.length > 1 && (
+          <Pick
+            label="İşletme değiştir"
+            value={w.business.id}
+            onChange={selectBusiness}
+            options={w.businesses.map((b: any) => ({
+              value: b.id,
+              label: b.name,
+            }))}
+          />
+        )}
       </SidebarHeader>
       <SidebarContent>
         <span className="nav-label">ÇALIŞMA ALANI</span>
@@ -281,11 +293,17 @@ function SideNavigation({ w, view, navigate, onSetup }: any) {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        {w.preview && (
+        {w.preview ? (
           <button className="footer-nav" onClick={onSetup}>
             <Plus size={17} />
             İşletmemi oluştur
           </button>
+        ) : (
+          <a className="footer-nav" href="/kurulum">
+            <Plus size={17} />
+            Yeni işletme ekle
+            <ArrowUpRight size={14} />
+          </a>
         )}
         <a
           className="footer-nav"
