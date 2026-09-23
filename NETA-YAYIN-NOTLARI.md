@@ -87,7 +87,7 @@ Gerçek ödeme henüz açık değil. Planın varsayılanı taslaktır; fiyat uyd
 - Gizli sağlayıcı anahtarları, kart bilgileri ve Google token'ları istemciye veya ödeme geçmişine yazılmaz.
 - Hassas işlemlerde kaynak kontrolü ve deneme sınırı uygulanır. Dış sağlayıcı yönlendirmeleri otomatik takip edilmez.
 
-Bu sürüm **30 günlük erişimi kullanıcının onayıyla yeniler**. Daha önce konuşulan aylık otomatik tahsilat hedefi henüz uygulanmadı. Bunun için sağlayıcının düzenli ödeme yetkisi, kartı sağlayıcıda saklama izni, açık abonelik onayı, yenilemeyi durdurma, başarısız çekim denemeleri ve mutabakat ayrıca tamamlanmalı. Mevcut kod sessizce tekrarlayan çekim yapmaz.
+Neta aboneliğinin aylık otomatik tahsilat akışı `lib/recurring.ts` içinde iyzico abonelik API'sine bağlanmıştır. İşletme planı, açık abonelik onayı ve sağlayıcı checkout formu ile başlar; callback/webhook yalnızca sağlayıcıdan doğrulanmış plan, tutar ve dönem için erişim açar. Kart bilgisi Neta'ya gelmez. Sağlayıcı bağlantısı, satıcı sözleşmesi ve gerçek mod açılmadığında ekran satışa kapalı/test olarak kalır; kod otomatik çekim yapılmış gibi davranmaz. Eski PayTR tek seferlik akışı ayrı ve geriye dönük uyumluluk içindir.
 
 İade ve banka mutabakatı şu anda sağlayıcı panelindedir; otomatik iade senkronu ve muhasebe/e-fatura entegrasyonu yoktur. Ticari satıştan önce satıcıya özel sözleşmeler, gizlilik metni, saklama/silme süreçleri ve gerçek sağlayıcı testleri tamamlanmalıdır. Otomatik testler bağımsız güvenlik denetimi veya kusursuz güvenlik garantisi değildir.
 
