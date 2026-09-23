@@ -15,8 +15,8 @@ export const PLAN_LIMITS:Record<PlanCode,{whatsappMonthly:number;aiDaily:number;
 
 export const PLAN_CATALOG:Record<PlanCode,{name:string;amount:number;limits:{whatsappMonthly:number;aiDaily:number}}>={
   normal:{name:'Neta Normal',amount:99000,limits:PLAN_LIMITS.normal},
-  pro:{name:'Neta Pro',amount:200000,limits:PLAN_LIMITS.pro},
-  plus:{name:'Neta Plus',amount:350000,limits:PLAN_LIMITS.plus}
+  pro:{name:'Neta Pro',amount:120000,limits:PLAN_LIMITS.pro},
+  plus:{name:'Neta Plus',amount:150000,limits:PLAN_LIMITS.plus}
 };
 
 export async function tenantPlan(tenantId:string):Promise<PlanCode>{
@@ -49,4 +49,3 @@ export async function consumePlanQuota(tenantId:string,feature:'whatsapp'|'ai'){
   }
   return {plan,limit,used:Number(row.count)};
 }
-

@@ -57,6 +57,13 @@
       "when": 1790149704623,
       "tag": "0007_next_blonde_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790158811868,
+      "tag": "0008_loose_inhumans",
+      "breakpoints": true
     }
   ]
 }

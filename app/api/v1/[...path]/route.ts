@@ -5,6 +5,7 @@ import {growthSnapshot,saveGrowth,publicStyle,approveReferral,platformGrowth,ref
 import {contact,receivableSnapshot,createReceivable,recordCollection,reviseReceivable} from '@/lib/receivables';
 import {journeySnapshot,createJourney,changeJourney,sharedJourney} from '@/lib/journeys';
 import {authStatus} from '@/lib/identity';
+import {beginOnboardingPayment,currentPaymentState,onboardingPaymentStatus,paymentHistory} from '@/lib/onboarding-payment';
 import {publicPlan,billingSnapshot,saveBillingProfile,beginCheckout,platformBilling,savePlatformBilling} from '@/lib/billing';
 import {startVisit,visitIdentity,searchDemand,demandAnalytics,serviceAnalytics} from '@/lib/demand';
 import {earlyInbox} from '@/lib/early';
@@ -23,6 +24,7 @@ if(p[0]==='receivables')return ok(await receivableSnapshot(id));
 if(p[0]==='journeys')return ok(await journeySnapshot(id));
 if(p[0]==='shared-journey'){await limit(req,'journey-read',100);return ok(await sharedJourney(req.headers.get('authorization')?.replace(/^Bearer /,'')||''));}
 if(p[0]==='auth-status')return ok(authStatus());
+if(p[0]==='payment-status')return ok({account:await currentPaymentState(),...onboardingPaymentStatus(),history:await paymentHistory()});
 if(p[0]==='plans')return ok(await publicPlan());
 if(p[0]==='billing')return ok(await billingSnapshot(id||undefined));
 if(p[0]==='platform-billing')return ok(await platformBilling());
@@ -35,15 +37,16 @@ if(p[0]==='account')return ok(await accountSnapshot());
 if(p[0]==='my-bookings')return ok(await accountBookings());
 if(p[0]==='my-appointment')return ok(await appointmentDetails(await ownAppointment(u.searchParams.get('id')||'')));
 if(p[0]==='favorites')return ok(await getFavorites());
-if(p[0]==='workspace')return ok(await workspace(id||undefined));
+if(p[0]==='workspace'){const payment=await currentPaymentState();if(payment.state!=='active')throw new ApiError('Panel erişimi için doğrulanmış, aktif bir abonelik gerekiyor.',402);return ok(await workspace(id||undefined))}
 if(p[0]==='availability'){const b=id?await tenant(id):await publicBusiness(u.searchParams.get('slug')||'');return ok({slots:await available(b,u.searchParams.get('service')||'',date.parse(u.searchParams.get('date')),u.searchParams.get('staff')||'any')})}
 if(p[0]==='businesses')return ok({businesses:await all("SELECT b.id,b.name,b.slug,b.category,b.city,b.address,b.description,(SELECT MIN(price) FROM services WHERE tenant_id=b.id AND active=1) min_price FROM businesses b WHERE status='approved' AND demo=0 ORDER BY name LIMIT 100")});
 if(p[0]==='public'){const b=await publicBusiness(p[1]);return ok({business:b,presentation:await publicStyle(b.id),services:await all('SELECT id,name,description,duration,price,color,active FROM services WHERE tenant_id=? AND active=1',b.id),staff:await all('SELECT id,name,title,color,active FROM staff WHERE tenant_id=? AND active=1',b.id),reviews:await all("SELECT rating,comment,created_at FROM reviews WHERE tenant_id=? AND status='published' ORDER BY created_at DESC LIMIT 30",b.id)})}
 if(p[0]==='manage'){await limit(req,'manage',150);return ok(await appointmentDetails(await byToken(req.headers.get('authorization')?.replace(/^Bearer /,'')||'')))}
-if(p[0]==='admin'){await admin();return ok({businesses:await all('SELECT * FROM businesses ORDER BY created_at DESC LIMIT 500'),users:await all("SELECT p.user_id,p.email,p.name,(SELECT COUNT(*) FROM members m WHERE m.user_id=p.user_id) businesses,p.disabled,p.account_type FROM profiles p UNION ALL SELECT m.user_id,m.email,m.name,COUNT(*) businesses,MAX(m.disabled) disabled,'business' account_type FROM members m WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.user_id=m.user_id) GROUP BY m.user_id LIMIT 500"),appointments:await all(SELECT_APPOINTMENTS+' ORDER BY a.date DESC LIMIT 200'),reviews:await all('SELECT r.*,b.name business_name FROM reviews r JOIN businesses b ON b.id=r.tenant_id ORDER BY r.created_at DESC LIMIT 100'),complaints:await all('SELECT c.*,b.name business_name FROM complaints c JOIN businesses b ON b.id=c.tenant_id ORDER BY c.created_at DESC LIMIT 100'),payments:await all('SELECT * FROM payments ORDER BY created_at DESC LIMIT 100')})}
+if(p[0]==='admin'){await admin();return ok({businesses:await all('SELECT * FROM businesses ORDER BY created_at DESC LIMIT 500'),users:await all("SELECT p.user_id,p.email,p.name,(SELECT COUNT(*) FROM members m WHERE m.user_id=p.user_id) businesses,p.disabled,p.account_type FROM profiles p UNION ALL SELECT m.user_id,m.email,m.name,COUNT(*) businesses,MAX(m.disabled) disabled,'business' account_type FROM members m WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.user_id=m.user_id) GROUP BY m.user_id LIMIT 500"),appointments:await all(SELECT_APPOINTMENTS+' ORDER BY a.date DESC LIMIT 200'),reviews:await all('SELECT r.*,b.name business_name FROM reviews r JOIN businesses b ON b.id=r.tenant_id ORDER BY r.created_at DESC LIMIT 100'),complaints:await all('SELECT c.*,b.name business_name FROM complaints c JOIN businesses b ON b.id=c.tenant_id ORDER BY c.created_at DESC LIMIT 100'),payments:await all("SELECT id,tenant_id,amount,CASE WHEN state='active' THEN 'paid' ELSE state END status,'subscription' kind,provider,reference provider_ref,user_email,plan,failure_reason,created_at,paid_at,refunded_at FROM onboarding_payments ORDER BY created_at DESC LIMIT 100")})}
 throw new ApiError('Sayfa bulunamadı.',404)}catch(e){return fail(e)}}
 export async function POST(req:Request){try{const p=new URL(req.url).pathname.split('/').filter(Boolean).slice(2),x=await body(req),id=String(x.tenant_id||'');
 if(p[0]==='help'){await limit(req,'help',40);return ok(await helpAnswer(id,x));}
+if(p[0]==='onboarding-payment'){await limit(req,'onboarding-payment',8);return ok(await beginOnboardingPayment(x));}
 if(p[0]==='recurring'){await limit(req,'recurring',10);return ok(x.action?await recurringAction(id,x):await beginRecurring(id,x));}
 if(p[0]==='growth')return ok(await saveGrowth(id,x));
 if(p[0]==='platform-growth')return ok(await referralReview(x));
