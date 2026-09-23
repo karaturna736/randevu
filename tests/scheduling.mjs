@@ -21,6 +21,9 @@ try{
  const A=(await call('businesses',{user:'qa-a',body:{name:'Test Studio A',slug:'test-a',category:'Kuaför & Berber',city:'İstanbul'}})).data.id;
  const B=(await call('businesses',{user:'qa-b',body:{name:'Test Studio B',slug:'test-b',category:'Kuaför & Berber',city:'Ankara'}})).data.id;
  check(!!A&&!!B&&A!==B,'Two independent businesses can be created');
+ const types=(await call('business-types')).data.businessTypes;
+ check(types.length===10&&types.some(x=>x.category==='Psikolog'&&x.config.businessProfile.customerLabel==='Danışan'),'Business type catalog exposes sector-specific terminology');
+ check((await call('workspace?tenant='+A,{user:'qa-a'})).data.configuration.businessType==='hair_salon','Workspace includes its resolved business configuration');
  check((await call('workspace?tenant='+B,{user:'qa-a'})).status===403,'Business A cannot read business B');
  check((await call('services',{user:'qa-a',body:{tenant_id:B,name:'Foreign Service',duration:30,price:10000}})).status===403,'Business A cannot write services into business B');
  check((await call('public/test-a')).status===404,'Unapproved business is not publicly bookable');

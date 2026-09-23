@@ -41,6 +41,21 @@ aracılık etmez.
 
 ## Mimari ve sınırlar
 
+### İşletme türü yapılandırması
+
+`lib/business-config.ts`, sektör farklılıklarını koşullu ekran kopyaları yerine
+tek bir tip güvenli yapılandırma katmanında toplar. Kuaför, güzellik salonu,
+klinik, danışmanlık, özel ders, spor, diyetisyen, psikolog ve oto servis için
+terimler, başlangıç rolleri, kaynak türleri, kapasite/buffer kuralları, müşteri
+formu, bildirim metinleri ve gösterge bileşenleri burada tanımlıdır.
+
+`GET /api/v1/business-types` katalogu döndürür. `workspace` ve `public` API
+yanıtları seçili işletmenin çözülmüş `configuration` nesnesini içerir. Panel
+başlıkları bu nesneden üretildiği için sektör dili tek merkezden değişir. Oda,
+ekipman ve kapasite bayrakları bu sürümde sonraki rezervasyon motoru aşamasının
+sözleşmesidir; henüz var olmayan bir özelliği kullanıcıya çalışıyormuş gibi
+göstermez.
+
 Uygulama Vinext/React, Cloudflare Worker ve Cloudflare D1 üzerinde çalışır.
 `drizzle/` altındaki migration dosyaları üretim şemasını yönetir; migration
 başarısız olursa Worker yayınlanmaz. Railway'e taşımak için Worker/D1
