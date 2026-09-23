@@ -45,6 +45,7 @@ export default function Admin() {
     [error, setError] = useState(""),
     [denied, setDenied] = useState(false),
     [view, setView] = useState("businesses"),
+    [paymentFilter, setPaymentFilter] = useState("all"),
     [confirm, setConfirm] = useState<any>(null),
     [busy, setBusy] = useState(false);
   async function refresh() {
@@ -403,6 +404,21 @@ export default function Admin() {
                 ))}
               {view === "payments" && (
                 <>
+                  <Tabs value={paymentFilter} onValueChange={setPaymentFilter}>
+                    <TabsList className="filter-tabs">
+                      {[
+                        ["all", "Tümü"],
+                        ["paid", "Başarılı"],
+                        ["payment_processing", "Bekleyen"],
+                        ["payment_failed", "Başarısız"],
+                        ["payment_refunded", "İade"],
+                      ].map(([value, label]) => (
+                        <TabsTrigger key={value} value={value}>
+                          {label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
                   {data.payments.length > 0 && (
                     <Table>
                       <TableHeader>
@@ -414,28 +430,37 @@ export default function Admin() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {data.payments.map((p: any) => (
-                          <TableRow key={p.id}>
-                            <TableCell>
-                              {data.businesses.find(
-                                (b: any) => b.id === p.tenant_id,
-                              )?.name || p.user_email}
-                              <small>{p.plan}</small>
-                            </TableCell>
-                            <TableCell>{money(p.amount)}</TableCell>
-                            <TableCell>
-                              {labels[p.status] || p.status}
-                              <small>{p.failure_reason}</small>
-                            </TableCell>
-                            <TableCell>
-                              {p.provider}
-                              <small>
-                                {dateLabel(p.created_at.slice(0, 10))}
-                                {p.provider_ref ? " · " + p.provider_ref : ""}
-                              </small>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {data.payments
+                          .filter(
+                            (p: any) =>
+                              paymentFilter === "all" ||
+                              p.status === paymentFilter,
+                          )
+                          .map((p: any) => (
+                            <TableRow key={p.id}>
+                              <TableCell>
+                                {data.businesses.find(
+                                  (b: any) => b.id === p.tenant_id,
+                                )?.name || p.user_email}
+                                <small>{p.plan}</small>
+                              </TableCell>
+                              <TableCell>{money(p.amount)}</TableCell>
+                              <TableCell>
+                                {labels[p.status] || p.status}
+                                <small>{p.failure_reason}</small>
+                              </TableCell>
+                              <TableCell>
+                                {p.provider}
+                                <small>
+                                  {dateLabel(p.created_at.slice(0, 10))}
+                                  {p.provider_ref ? " · " + p.provider_ref : ""}
+                                </small>
+                                {p.transaction_id && (
+                                  <small>İşlem: {p.transaction_id}</small>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
                       </TableBody>
                     </Table>
                   )}
