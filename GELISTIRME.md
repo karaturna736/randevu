@@ -60,7 +60,7 @@ Platform yöneticisinin ayrı, açıkça yetkilendirilmiş erişimi bulunur. Yö
 
 Randevular 15 dakikalık zaman bloklarını tek işlemde ayırır. Personel/tarih/saat için benzersiz veritabanı anahtarı aynı saatlerin iki kez satılmasını engeller. Bir işlem başarısızsa müşteri, randevu ve saat blokları birlikte geri alınır. Taşıma ve iptal işlemlerinde sürüm kontrolü eşzamanlı güncelleme çakışmasını yakalar. İzin ve rezervasyonun aynı anda kaydedilmesine karşı veritabanı tetikleyicileri vardır.
 
-Müşterinin yönetim bağlantısı 256 bit rastgele bir anahtar taşır. Veritabanında anahtarın kendisi yerine özeti tutulur; bağlantı randevu tarihinden 90 gün sonra geçersiz olur. Anahtar URL'nin `#` bölümünde bulunur ve isteklerde yetkilendirme başlığıyla iletilir. Bu bağlantıyı bilen kişi randevuyu yönetebilir; otomatik mesaj servisi bağlı olmadığından müşteri bunu kendisi saklamalıdır.
+Müşterinin yönetim bağlantısı 256 bit rastgele bir anahtar taşır. Veritabanında anahtarın kendisi yerine özeti tutulur; bağlantı randevu tarihinden 90 gün sonra geçersiz olur. Anahtar URL'nin `#` bölümünde bulunur ve isteklerde yetkilendirme başlığıyla iletilir. Bu bağlantıyı bilen kişi randevuyu yönetebilir. WhatsApp outbox işçisi bağlantı kurulmuşsa olay mesajı gönderir; özel yönetim anahtarı veritabanından geri üretilemediği için bildirimlerde paylaşılmaz.
 
 ## Üyelikte güvenlik ve kullanım ayrımı
 
@@ -91,11 +91,11 @@ Platform yöneticisi müşteri üyeliklerini ve işletme kullanıcılarını ask
 
 ## Entegrasyonların gerçek durumu
 
-**WhatsApp:** Oluşturma, iptal, taşıma ve gelecekteki 24 saat öncesi hatırlatma olayları veritabanındaki outbox tablosuna kaydedilir. Mesaj gönderilmez. Sağlayıcı, onaylı şablonlar, izin yönetimi, tekrarı engelleyen bir gönderim işçisi ve zamanlayıcı sonraki aşamada bağlanmalıdır.
+**WhatsApp:** Oluşturma, iptal, taşıma ve gelecekteki 24 saat öncesi hatırlatma olayları outbox tablosuna yazılır. `POST /api/automation/outbox`, yalnızca `AUTOMATION_SECRET` ile çağrılan özel işçi olarak bu olayları Meta Cloud API'ye gönderir; işlem kilidi, tekrar engeli, sağlayıcı sonucu ve başarısız/kota durumları kaydedilir. `owner_number` tanımlanırsa işletme sahibine de yeni randevu bildirimi gider. Bu uç nokta herkese açık bir gönderim API'si değildir; cron/worker ile periyodik çağrılmalıdır. Müşteri kampanya izni yalnızca geri çağırma mesajları için gerekir; randevu hatırlatması işlemsel bildiridir.
 
 **Ödeme/kapora:** Ödeme tablosu ve sağlayıcı sözleşmesi hazırdır. Kart bilgisi alınmaz, kapora tahsil edilmez. Ödeme/iade akışı ve doğrulanmış webhook uygulanmalıdır. Yönetici ödeme ekranı mevcut gerçek kayıtları okur; örnek gelir tahsilat gibi gösterilmez.
 
-**Asistan:** Kural tabanlı Türkçe hizmet/gün/sabah/öğleden sonra/akşam araması gerçek müsaitliğe bağlanmıştır. Harici büyük dil modeli yoktur. Yazılan her cümleyi anlamaz. Örnek: “Cumartesi öğleden sonra saç kesimi”. Sonuçtan sonra müşteri bilgileri ve son onay gerekir.
+**Asistan:** Kural tabanlı Türkçe hizmet/gün/sabah/öğleden sonra/akşam araması gerçek müsaitliğe bağlanmıştır. Yardım merkezi, anahtar tanımlanırsa güvenli bağlamla Gemini/OpenAI kullanabilir. AI ve WhatsApp dış sağlayıcı kullanımı paket bazlı günlük/aylık kota ile sınırlıdır; hiçbir paket sınırsız kullanım vaat etmez. Örnek: “Cumartesi öğleden sonra saç kesimi”. Sonuçtan sonra müşteri bilgileri ve son onay gerekir.
 
 **Marketplace:** İşletme keşfi kategori, şehir/isim araması ve onaylı işletmeleri listeleme seviyesindedir. Komisyon, gelişmiş sıralama, harita ve reklam sistemi yoktur.
 
