@@ -110,7 +110,7 @@ CREATE TABLE `wa_threads` (
 );
 --> statement-breakpoint
 CREATE TRIGGER credit_valid BEFORE INSERT ON credit_ledger BEGIN
- SELECT CASE WHEN NEW.amount=0 OR NEW.amount!=CAST(NEW.amount AS INTEGER) OR (NEW.amount<0 AND COALESCE((SELECT SUM(amount) FROM credit_ledger WHERE tenant_id=NEW.tenant_id),0)+NEW.amount<0) THEN RAISE(ABORT,'CREDIT_CONFLICT') END;
+ SELECT (CASE WHEN NEW.amount=0 OR NEW.amount!=CAST(NEW.amount AS INTEGER) OR (NEW.amount<0 AND COALESCE((SELECT SUM(amount) FROM credit_ledger WHERE tenant_id=NEW.tenant_id),0)+NEW.amount<0) THEN RAISE(ABORT,'CREDIT_CONFLICT') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER credit_immutable_update BEFORE UPDATE ON credit_ledger BEGIN SELECT RAISE(ABORT,'CREDIT_CONFLICT'); END;
