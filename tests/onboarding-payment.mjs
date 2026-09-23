@@ -31,7 +31,8 @@ async function api(path,body){const response=await mf.dispatchFetch('https://net
 try{
  const db=await mf.getD1Database('DB');
  for(const file of readdirSync('drizzle').filter(path=>path.endsWith('.sql')).sort())for(const sql of readFileSync('drizzle/'+file,'utf8').split('--> statement-breakpoint').map(value=>value.trim()).filter(Boolean))await db.prepare(sql).run();
- const business={name:'Ödeme Test Studio',slug:'odeme-test-studio',category:'Kuaför & Berber',city:'İstanbul',address:'Test adresi',phone:'05551112233',description:'',plan:'normal'};
+ const hours=Object.fromEntries([0,1,2,3,4,5,6].map(day=>[day,[540,1080]]));
+ const business={name:'Ödeme Test Studio',slug:'odeme-test-studio',category:'Kuaför & Berber',city:'İstanbul',address:'Test adresi',phone:'05551112233',description:'',plan:'normal',starter:{service_name:'Online danışma',duration:30,price:50000,staff_name:'Test Uzman',staff_title:'Uzman',hours}};
  check((await api('businesses',business)).status===402,'Real business cannot be created before verified payment');
  check((await api('workspace')).status===402,'Workspace API is closed before payment');
  const started=await api('onboarding-payment',{business,buyer:{name:'Test',surname:'Sahibi',identity:'11111111111',city:'İstanbul',terms_accepted:true,privacy_accepted:true}});
@@ -46,6 +47,14 @@ try{
  const activated=await api('payment-status');
  check(activated.data.account.state==='active','Only verified payment grants active state');
  check((await api('workspace')).status===200,'Backend workspace opens after activation');
+ const workspace=(await api('workspace')).data,date=new Date(Date.now()+2*86400000).toISOString().slice(0,10),serviceId=workspace.services[0].id,staffId=workspace.staff[0].id;
+ check((await api('settings',{tenant_id:workspace.business.id,name:business.name,category:business.category,city:business.city,address:business.address,phone:business.phone,description:'',hours,cancellation_hours:2,terminology:'Seans',online_enabled:1})).status===200,'Business can enable sector terminology and online appointments');
+ check((await api('services',{tenant_id:workspace.business.id,id:serviceId,name:'Online danışma',duration:30,price:50000,description:'',color:'#789c74',delivery_mode:'online',meeting_url:'https://meet.example.test/neta',active:1})).status===200,'Online service stores its protected meeting link');
+ const booked=await api('bookings',{tenant_id:workspace.business.id,service_id:serviceId,staff_id:staffId,date,minute:720,name:'Panel Müşterisi',phone:'05550001122',email:'',consent:false});
+ check(booked.status===201&&booked.data.meeting_url==='https://meet.example.test/neta','Panel booking uses the shared calendar and returns the online meeting link');
+ await db.prepare("UPDATE businesses SET status='approved' WHERE id=?").bind(workspace.business.id).run();
+ const waiting=await api('waitlist',{slug:business.slug,service_id:serviceId,staff_id:'any',date,minute_from:0,minute_to:15,name:'Bekleyen Müşteri',phone:'05553334455',consent:true});
+ check(waiting.status===201&&(await api('waitlist?tenant='+workspace.business.id)).data.requests.length===1,'Full-slot customer can join the tenant-scoped waiting list');
  const duplicate=await mf.dispatchFetch('https://neta.test/api/integrations/iyzico/onboarding-callback',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:'token=checkout_token_123',redirect:'manual'});
  check(duplicate.status===303&&(await db.prepare('SELECT COUNT(*) n FROM businesses WHERE slug=?').bind(business.slug).first()).n===1,'Repeated callback does not create a second business');
  const event={iyziEventType:'subscription.order.success',subscriptionReferenceCode:subscription,orderReferenceCode:'order_ref_renewal',customerReferenceCode:customer};

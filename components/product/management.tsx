@@ -1,7 +1,627 @@
-'use client';
-import {useState} from 'react';import {Plus,Save,Pencil,Scissors,Clock,CalendarOff,Trash2,Link2,MessageCircle,CreditCard,Sparkles} from 'lucide-react';import {Input} from '@/components/ui/input';import {Textarea} from '@/components/ui/textarea';import {Switch} from '@/components/ui/switch';import {toast} from 'sonner';import {api,Field,Pick,Modal,Avatar,Blank,Busy,Confirm} from './common';import {CATEGORIES,HOURS,money,today,time,dateLabel} from '@/lib/types';
-import {TeamAccessPanel} from './team';
-export function Hours({value,onChange}:any){return <div className="hours-editor">{[1,2,3,4,5,6,0].map(i=>{const d=String(i),label=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][i];return <div className="hours-row" key={d}><Switch aria-label={label+' açık'} checked={!!value[d]} onCheckedChange={v=>{const h={...value};if(v)h[d]=[540,1080];else delete h[d];onChange(h)}}/><span>{label}</span>{value[d]?[0,1].map(j=><Input key={j} aria-label={label+(j?' kapanış':' açılış')} type="time" step={900} value={time(value[d][j])} onChange={e=>{const [a,b]=e.target.value.split(':').map(Number),r=[...value[d]];if(Number.isFinite(a+b)){r[j]=a*60+b;onChange({...value,[d]:r})}}}/>):<small className="muted">Kapalı</small>}</div>})}</div>}
-export function Management({w,view,refresh,requireReal}:any){const [edit,setEdit]=useState<any>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[leave,setLeave]=useState(false),[leaveForm,setLeaveForm]=useState({staff_id:'all',date:today(),reason:''}),[deleting,setDeleting]=useState('');const team=view==='staff';const records=team?w.staff:w.services;function open(row?:any){setError('');setEdit(team?(row?{...row,hours:JSON.parse(row.hours)}:{name:'',title:'Uzman',hours:JSON.parse(HOURS),color:'#e1eccd',active:1}):(row?{...row,price:row.price/100}:{name:'',description:'',duration:30,price:'',color:'#789c74',active:1}))}async function save(e:any){e.preventDefault();if(!requireReal())return;setBusy(true);try{await api(team?'staff':'services',{...edit,...(!team?{duration:Number(edit.duration),price:Math.round(Number(edit.price)*100)}:{}),tenant_id:w.business.id});setEdit(null);refresh();toast.success('Kaydedildi.')}catch(e:any){setError(e.message)}finally{setBusy(false)}}return <><div className="toolbar"><p className="muted">{records.filter((r:any)=>r.active).length} aktif {team?'personel':'hizmet'}</p><div className="button-group">{team&&<button className="button" onClick={()=>{setLeave(true);setError('')}}><CalendarOff size={16}/>İzin ekle</button>}<button className="button primary" onClick={()=>open()}><Plus size={17}/>{team?'Personel':'Hizmet'} ekle</button></div></div><div className="service-cards">{records.map((r:any)=><section className={'panel service-card '+(!r.active?'inactive':'')} key={r.id}>{team?<Avatar name={r.name} color={r.color} large/>:<span className="service-icon" style={{color:r.color,background:r.color+'22'}}><Scissors/></span>}<button className="icon-button card-edit" aria-label={r.name+' düzenle'} onClick={()=>open(r)}><Pencil size={16}/></button><h2>{r.name}</h2><p className="muted">{team?r.title:<><Clock size={14}/>{r.duration} dakika</>}</p>{team?<div className="staff-card-bottom"><span className={'badge '+(r.active?'confirmed':'cancelled')}>{r.active?'Aktif':'Pasif'}</span><small>{w.appointments.filter((a:any)=>a.staff_id===r.id&&a.date===today()&&a.status==='confirmed').length} randevu bugün</small></div>:<div><strong>{money(r.price)}</strong>{r.description&&<p className="service-description">{r.description}</p>}</div>}</section>)}</div>{!records.length&&<Blank title={team?'Ekibinizi oluşturun':'İlk hizmetinizi ekleyin'}/>}{team&&<section className="panel margin-top"><div className="section-heading"><h2>İzinler & kapalı günler</h2><CalendarOff size={18}/></div>{w.closures.length?w.closures.map((c:any)=><div className="list-row" key={c.id}><div><strong>{c.staff_id?w.staff.find((p:any)=>p.id===c.staff_id)?.name:'Tüm işletme'}</strong><small>{dateLabel(c.date)} · {c.reason}</small></div><button className="icon-button" aria-label="İzni kaldır" onClick={()=>setDeleting(c.id)}><Trash2 size={17}/></button></div>):<p className="muted small-text">Planlanmış izin günü yok.</p>}</section>}{team&&<TeamAccessPanel w={w}/>}<Modal open={!!edit} onClose={()=>setEdit(null)} title={team?'Personel bilgileri':'Hizmet bilgileri'}>{edit&&<form className="form-stack" onSubmit={save}><Field label={team?'Ad soyad':'Hizmet adı'}><Input required value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})}/></Field>{team?<><Field label="Unvan"><Input required value={edit.title} onChange={e=>setEdit({...edit,title:e.target.value})}/></Field><Hours value={edit.hours} onChange={(hours:any)=>setEdit({...edit,hours})}/></>:<div className="form-grid"><Field label="Süre (dakika)"><Input type="number" required min={15} max={480} step={15} value={edit.duration} onChange={e=>setEdit({...edit,duration:e.target.value})}/></Field><Field label="Fiyat (₺)"><Input type="number" required min={0} step="0.01" value={edit.price} onChange={e=>setEdit({...edit,price:e.target.value})}/></Field></div>}{!team&&<Field label="İşleme neler dahil?"><Textarea maxLength={600} placeholder="Örn. Saç yıkama, kesim ve şekillendirme." value={edit.description||''} onChange={e=>setEdit({...edit,description:e.target.value})}/></Field>}<label className="toggle-row">Randevuya açık<Switch checked={!!edit.active} onCheckedChange={v=>setEdit({...edit,active:v?1:0})}/></label>{error&&<p className="error-message">{error}</p>}<button className="button primary full" disabled={busy}>{busy?<Busy/>:<Save size={17}/>}Kaydet</button></form>}</Modal><Modal open={leave} onClose={()=>setLeave(false)} title="İzin günü ekle"><form className="form-stack" onSubmit={async e=>{e.preventDefault();if(!requireReal())return;setBusy(true);try{await api('closures',{...leaveForm,tenant_id:w.business.id});refresh();setLeave(false)}catch(e:any){setError(e.message)}finally{setBusy(false)}}}><Field label="Personel"><Pick label="Personel" value={leaveForm.staff_id} onChange={staff_id=>setLeaveForm({...leaveForm,staff_id})} options={[{value:'all',label:'Tüm işletme'},...w.staff.map((p:any)=>({value:p.id,label:p.name}))]}/></Field><Field label="Tarih"><Input type="date" min={today()} required value={leaveForm.date} onChange={e=>setLeaveForm({...leaveForm,date:e.target.value})}/></Field><Field label="Açıklama"><Input value={leaveForm.reason} onChange={e=>setLeaveForm({...leaveForm,reason:e.target.value})}/></Field>{error&&<p className="error-message">{error}</p>}<button className="button primary" disabled={busy}>İzni kaydet</button></form></Modal><Confirm open={!!deleting} onClose={()=>setDeleting('')} title="İzin kaldırılsın mı?" description="Seçilen gün yeniden randevuya açılacak." onConfirm={async()=>{if(!requireReal())return;try{await api('closures',{tenant_id:w.business.id,id:deleting,action:'delete'});refresh();setDeleting('')}catch(e:any){toast.error(e.message)}}}/></>}
-export function Settings({w,refresh,requireReal}:any){const [f,setF]=useState({...w.business,hours:JSON.parse(w.business.hours)}),[busy,setBusy]=useState(false);return <form className="settings-grid" onSubmit={async e=>{e.preventDefault();if(!requireReal())return;setBusy(true);try{await api('settings',{...f,tenant_id:w.business.id});refresh();toast.success('Ayarlar kaydedildi.')}catch(e:any){toast.error(e.message)}finally{setBusy(false)}}}><section className="panel form-stack"><h2>İşletme profili</h2>{[['name','İşletme adı'],['city','Şehir'],['address','Adres'],['phone','İşletme telefonu']].map(([key,label])=><Field key={key} label={label}><Input required={key==='name'} value={f[key]||''} onChange={e=>setF({...f,[key]:e.target.value})}/></Field>)}<Field label="Sektör"><Pick label="Sektör" value={f.category} onChange={category=>setF({...f,category})} options={CATEGORIES.map(s=>({value:s,label:s}))}/></Field><Field label="İşletme hakkında"><Textarea value={f.description||''} onChange={e=>setF({...f,description:e.target.value})}/></Field><div className="notice"><Link2 size={16}/>/{w.business.slug}</div></section><section className="panel form-stack"><h2>Çalışma saatleri</h2><Hours value={f.hours} onChange={(hours:any)=>setF({...f,hours})}/><Field label="İptal / değişiklik sınırı (saat önce)"><Input type="number" min={0} max={72} value={f.cancellation_hours} onChange={e=>setF({...f,cancellation_hours:Number(e.target.value)})}/></Field><p className="helper">Türkiye saati. Mevcut randevular saat değişikliğinde otomatik iptal edilmez.</p><button className="button primary" disabled={busy}>{busy?<Busy/>:<Save size={17}/>}Değişiklikleri kaydet</button></section></form>}
-export function Integrations(){return <div className="integration-grid">{[{icon:MessageCircle,name:'WhatsApp Business',desc:'Yeni randevu, iptal ve değişiklik bildirimleri.',tag:'Bağlantı gerekli',note:'Bildirim olayları kaydedilir. Gönderim için WhatsApp sağlayıcısı, onaylı şablonlar ve hatırlatma işçisi bağlanmalıdır.'},{icon:CreditCard,name:'Online ödeme',desc:'İsteğe bağlı kapora ile randevularınızı güvenceye alın.',tag:'Bağlantı gerekli',note:'Bu sürüm para tahsil etmez. Ödeme sağlayıcısı ve doğrulanmış ödeme/iade akışı sonraki aşamada bağlanacak.'},{icon:Sparkles,name:'Randevu asistanı',desc:'Gün ve hizmet yazarak gerçek müsait saatleri bulun.',tag:'Temel sürüm aktif',note:'Kural tabanlı Türkçe arama çalışır. Harici yapay zekâ bağlantısı yoktur; “Cumartesi öğleden sonra saç kesimi” gibi soruları destekler.'}].map(x=><section className="panel integration-card" key={x.name}><span className="integration-icon"><x.icon size={26}/></span><h2>{x.name}</h2><p className="muted">{x.desc}</p><span className="badge neutral">{x.tag}</span><div className="integration-note">{x.note}</div></section>)}</div>}
+"use client";
+import { useState } from "react";
+import {
+  Plus,
+  Save,
+  Pencil,
+  Scissors,
+  Clock,
+  CalendarOff,
+  Trash2,
+  Link2,
+  MessageCircle,
+  CreditCard,
+  Sparkles,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import {
+  api,
+  Field,
+  Pick,
+  Modal,
+  Avatar,
+  Blank,
+  Busy,
+  Confirm,
+} from "./common";
+import { CATEGORIES, HOURS, money, today, time, dateLabel } from "@/lib/types";
+import { TeamAccessPanel } from "./team";
+export function Hours({ value, onChange }: any) {
+  return (
+    <div className="hours-editor">
+      {[1, 2, 3, 4, 5, 6, 0].map((i) => {
+        const d = String(i),
+          label = [
+            "Pazar",
+            "Pazartesi",
+            "Salı",
+            "Çarşamba",
+            "Perşembe",
+            "Cuma",
+            "Cumartesi",
+          ][i];
+        return (
+          <div className="hours-row" key={d}>
+            <Switch
+              aria-label={label + " açık"}
+              checked={!!value[d]}
+              onCheckedChange={(v) => {
+                const h = { ...value };
+                if (v) h[d] = [540, 1080];
+                else delete h[d];
+                onChange(h);
+              }}
+            />
+            <span>{label}</span>
+            {value[d] ? (
+              [0, 1].map((j) => (
+                <Input
+                  key={j}
+                  aria-label={label + (j ? " kapanış" : " açılış")}
+                  type="time"
+                  step={900}
+                  value={time(value[d][j])}
+                  onChange={(e) => {
+                    const [a, b] = e.target.value.split(":").map(Number),
+                      r = [...value[d]];
+                    if (Number.isFinite(a + b)) {
+                      r[j] = a * 60 + b;
+                      onChange({ ...value, [d]: r });
+                    }
+                  }}
+                />
+              ))
+            ) : (
+              <small className="muted">Kapalı</small>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+export function Management({ w, view, refresh, requireReal }: any) {
+  const [edit, setEdit] = useState<any>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [leave, setLeave] = useState(false),
+    [leaveForm, setLeaveForm] = useState({
+      staff_id: "all",
+      date: today(),
+      reason: "",
+    }),
+    [deleting, setDeleting] = useState("");
+  const team = view === "staff";
+  const records = team ? w.staff : w.services;
+  function open(row?: any) {
+    setError("");
+    setEdit(
+      team
+        ? row
+          ? { ...row, hours: JSON.parse(row.hours) }
+          : {
+              name: "",
+              title: "Uzman",
+              hours: JSON.parse(HOURS),
+              color: "#e1eccd",
+              active: 1,
+            }
+        : row
+          ? { ...row, price: row.price / 100 }
+          : {
+              name: "",
+              description: "",
+              duration: 30,
+              price: "",
+              color: "#789c74",
+              delivery_mode: "in_person",
+              meeting_url: "",
+              active: 1,
+            },
+    );
+  }
+  async function save(e: any) {
+    e.preventDefault();
+    if (!requireReal()) return;
+    setBusy(true);
+    try {
+      await api(team ? "staff" : "services", {
+        ...edit,
+        ...(!team
+          ? {
+              duration: Number(edit.duration),
+              price: Math.round(Number(edit.price) * 100),
+            }
+          : {}),
+        tenant_id: w.business.id,
+      });
+      setEdit(null);
+      refresh();
+      toast.success("Kaydedildi.");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <div className="toolbar">
+        <p className="muted">
+          {records.filter((r: any) => r.active).length} aktif{" "}
+          {team ? "personel" : "hizmet"}
+        </p>
+        <div className="button-group">
+          {team && (
+            <button
+              className="button"
+              onClick={() => {
+                setLeave(true);
+                setError("");
+              }}
+            >
+              <CalendarOff size={16} />
+              İzin ekle
+            </button>
+          )}
+          <button className="button primary" onClick={() => open()}>
+            <Plus size={17} />
+            {team ? "Personel" : "Hizmet"} ekle
+          </button>
+        </div>
+      </div>
+      <div className="service-cards">
+        {records.map((r: any) => (
+          <section
+            className={"panel service-card " + (!r.active ? "inactive" : "")}
+            key={r.id}
+          >
+            {team ? (
+              <Avatar name={r.name} color={r.color} large />
+            ) : (
+              <span
+                className="service-icon"
+                style={{ color: r.color, background: r.color + "22" }}
+              >
+                <Scissors />
+              </span>
+            )}
+            <button
+              className="icon-button card-edit"
+              aria-label={r.name + " düzenle"}
+              onClick={() => open(r)}
+            >
+              <Pencil size={16} />
+            </button>
+            <h2>{r.name}</h2>
+            <p className="muted">
+              {team ? (
+                r.title
+              ) : (
+                <>
+                  <Clock size={14} />
+                  {r.duration} dakika
+                </>
+              )}
+            </p>
+            {team ? (
+              <div className="staff-card-bottom">
+                <span
+                  className={"badge " + (r.active ? "confirmed" : "cancelled")}
+                >
+                  {r.active ? "Aktif" : "Pasif"}
+                </span>
+                <small>
+                  {
+                    w.appointments.filter(
+                      (a: any) =>
+                        a.staff_id === r.id &&
+                        a.date === today() &&
+                        a.status === "confirmed",
+                    ).length
+                  }{" "}
+                  randevu bugün
+                </small>
+              </div>
+            ) : (
+              <div>
+                <strong>{money(r.price)}</strong>
+                {r.description && (
+                  <p className="service-description">{r.description}</p>
+                )}
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
+      {!records.length && (
+        <Blank
+          title={team ? "Ekibinizi oluşturun" : "İlk hizmetinizi ekleyin"}
+        />
+      )}
+      {team && (
+        <section className="panel margin-top">
+          <div className="section-heading">
+            <h2>İzinler & kapalı günler</h2>
+            <CalendarOff size={18} />
+          </div>
+          {w.closures.length ? (
+            w.closures.map((c: any) => (
+              <div className="list-row" key={c.id}>
+                <div>
+                  <strong>
+                    {c.staff_id
+                      ? w.staff.find((p: any) => p.id === c.staff_id)?.name
+                      : "Tüm işletme"}
+                  </strong>
+                  <small>
+                    {dateLabel(c.date)} · {c.reason}
+                  </small>
+                </div>
+                <button
+                  className="icon-button"
+                  aria-label="İzni kaldır"
+                  onClick={() => setDeleting(c.id)}
+                >
+                  <Trash2 size={17} />
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="muted small-text">Planlanmış izin günü yok.</p>
+          )}
+        </section>
+      )}
+      {team && <TeamAccessPanel w={w} />}
+      <Modal
+        open={!!edit}
+        onClose={() => setEdit(null)}
+        title={team ? "Personel bilgileri" : "Hizmet bilgileri"}
+      >
+        {edit && (
+          <form className="form-stack" onSubmit={save}>
+            <Field label={team ? "Ad soyad" : "Hizmet adı"}>
+              <Input
+                required
+                value={edit.name}
+                onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+              />
+            </Field>
+            {team ? (
+              <>
+                <Field label="Unvan">
+                  <Input
+                    required
+                    value={edit.title}
+                    onChange={(e) =>
+                      setEdit({ ...edit, title: e.target.value })
+                    }
+                  />
+                </Field>
+                <Hours
+                  value={edit.hours}
+                  onChange={(hours: any) => setEdit({ ...edit, hours })}
+                />
+              </>
+            ) : (
+              <div className="form-grid">
+                <Field label="Süre (dakika)">
+                  <Input
+                    type="number"
+                    required
+                    min={15}
+                    max={480}
+                    step={15}
+                    value={edit.duration}
+                    onChange={(e) =>
+                      setEdit({ ...edit, duration: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Fiyat (₺)">
+                  <Input
+                    type="number"
+                    required
+                    min={0}
+                    step="0.01"
+                    value={edit.price}
+                    onChange={(e) =>
+                      setEdit({ ...edit, price: e.target.value })
+                    }
+                  />
+                </Field>
+              </div>
+            )}
+            {!team && (
+              <>
+                <Field label="İşleme neler dahil?">
+                  <Textarea
+                    maxLength={600}
+                    placeholder="Örn. Saç yıkama, kesim ve şekillendirme."
+                    value={edit.description || ""}
+                    onChange={(e) =>
+                      setEdit({ ...edit, description: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Randevu türü">
+                  <Pick
+                    label="Randevu türü"
+                    value={edit.delivery_mode || "in_person"}
+                    onChange={(delivery_mode) =>
+                      setEdit({ ...edit, delivery_mode })
+                    }
+                    options={[
+                      { value: "in_person", label: "Yüz yüze" },
+                      { value: "online", label: "Çevrim içi" },
+                      { value: "hybrid", label: "Yüz yüze veya çevrim içi" },
+                    ]}
+                  />
+                </Field>
+                {edit.delivery_mode !== "in_person" && (
+                  <Field label="Güvenli görüşme bağlantısı">
+                    <Input
+                      type="url"
+                      required
+                      placeholder="https://meet.google.com/..."
+                      value={edit.meeting_url || ""}
+                      onChange={(e) =>
+                        setEdit({ ...edit, meeting_url: e.target.value })
+                      }
+                    />
+                    <small>
+                      Bağlantı yalnızca randevusu oluşan müşteriye gösterilir.
+                    </small>
+                  </Field>
+                )}
+              </>
+            )}
+            <label className="toggle-row">
+              Randevuya açık
+              <Switch
+                checked={!!edit.active}
+                onCheckedChange={(v) => setEdit({ ...edit, active: v ? 1 : 0 })}
+              />
+            </label>
+            {error && <p className="error-message">{error}</p>}
+            <button className="button primary full" disabled={busy}>
+              {busy ? <Busy /> : <Save size={17} />}Kaydet
+            </button>
+          </form>
+        )}
+      </Modal>
+      <Modal
+        open={leave}
+        onClose={() => setLeave(false)}
+        title="İzin günü ekle"
+      >
+        <form
+          className="form-stack"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!requireReal()) return;
+            setBusy(true);
+            try {
+              await api("closures", { ...leaveForm, tenant_id: w.business.id });
+              refresh();
+              setLeave(false);
+            } catch (e: any) {
+              setError(e.message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Field label="Personel">
+            <Pick
+              label="Personel"
+              value={leaveForm.staff_id}
+              onChange={(staff_id) => setLeaveForm({ ...leaveForm, staff_id })}
+              options={[
+                { value: "all", label: "Tüm işletme" },
+                ...w.staff.map((p: any) => ({ value: p.id, label: p.name })),
+              ]}
+            />
+          </Field>
+          <Field label="Tarih">
+            <Input
+              type="date"
+              min={today()}
+              required
+              value={leaveForm.date}
+              onChange={(e) =>
+                setLeaveForm({ ...leaveForm, date: e.target.value })
+              }
+            />
+          </Field>
+          <Field label="Açıklama">
+            <Input
+              value={leaveForm.reason}
+              onChange={(e) =>
+                setLeaveForm({ ...leaveForm, reason: e.target.value })
+              }
+            />
+          </Field>
+          {error && <p className="error-message">{error}</p>}
+          <button className="button primary" disabled={busy}>
+            İzni kaydet
+          </button>
+        </form>
+      </Modal>
+      <Confirm
+        open={!!deleting}
+        onClose={() => setDeleting("")}
+        title="İzin kaldırılsın mı?"
+        description="Seçilen gün yeniden randevuya açılacak."
+        onConfirm={async () => {
+          if (!requireReal()) return;
+          try {
+            await api("closures", {
+              tenant_id: w.business.id,
+              id: deleting,
+              action: "delete",
+            });
+            refresh();
+            setDeleting("");
+          } catch (e: any) {
+            toast.error(e.message);
+          }
+        }}
+      />
+    </>
+  );
+}
+export function Settings({ w, refresh, requireReal }: any) {
+  const [f, setF] = useState({
+      ...w.business,
+      hours: JSON.parse(w.business.hours),
+    }),
+    [busy, setBusy] = useState(false);
+  return (
+    <form
+      className="settings-grid"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!requireReal()) return;
+        setBusy(true);
+        try {
+          await api("settings", { ...f, tenant_id: w.business.id });
+          refresh();
+          toast.success("Ayarlar kaydedildi.");
+        } catch (e: any) {
+          toast.error(e.message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <section className="panel form-stack">
+        <h2>İşletme profili</h2>
+        {[
+          ["name", "İşletme adı"],
+          ["city", "Şehir"],
+          ["address", "Adres"],
+          ["phone", "İşletme telefonu"],
+        ].map(([key, label]) => (
+          <Field key={key} label={label}>
+            <Input
+              required={key === "name"}
+              value={f[key] || ""}
+              onChange={(e) => setF({ ...f, [key]: e.target.value })}
+            />
+          </Field>
+        ))}
+        <Field label="Sektör">
+          <Pick
+            label="Sektör"
+            value={f.category}
+            onChange={(category) => setF({ ...f, category })}
+            options={CATEGORIES.map((s) => ({ value: s, label: s }))}
+          />
+        </Field>
+        <Field label="İşletme hakkında">
+          <Textarea
+            value={f.description || ""}
+            onChange={(e) => setF({ ...f, description: e.target.value })}
+          />
+        </Field>
+        <Field label="Sektörünüzde kullanılan ad">
+          <Pick
+            label="Hizmet adı"
+            value={f.terminology || "Hizmet"}
+            onChange={(terminology) => setF({ ...f, terminology })}
+            options={[
+              "Hizmet",
+              "Seans",
+              "Ders / Antrenman",
+              "Danışmanlık",
+              "Bakım",
+            ].map((value) => ({ value, label: value }))}
+          />
+        </Field>
+        <label className="toggle-row">
+          <span>
+            <strong>Çevrim içi randevu</strong>
+            <small>Hizmetlere güvenli görüşme bağlantısı ekleyin.</small>
+          </span>
+          <Switch
+            checked={!!f.online_enabled}
+            onCheckedChange={(value) =>
+              setF({ ...f, online_enabled: value ? 1 : 0 })
+            }
+          />
+        </label>
+        <div className="notice">
+          <Link2 size={16} />/{w.business.slug}
+        </div>
+      </section>
+      <section className="panel form-stack">
+        <h2>Çalışma saatleri</h2>
+        <Hours
+          value={f.hours}
+          onChange={(hours: any) => setF({ ...f, hours })}
+        />
+        <Field label="İptal / değişiklik sınırı (saat önce)">
+          <Input
+            type="number"
+            min={0}
+            max={72}
+            value={f.cancellation_hours}
+            onChange={(e) =>
+              setF({ ...f, cancellation_hours: Number(e.target.value) })
+            }
+          />
+        </Field>
+        <p className="helper">
+          Türkiye saati. Mevcut randevular saat değişikliğinde otomatik iptal
+          edilmez.
+        </p>
+        <button className="button primary" disabled={busy}>
+          {busy ? <Busy /> : <Save size={17} />}Değişiklikleri kaydet
+        </button>
+      </section>
+    </form>
+  );
+}
+export function Integrations() {
+  return (
+    <div className="integration-grid">
+      {[
+        {
+          icon: MessageCircle,
+          name: "WhatsApp Business",
+          desc: "Yeni randevu, iptal ve değişiklik bildirimleri.",
+          tag: "Bağlantı gerekli",
+          note: "Bildirim olayları kaydedilir. Gönderim için WhatsApp sağlayıcısı, onaylı şablonlar ve hatırlatma işçisi bağlanmalıdır.",
+        },
+        {
+          icon: CreditCard,
+          name: "Online ödeme",
+          desc: "İsteğe bağlı kapora ile randevularınızı güvenceye alın.",
+          tag: "Bağlantı gerekli",
+          note: "Bu sürüm para tahsil etmez. Ödeme sağlayıcısı ve doğrulanmış ödeme/iade akışı sonraki aşamada bağlanacak.",
+        },
+        {
+          icon: Sparkles,
+          name: "Randevu asistanı",
+          desc: "Gün ve hizmet yazarak gerçek müsait saatleri bulun.",
+          tag: "Temel sürüm aktif",
+          note: "Kural tabanlı Türkçe arama çalışır. Harici yapay zekâ bağlantısı yoktur; “Cumartesi öğleden sonra saç kesimi” gibi soruları destekler.",
+        },
+      ].map((x) => (
+        <section className="panel integration-card" key={x.name}>
+          <span className="integration-icon">
+            <x.icon size={26} />
+          </span>
+          <h2>{x.name}</h2>
+          <p className="muted">{x.desc}</p>
+          <span className="badge neutral">{x.tag}</span>
+          <div className="integration-note">{x.note}</div>
+        </section>
+      ))}
+    </div>
+  );
+}

@@ -64,6 +64,13 @@
       "when": 1790158811868,
       "tag": "0008_loose_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790160704664,
+      "tag": "0009_adorable_karma",
+      "breakpoints": true
     }
   ]
 }
