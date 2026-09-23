@@ -50,6 +50,13 @@
       "when": 1790111877146,
       "tag": "0006_growth_and_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790149704623,
+      "tag": "0007_next_blonde_phantom",
+      "breakpoints": true
     }
   ]
 }
