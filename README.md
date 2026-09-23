@@ -11,6 +11,12 @@ paylaşılabilir randevu linki, kayıp talep analitiği, müşteri geri kazanım
 sektör temaları, tavsiye kredisi, WhatsApp konuşma adaptörü, yardım merkezi ve
 Neta aylık abonelik adaptörü birlikte bulunur.
 
+Randevu oluşturma/taşıma/iptal/hatırlatma olayları güvenli bir outbox işçisine
+bağlıdır (`/api/automation/outbox`). İşletme sahibi numarası tanımlanırsa yeni
+randevu bildirimi alır; müşteri mesajları aynı D1 takvimindeki kilitlerle
+çakışmaz. AI ve WhatsApp kullanımı paket kotasıyla sınırlıdır: Pro hedef fiyatı
+2.000 TL/aydır ve sınırsız kullanım değildir.
+
 ZIP'ten gelen fikirlerin ve örneklerin nasıl değerlendirildiği için
 [ZIP entegrasyon notlarına](docs/neta-zip-review.md) bakın. Ham ZIP'teki eski
 mock ödeme ve güvensiz örnekler canlı koda kopyalanmamıştır.
