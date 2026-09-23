@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789925553687,
+      "tag": "0000_typical_deathbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789925791971,
+      "tag": "0001_booking_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789985978131,
+      "tag": "0002_membership",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790022825993,
+      "tag": "0003_demand_early_team",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790072011668,
+      "tag": "0004_neta_identity_billing",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790094947333,
+      "tag": "0005_customer_operations",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790111877146,
+      "tag": "0006_growth_and_connections",
+      "breakpoints": true
+    }
+  ]
+}

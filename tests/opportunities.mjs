@@ -1,0 +1,137 @@
+// Isolated integration tests. Uses the built Worker and a temporary D1 database.
+// Synthetic identities are injected only into this local test runtime.
+import {createRequire} from 'node:module';
+import {readdirSync,readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import assert from 'node:assert/strict';
+const require=createRequire(import.meta.url);
+const wranglerRequire=createRequire(require.resolve('wrangler/package.json'));
+const {Miniflare}=await import(wranglerRequire.resolve('miniflare'));
+const root=resolve('dist/server');
+const files=['index.js',...readdirSync(root,{recursive:true}).filter(p=>p.endsWith('.js')&&p!=='index.js')];
+const mf=new Miniflare({modules:files.map(p=>({type:'ESModule',path:resolve(root,p)})),modulesRoot:root,compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{PLATFORM_ADMIN_USER_IDS:'qa-admin'},cf:false});
+let checks=0;
+function check(condition,message){assert.ok(condition,message);checks++;console.log('PASS',message)}
+async function call(path,{user,body,token,headers={}}={}){const h={...headers,...(user?{'oai-authenticated-user-id':user,'oai-authenticated-user-email':user+'@example.test'}:{}),...(body?{'content-type':'application/json',origin:'https://randevu.test'}:{}),...(token?{authorization:'Bearer '+token}:{})};const r=await mf.dispatchFetch('https://randevu.test/api/v1/'+path,{method:body?'POST':'GET',headers:h,...(body?{body:JSON.stringify(body)}:{})});const text=await r.text();let data;try{data=JSON.parse(text)}catch{throw new Error('Non-JSON '+r.status+' '+text.slice(0,300))}return {status:r.status,data}}
+const day=(n)=>new Date(Date.now()+n*86400000).toISOString().slice(0,10);
+
+try{
+ const db=await mf.getD1Database('DB');
+ for(const file of readdirSync('drizzle').filter(p=>p.endsWith('.sql')).sort()){
+  if(file.startsWith('0003')){
+   await db.prepare("INSERT INTO businesses(id,name,slug,category,hours,created_at) VALUES('legacy','Eski İşletme','legacy','Kuaför & Berber','{}',?)").bind(new Date().toISOString()).run();
+   await db.prepare("INSERT INTO members(tenant_id,user_id,email,name) VALUES('legacy','legacy-owner','legacy@example.test','Eski Sahip')").run();
+  }
+  for(const sql of readFileSync('drizzle/'+file,'utf8').split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
+ }
+ check((await db.prepare("SELECT role,staff_id FROM members WHERE user_id='legacy-owner'").first()).role==='owner','Migration preserves existing business owners');
+ const hours=Object.fromEntries([0,1,2,3,4,5,6].map(k=>[k,[540,1140]]));
+ const A=(await call('businesses',{user:'owner-a',body:{name:'Talep Test A',slug:'talep-a',category:'Kuaför & Berber'}})).data.id;
+ const B=(await call('businesses',{user:'owner-b',body:{name:'Talep Test B',slug:'talep-b',category:'Kuaför & Berber'}})).data.id;
+ for(const [id,user] of [[A,'owner-a'],[B,'owner-b']]){
+  await call('admin',{user:'qa-admin',body:{action:'business-status',id,status:'approved'}});
+  await call('settings',{user,body:{tenant_id:id,name:'Test '+user,category:'Kuaför & Berber',city:'Test',address:'Test',phone:'',description:'',hours,cancellation_hours:2}});
+  await call('services',{user,body:{tenant_id:id,name:'Saç kesimi',description:'Yıkama, kesim ve şekillendirme.',duration:30,price:60000}});
+  await call('staff',{user,body:{tenant_id:id,name:'Birinci Uzman',title:'Uzman',hours}});
+ }
+ const wa=(await call('workspace?tenant='+A,{user:'owner-a'})).data,wb=(await call('workspace?tenant='+B,{user:'owner-b'})).data,S=wa.services[0].id,P=wa.staff[0].id;
+ const payload={slug:'talep-a',service_id:S,staff_id:P,date:day(3),minute:1080,name:'Test Müşteri',phone:'05551110000',customer_note:'Makas kesimi istiyorum.'};
+ const metrics=()=>call('demand-insights?tenant='+A+'&days=7',{user:'owner-a'});
+ await call(`availability?slug=talep-a&service=${S}&date=${day(3)}`);
+ check((await metrics()).data.totals.encountered_empty===0,'Automatic availability loading never counts as unmet intent');
+ const key='a'.repeat(64),visit=(await call('visit',{body:{slug:'talep-a',visitor_key:key}})).data;
+ const visit2=(await call('visit',{body:{slug:'talep-a',visitor_key:key}})).data;
+ check(visit.visit_id===visit2.visit_id&&(await metrics()).data.totals.visits===1,'Repeated page visits in the same browser session are deduplicated');
+ const intent={slug:'talep-a',visit_id:visit.visit_id,visitor_key:key,service_id:S,staff_id:'any',date:day(3),minute_from:1200,minute_to:1260,matched:1,price:1};
+ const outside=await call('demand-search',{body:intent});
+ check(outside.status===200&&outside.data.reason==='closed_hours'&&outside.data.slots.length===0,'Explicit search detects demand after the business closes');
+ await call('demand-search',{body:intent});
+ const first=(await metrics()).data;
+ check(first.totals.count===1&&first.totals.value===60000&&first.totals.outside_hours===1&&first.totals.outside_value===60000,'Repeated empty search counts once and uses the server service price');
+ check(first.windows[0].minute_from===1200&&first.windows[0].minute_to===1260,'Requested closed-hour window is retained for Ghost Demand');
+ check((await call('demand-search',{body:{...intent,service_id:wb.services[0].id}})).status===404,'Demand event cannot refer to another business service');
+ check((await call('demand-search',{body:{...intent,staff_id:wb.staff[0].id}})).status===404,'Demand event cannot refer to another business staff member');
+ check((await call('demand-search',{body:{...intent,visitor_key:'b'.repeat(64)}})).status===409,'Unknown session proof cannot mutate another visit');
+ check((await call('demand-search',{body:{...intent,minute_from:1200,minute_to:1100}})).status===400,'Invalid intent window is rejected');
+ check((await call('demand-insights?tenant='+A,{user:'owner-b'})).status===403&&(await call('demand-insights?tenant='+A)).status===401,'Demand analytics is private to authorized owners');
+ const booked=(await call('bookings',{body:{...payload,visit_id:visit.visit_id,visitor_key:key}})).data;
+ check(booked.id&&(await metrics()).data.totals.count===0&&(await metrics()).data.totals.converted===1,'Successful booking atomically removes the visit from unmet potential');
+ const keyB='b'.repeat(64),vb=(await call('visit',{body:{slug:'talep-a',visitor_key:keyB}})).data;
+ const ia={...intent,visit_id:vb.visit_id,visitor_key:keyB,minute_from:540,minute_to:600};
+ await call('bookings',{body:{...payload,minute:540,phone:'05551110001'}});
+ await call('bookings',{body:{...payload,minute:570,phone:'05551110002'}});
+ check((await call('demand-search',{body:ia})).data.reason==='fully_booked','Occupied open-hour window is distinguished from closed business hours');
+ check((await metrics()).data.totals.count===1,'A separate unconverted visit remains in unmet demand');
+ await call('demand-search',{body:{...ia,minute_from:840,minute_to:900}});
+ check((await metrics()).data.totals.count===0,'Finding a matching time in the latest search resolves earlier unmet intent');
+ const serialized=JSON.stringify((await metrics()).data);
+ check(!serialized.includes('visitor_hash')&&!serialized.includes(key)&&!serialized.includes('0555111'),'Analytics response contains aggregate demand without visitor keys or contact details');
+ const oldDescription=(await call('public/talep-a')).data.services[0].description;
+ check(oldDescription==='Yıkama, kesim ve şekillendirme.','Customers can read service inclusions before choosing');
+ await call('services',{user:'owner-a',body:{tenant_id:A,id:S,name:'Yeni hizmet adı',description:'Yeni kapsam',duration:30,price:99000}});
+ const receipt=(await call('manage',{token:booked.token})).data.appointment;
+ check(receipt.service_name==='Saç kesimi'&&receipt.service_description===oldDescription&&receipt.price===60000&&receipt.customer_note==='Makas kesimi istiyorum.','Booking preserves selected service, inclusions, note and price after service editing');
+ const member={name:'Test Personel',account_type:'business',phone:'',city:'',marketing_consent:false};
+ await call('account',{user:'worker-a',body:member});
+ check((await call('team-access',{user:'owner-a',body:{tenant_id:A,staff_id:P,email:'worker-a@example.test'}})).status===200,'Owner can attach an existing membership to a staff record');
+ check((await call('workspace?tenant='+A,{user:'worker-a'})).status===403&&(await call('demand-insights?tenant='+A,{user:'worker-a'})).status===403,'Staff role cannot read the owner workspace or demand revenue reports');
+ check((await call('services',{user:'worker-a',body:{tenant_id:A,name:'Forbidden',duration:30,price:1}})).status===403,'Staff role cannot modify business services');
+ await call('staff',{user:'owner-a',body:{tenant_id:A,name:'İkinci Uzman',title:'Uzman',hours}});
+ const P2=(await call('workspace?tenant='+A,{user:'owner-a'})).data.staff.find(p=>p.id!==P).id;
+ const otherJob=(await call('bookings',{body:{...payload,staff_id:P2,minute:600}})).data;
+ const jobs=(await call('team-jobs?tenant='+A+'&date='+day(3),{user:'worker-a'})).data;
+ check(jobs.appointments.length===3&&jobs.appointments.every(a=>a.staff_id===P)&&jobs.appointments.some(a=>a.customer_note==='Makas kesimi istiyorum.'),'Staff sees only assigned appointments with selected work details');
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:otherJob.id,status:'completed'}})).status===404,'Staff cannot complete a colleague’s appointment');
+ check((await call('team-jobs?tenant='+B,{user:'worker-a'})).status===403,'Staff cannot cross business boundaries');
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'completed'}})).status===400,'Staff cannot complete work before its planned finish');
+ await db.prepare('UPDATE appointments SET date=? WHERE id=?').bind(day(-1),booked.id).run();
+ await db.prepare('DELETE FROM slots WHERE appointment_id=?').bind(booked.id).run();
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'completed'}})).status===200,'Assigned staff can record a completed past service');
+ const serviceReport=(await call('service-insights?tenant='+A+'&days=30',{user:'owner-a'})).data;
+ check(serviceReport.services[0].completed===1&&serviceReport.services[0].revenue===60000&&serviceReport.staff[0].completed===1,'Popular service report uses completed work and saved prices, grouped by staff');
+ check((await call('service-insights?tenant='+A,{user:'worker-a'})).status===403,'Staff cannot read business-wide service income');
+ await call('team-access',{user:'owner-a',body:{tenant_id:A,staff_id:P,action:'remove'}});
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'no_show'}})).status===403,'Revoking staff access immediately blocks work mutations');
+ check((await call('bookings',{body:{...payload,date:day(2),early_from:1080}})).status===400,'Early arrival must begin before the booked start');
+ const early1=(await call('bookings',{body:{...payload,date:day(2),early_from:1020}})).data;
+ const early2=(await call('bookings',{body:{...payload,date:day(2),minute:1110,early_from:1020,phone:'05551110004'}})).data;
+ const e1=(await call('manage',{token:early1.token})).data,e2=(await call('manage',{token:early2.token})).data;
+ check(e1.early_offers[0].minute===1020&&e2.early_offers[0].minute===1020,'Opted-in appointments can receive the same still-unreserved earlier opening');
+ check((await call(`availability?slug=talep-a&service=${S}&date=${day(2)}&staff=${P}`)).data.slots.some(s=>s.minute===1020),'Displaying an early offer never reserves the slot');
+ await db.prepare('UPDATE businesses SET cancellation_hours=72 WHERE id=?').bind(A).run();
+ check((await call('manage',{token:early1.token,body:{action:'reschedule',date:day(2),minute:1020,staff_id:P}})).status===400,'Normal guest reschedule remains subject to the cancellation deadline');
+ const accepted=await Promise.all([call('manage',{token:early1.token,body:{action:'early_accept',offer_id:e1.early_offers[0].id,minute:600}}),call('manage',{token:early2.token,body:{action:'early_accept',offer_id:e2.early_offers[0].id}})]);
+ check(accepted.filter(r=>r.status===200).length===1&&accepted.filter(r=>r.status===409).length===1,'Concurrent early acceptances cannot double-book the same opening');
+ const winner=accepted[0].status===200?early1:early2,loser=accepted[0].status===200?early2:early1;
+ const winnerData=(await call('manage',{token:winner.token})).data.appointment,loserData=(await call('manage',{token:loser.token})).data.appointment;
+ check(winnerData.minute===1020&&winnerData.early_from===null&&winnerData.price===99000&&winnerData.staff_id===P&&winnerData.date===day(2),'Accepting a valid offer changes only to its earlier same-day time and preserves service price and staff');
+ check(loserData.minute===((loser.id===early1.id)?1080:1110),'Failed early acceptance preserves the original appointment');
+ await db.prepare('UPDATE businesses SET cancellation_hours=2 WHERE id=?').bind(A).run();
+ const expires=(await call('bookings',{body:{...payload,date:day(5),early_from:1020}})).data;
+ const expOffer=(await call('manage',{token:expires.token})).data.early_offers[0];
+ await db.prepare('UPDATE early_offers SET expires_at=? WHERE id=?').bind(new Date(Date.now()-10000).toISOString(),expOffer.id).run();
+ check((await call('manage',{token:expires.token,body:{action:'early_accept',offer_id:expOffer.id}})).status===409,'Expired early offer cannot move a reservation');
+ check((await call('manage',{token:expires.token,body:{action:'early_decline',offer_id:e1.early_offers[0].id}})).status===404,'One booking cannot dismiss another booking’s offer');
+ const beforeCancel=(await call('bookings',{body:{...payload,date:day(6),minute:1020}})).data;
+ const waiting=(await call('bookings',{body:{...payload,date:day(6),early_from:1020}})).data;
+ check((await call('manage',{token:waiting.token})).data.early_offers[0].minute===1050,'Early mode respects an existing appointment in the desired earlier window');
+ await call('manage',{token:beforeCancel.token,body:{status:'cancelled'}});
+ check((await call('manage',{token:waiting.token})).data.early_offers[0].minute===1020,'Cancelling another appointment makes the earlier time appear on the next check');
+ await call('manage',{token:waiting.token,body:{action:'early_preference',early_from:null}});
+ check((await call('manage',{token:waiting.token})).data.early_offers.length===0,'Turning off early arrival suppresses future offers');
+ const prefs=(await call('bookings',{body:{...payload,date:day(7)}})).data;
+ check((await call('manage',{token:prefs.token})).data.early_offers.length===0,'Early offers are disabled by default');
+ await call('manage',{token:prefs.token,body:{action:'early_preference',early_from:1020}});
+ const offer=(await call('manage',{token:prefs.token})).data.early_offers[0];
+ await call('manage',{token:prefs.token,body:{action:'early_decline',offer_id:offer.id}});
+ check(!(await call('manage',{token:prefs.token})).data.early_offers.some(o=>o.minute===offer.minute),'Declined time is not repeatedly offered for the same appointment version');
+ const ts=await import('typescript');
+ const modelSource=ts.transpileModule(readFileSync('lib/insight-model.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
+ const {capacityScenario}=await import('data:text/javascript;base64,'+Buffer.from(modelSource).toString('base64'));
+ const model=capacityScenario({minute_from:1080,minute_to:1200,duration:30,count:100,value:6000000,distinct_dates:4,specific_staff:0},7,90);
+ check(model.capacity===4&&model.expected_bookings===4&&model.weekly_revenue===240000,'Revenue scenario is capped by one additional worker’s real service capacity');
+ check(!capacityScenario({minute_from:1200,minute_to:1260,duration:30,count:20,value:600000,distinct_dates:1,specific_staff:0},30,30).eligible,'Single-date demand does not trigger a recurring staffing recommendation');
+ check(!capacityScenario({minute_from:1200,minute_to:1260,duration:30,count:20,value:600000,distinct_dates:4,specific_staff:1},30,30).eligible,'Specific staff preference is not treated as demand another employee can satisfy');
+ check((await db.prepare('PRAGMA foreign_key_check').all()).results.length===0,'All migrated and newly written data respects tenant foreign keys');
+ console.log(JSON.stringify({passed:checks,failed:0}));
+}finally{await mf.dispose()}
