@@ -42,6 +42,7 @@ try{
  const A=(await call('businesses',{user:'owner-a',body:{name:'Test Neta A',slug:'neta-a',category:'Kuaför & Berber'}})).data.id;
  const B=(await call('businesses',{user:'owner-b',body:{name:'Test Neta B',slug:'neta-b',category:'Kuaför & Berber'}})).data.id;
  check(!!A&&!!B,'Independent business workspaces created');
+ check((await call('businesses',{user:'owner-a',body:{name:'İkinci İşletme',slug:'neta-a-ikinci',category:'Kuaför & Berber'}})).status===409,'One owner account cannot create a second business');
  check((await call('billing?tenant='+B,{user:'owner-a'})).status===403,'Cross-tenant billing reads are rejected');
  const buyer={name:'Test Alıcı',email:'buyer@example.test',phone:'05551112233',address:'Yalnızca test adresi, İstanbul'};
  check((await call('billing-profile',{user:'owner-a',body:{tenant_id:B,...buyer}})).status===403,'Cross-tenant billing profile writes are rejected');
