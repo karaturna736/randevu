@@ -18,6 +18,11 @@ uyarlandı.
   dahil edilmez.
 - Pazarlama ve büyüme: geri kazanım adayları, kayıp talep/ghost demand,
   tavsiye kredisi, sektör temaları, paylaşılabilir randevu linki ve QR kodu.
+- Randevu bildirim outbox'ı: oluşturma, taşıma, iptal ve hatırlatma olayları
+  özel cron işçisiyle Meta Cloud API'ye gönderilir; tekrar kilidi, kota ve
+  sağlayıcı sonucu kaydedilir.
+- Paket kotası: Pro hedef fiyatı 2.000 TL/ay; AI ve WhatsApp kullanımı günlük /
+  aylık sayaçlarla sınırlıdır, sınırsız kullanım gösterilmez.
 - Yardım merkezi: yerel rehber içerikleri ve anahtar sağlandığında açıkça
   etkinleştirilen Gemini/OpenAI yardım adaptörü.
 
@@ -34,8 +39,8 @@ tamamlandıktan sonra etkinleştirilmelidir.
 
 1. D1 production migration'larının her ortamda uygulanması ve `SQLITE_ERROR`
    durumunun doğrulanması.
-2. Meta Business/WhatsApp webhook, onaylı şablonlar ve periyodik recall worker
-   kurulumu.
+2. Meta Business/WhatsApp webhook, onaylı şablonlar ve periyodik recall/outbox
+   worker kurulumu (`/api/automation/recall` ve `/api/automation/outbox`).
 3. iyzico/PayTR hesabı, şirket/satıcı bilgileri, sözleşme ve aylık abonelik
    webhook testleri.
 4. Google OAuth, AI sağlayıcısı ve gizli ortam değişkenlerinin yetkili hesap
