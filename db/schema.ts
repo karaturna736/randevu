@@ -799,10 +799,26 @@ export const onboardingPayments = sqliteTable(
     refundedAt: text("refunded_at"),
     activatedAt: text("account_activated_at"),
     expiresAt: text("expires_at").notNull(),
+    idempotencyKey: text("idempotency_key").unique(),
   },
   (t) => [
     index("onboarding_payments_user").on(t.userId, t.createdAt),
     index("onboarding_payments_slug").on(t.slug),
+  ],
+);
+export const paymentConsents = sqliteTable(
+  "payment_consents",
+  {
+    id: text("id").primaryKey(),
+    paymentId: text("payment_id").notNull(),
+    userId: text("user_id").notNull(),
+    consentType: text("consent_type").notNull(),
+    documentVersion: text("document_version").notNull(),
+    acceptedAt: text("accepted_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("payment_consents_once").on(t.paymentId, t.consentType),
+    index("payment_consents_user").on(t.userId, t.acceptedAt),
   ],
 );
 export const paymentEvents = sqliteTable(
