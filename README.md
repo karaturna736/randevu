@@ -1,16 +1,45 @@
-# Randevu
+# Neta Randevu
 
-Türkçe, çok işletmeli randevu platformu MVP.
+Neta, kuaför, berber, klinik, danışman, eğitmen ve benzeri işletmeler için
+çok işletmeli randevu ve müşteri operasyon platformudur.
 
-ChatGPT ile güvenli üyelik, kişisel randevular/favoriler, profil ayarları, dört adımlı işletme kurulumu, işletme paneli, üyelik gerektirmeyen rezervasyon ve yönetici moderasyonu içerir. WhatsApp, ödeme ve harici AI bağlantıları henüz etkin değildir.
+## Bu depoda ne var?
 
-Kurulum, dosya haritası, güvenlik yaklaşımı, testler ve mevcut sınırlar için [GELISTIRME.md](GELISTIRME.md) dosyasına bakın.
+Temel randevu takvimi, işletme/personel/hizmet yönetimi, misafir rezervasyonu,
+müşteri geçmişi, yönetici paneli, borç/veresiye takibi, Hizmet Yolculuğu,
+paylaşılabilir randevu linki, kayıp talep analitiği, müşteri geri kazanımı,
+sektör temaları, tavsiye kredisi, WhatsApp konuşma adaptörü, yardım merkezi ve
+Neta aylık abonelik adaptörü birlikte bulunur.
+
+ZIP'ten gelen fikirlerin ve örneklerin nasıl değerlendirildiği için
+[ZIP entegrasyon notlarına](docs/neta-zip-review.md) bakın. Ham ZIP'teki eski
+mock ödeme ve güvensiz örnekler canlı koda kopyalanmamıştır.
+
+## Yerel geliştirme
 
 ```sh
 pnpm install
+pnpm exec tsc --noEmit
 pnpm build
 node tests/scheduling.mjs
 node tests/opportunities.mjs
+node tests/identity-billing.mjs
+node tests/customer-operations.mjs
 ```
 
-Testler geçici bir D1 veritabanında ve sentetik kullanıcılarla çalışır.
+Testler izole bir D1 veritabanı ve sentetik kullanıcılarla çalışır. Üretimde
+Google, Meta WhatsApp, AI ve iyzico/PayTR bağlantıları için sunucu ortam
+değişkenleri, sağlayıcı doğrulaması ve işletme sahibinin yasal hesap bilgileri
+gerekir. Neta, işletmenin kendi müşterilerinden aldığı hizmet ödemelerine
+aracılık etmez.
+
+## Mimari ve sınırlar
+
+Uygulama Vinext/React, Cloudflare Worker ve Cloudflare D1 üzerinde çalışır.
+`drizzle/` altındaki migration dosyaları üretim şemasını yönetir; migration
+başarısız olursa Worker yayınlanmaz. Railway'e taşımak için Worker/D1
+bağımlılıklarının ayrıca uyarlanması gerekir.
+
+Dosya haritası, güvenlik yaklaşımı, tenant izolasyonu ve mevcut sınırlar için
+[GELISTIRME.md](GELISTIRME.md) ve [NETA-YAYIN-NOTLARI.md](NETA-YAYIN-NOTLARI.md)
+dosyalarına bakın.
