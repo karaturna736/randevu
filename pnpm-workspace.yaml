@@ -4,6 +4,7 @@ minimumReleaseAgeIgnoreMissingTime: false
 trustLockfile: false
 strictDepBuilds: true
 allowBuilds:
+  better-sqlite3: true
   esbuild: true
   fsevents: true
   sharp: true

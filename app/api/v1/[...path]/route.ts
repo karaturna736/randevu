@@ -6,6 +6,8 @@ import {
 } from "@/lib/campaigns";
 import {
   joinWaitlist,
+  waitlistSnapshot,
+  updateWaitlist,
   recoverySnapshot,
   recoveryOffer,
   acceptRecovery,
@@ -128,6 +130,7 @@ export async function GET(req: Request) {
       p = u.pathname.split("/").filter(Boolean).slice(2),
       id = u.searchParams.get("tenant") || "";
     if (p[0] === "whatsapp") return ok(await waSnapshot(id));
+    if (p[0] === "waitlist") return ok(await waitlistSnapshot(id));
     if (p[0] === "recovery") return ok(await recoverySnapshot(id));
     if (p[0] === "recovery-offer") {
       await limit(req, "recovery-offer", 120);
@@ -313,7 +316,9 @@ export async function POST(req: Request) {
       return ok(await demoWorkspaceForUser(), 201);
     if (p[0] === "waitlist") {
       await limit(req, "waitlist", 20);
-      return ok(await joinWaitlist(x), 201);
+      return x.slug
+        ? ok(await joinWaitlist(x), 201)
+        : ok(await updateWaitlist(id, x));
     }
     if (p[0] === "recovery-offer") {
       await limit(req, "recovery-accept", 20);

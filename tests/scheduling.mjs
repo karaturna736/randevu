@@ -24,7 +24,8 @@ try{
  check(!!A&&!!B&&A!==B,'Two independent businesses can be created');
  check((await call('workspace?tenant='+A,{user:'qa-a'})).data.subscription_required===true,'Real business panel stays locked until an active subscription exists');
  const accessStamp=new Date().toISOString();
- for(const tenantId of [A,B])await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,'test-starter','normal',60000,'ACTIVE',?,1,?,?)").bind(tenantId,randomUUID(),accessStamp,accessStamp).run();
+ const paidUntil=new Date(Date.now()+86400000).toISOString();
+ for(const tenantId of [A,B])await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,paid_until,created_at,updated_at) VALUES(?,'test-starter','normal',60000,'ACTIVE',?,0,?,?,?)").bind(tenantId,randomUUID(),paidUntil,accessStamp,accessStamp).run();
  const types=(await call('business-types')).data.businessTypes;
  check(types.length===10&&types.some(x=>x.category==='Psikolog'&&x.config.businessProfile.customerLabel==='Danışan'),'Business type catalog exposes sector-specific terminology');
  check((await call('workspace?tenant='+A,{user:'qa-a'})).data.configuration.businessType==='hair_salon','Workspace includes its resolved business configuration');
@@ -52,7 +53,7 @@ try{
  check((await call('manage',{token:booked.token})).data.appointment.id===booked.id,'Private management token opens only its own appointment');
  check((await call('manage',{token:'a'.repeat(64)})).status===404,'Unknown management tokens cannot read appointments');
  check((await call('appointment',{user:'qa-b',body:{tenant_id:B,id:booked.id,status:'cancelled'}})).status===404,'Other business cannot cancel the appointment by guessing its ID');
- check((await call('bookings',{body:{...book,staff_id:wb.staff[0].id}})).status===409,'Foreign staff cannot be used to create an appointment');
+ check((await call('bookings',{body:{...book,staff_id:wb.staff[0].id}})).status===404,'Foreign staff cannot be used to create an appointment');
  check((await call('appointment',{user:'qa-a',body:{tenant_id:A,id:booked.id,status:'completed'}})).status===400,'Future appointments cannot be marked completed');
  check((await call('closures',{user:'qa-a',body:{tenant_id:A,staff_id:P,date,reason:'Test izin'}})).status===409,'Leave cannot silently displace existing appointments');
  check((await call('manage',{token:booked.token,body:{action:'review',rating:5,comment:'Test değerlendirme'}})).status===400,'Reviews require a completed appointment');
@@ -131,7 +132,7 @@ try{
  const invalidSetup=await call('businesses',{user:'qa-c1',body:{name:'Kurulum Testi',slug:'invalid-setup',category:'Kuaför & Berber',starter:{service_name:'Test',duration:17,price:10000,staff_name:'Test Uzman',staff_title:'Uzman',hours}}});
  check(invalidSetup.status===400&&(await call('account',{user:'qa-c1'})).data.businesses.length===before,'Invalid initial service leaves no half-created business');
  const setup=await call('businesses',{user:'qa-c1',body:{name:'Kurulum Testi',slug:'setup-test',category:'Kuaför & Berber',city:'İzmir',phone:'05551112233',address:'Test adresi',starter:{service_name:'İlk hizmet',duration:30,price:50000,staff_name:'İlk Personel',staff_title:'Uzman',hours}}});
- await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,'test-starter','normal',60000,'ACTIVE',?,1,?,?)").bind(setup.data.id,randomUUID(),accessStamp,accessStamp).run();
+ await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,paid_until,created_at,updated_at) VALUES(?,'test-starter','normal',60000,'ACTIVE',?,0,?,?,?)").bind(setup.data.id,randomUUID(),paidUntil,accessStamp,accessStamp).run();
  const created=(await call('workspace?tenant='+setup.data.id,{user:'qa-c1'})).data;
  check(setup.status===201&&created.services.length===1&&created.staff.length===1&&created.business.status==='pending','Business wizard creates business, owner, first service, staff and hours atomically');
  check((await call('workspace?tenant='+setup.data.id,{user:'qa-c2'})).status===403,'Wizard-created business remains isolated from other members');

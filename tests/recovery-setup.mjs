@@ -96,7 +96,7 @@ try {
   });
   const accessStamp = new Date().toISOString();
   for (const tenantId of [A, B])
-    await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,'test-plus','plus',250000,'ACTIVE',?,1,?,?)").bind(tenantId, randomUUID(), accessStamp, accessStamp).run();
+    await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,paid_until,created_at,updated_at) VALUES(?,'test-plus','plus',250000,'ACTIVE',?,0,?,?,?)").bind(tenantId, randomUUID(), new Date(Date.now()+86400000).toISOString(), accessStamp, accessStamp).run();
   await call("settings", {
     user: "owner-a",
     body: {

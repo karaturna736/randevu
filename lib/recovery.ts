@@ -105,6 +105,35 @@ export async function joinWaitlist(input: any) {
   return { id, status: "waiting" };
 }
 
+export async function waitlistSnapshot(id: string) {
+  await tenant(id);
+  return {
+    requests: await all(
+      "SELECT w.id,w.requested_date date,w.minute_from,w.minute_to,w.name,'•••• '||substr(w.phone,-4) phone,w.status,s.name service_name,COALESCE(p.name,'Fark etmez') staff_name,w.created_at FROM waitlist_entries w JOIN services s ON s.tenant_id=w.tenant_id AND s.id=w.service_id LEFT JOIN staff p ON p.tenant_id=w.tenant_id AND p.id=w.staff_id WHERE w.tenant_id=? ORDER BY CASE w.status WHEN 'waiting' THEN 0 ELSE 1 END,w.requested_date,w.minute_from LIMIT 500",
+      id,
+    ),
+  };
+}
+
+export async function updateWaitlist(id: string, input: any) {
+  await tenant(id);
+  const x = z
+    .object({
+      id: z.string().min(1),
+      status: z.enum(["waiting", "contacted", "booked", "cancelled"]),
+    })
+    .parse(input);
+  const result = await q(
+    "UPDATE waitlist_entries SET status=? WHERE tenant_id=? AND id=?",
+    x.status,
+    id,
+    x.id,
+  ).run();
+  if (!result.meta.changes)
+    throw new ApiError("Bekleme kaydı bulunamadı.", 404);
+  return { ok: true };
+}
+
 export async function recoverySnapshot(id: string) {
   await tenant(id);
   await requirePlanModule(id, "recovery");

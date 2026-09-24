@@ -1,0 +1,2 @@
+deploy ALL=(root) NOPASSWD: /usr/local/sbin/neta-release /tmp/neta-vps-release-*.tar.gz
+deploy ALL=(root) NOPASSWD: /usr/local/sbin/neta-enable-ssl *

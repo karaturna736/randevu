@@ -10,6 +10,7 @@ import {
   user,
   isAdmin,
   tenant,
+  paidTenant,
   uid,
   now,
   hash,
@@ -165,7 +166,7 @@ export async function workspace(id?: string) {
   if (!b && !id)
     return { needs_onboarding: true, user: u, isAdmin: await isAdmin(u) };
   if (!b) throw new ApiError("İşletme erişimi reddedildi.", 403);
-  if (!b.demo && !(await panelAccess(b.id)))
+  if (!b.demo && !(await panelAccess(b.id, u.userId)))
     return {
       subscription_required: true,
       business: {
@@ -221,21 +222,8 @@ export async function workspace(id?: string) {
   };
 }
 
-async function panelAccess(id: string) {
-  const active = await one(
-    `SELECT 1 n FROM recurring_subscriptions
-     WHERE tenant_id=? AND plan IN ('normal','pro','plus') AND
-     ((test_mode=1 AND state IN ('ACTIVE','PENDING','UPGRADED')) OR
-      (test_mode=0 AND paid_until>?))
-     UNION ALL
-     SELECT 1 n FROM subscriptions WHERE tenant_id=? AND paid_until>?
-     LIMIT 1`,
-    id,
-    now(),
-    id,
-    now(),
-  );
-  return !!active;
+async function panelAccess(id: string, userId: string) {
+  return !!(await paidTenant(userId, id));
 }
 
 export async function demoWorkspaceForUser() {
@@ -413,22 +401,28 @@ export async function saveService(id: string, input: any) {
         .regex(/^#[a-f\d]{6}$/i)
         .default("#789c74"),
       active: z.number().int().min(0).max(1).default(1),
+      delivery_mode: z
+        .enum(["in_person", "online", "hybrid"])
+        .default("in_person"),
+      meeting_url: z.string().trim().url().or(z.literal("")).default(""),
     })
     .parse(input);
   const r = x.id
     ? await q(
-        "UPDATE services SET name=?,duration=?,price=?,description=?,color=?,active=? WHERE tenant_id=? AND id=?",
+        "UPDATE services SET name=?,duration=?,price=?,description=?,color=?,active=?,delivery_mode=?,meeting_url=? WHERE tenant_id=? AND id=?",
         x.name,
         x.duration,
         x.price,
         x.description,
         x.color,
         x.active,
+        x.delivery_mode,
+        x.meeting_url,
         id,
         x.id,
       ).run()
     : await q(
-        "INSERT INTO services (id,tenant_id,name,duration,price,description,color,active) VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT INTO services (id,tenant_id,name,duration,price,description,color,active,delivery_mode,meeting_url) VALUES (?,?,?,?,?,?,?,?,?,?)",
         uid(),
         id,
         x.name,
@@ -437,6 +431,8 @@ export async function saveService(id: string, input: any) {
         x.description,
         x.color,
         x.active,
+        x.delivery_mode,
+        x.meeting_url,
       ).run();
   if (!r.meta.changes) throw new ApiError("Hizmet bulunamadı.", 404);
   return { ok: true };
@@ -513,7 +509,7 @@ export async function saveStaff(id: string, input: any) {
   return { ok: true };
 }
 export async function settings(id: string, input: any) {
-  await tenant(id);
+  const current = await tenant(id);
   const x = z
     .object({
       name,
@@ -524,10 +520,12 @@ export async function settings(id: string, input: any) {
       description: z.string().max(1000),
       hours,
       cancellation_hours: z.coerce.number().int().min(0).max(72),
+      terminology: z.string().trim().min(2).max(80).optional(),
+      online_enabled: z.coerce.number().int().min(0).max(1).optional(),
     })
     .parse(input);
   await q(
-    "UPDATE businesses SET name=?,category=?,city=?,address=?,phone=?,description=?,hours=?,cancellation_hours=? WHERE id=?",
+    "UPDATE businesses SET name=?,category=?,city=?,address=?,phone=?,description=?,hours=?,cancellation_hours=?,terminology=?,online_enabled=? WHERE id=?",
     x.name,
     x.category,
     x.city,
@@ -536,6 +534,8 @@ export async function settings(id: string, input: any) {
     x.description,
     JSON.stringify(x.hours),
     x.cancellation_hours,
+    x.terminology ?? current.terminology ?? terminologyFor(x.category),
+    x.online_enabled ?? current.online_enabled ?? 0,
     id,
   ).run();
   return { ok: true };
