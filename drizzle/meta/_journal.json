@@ -78,6 +78,13 @@
       "when": 1790192426053,
       "tag": "0010_lame_hedge_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790234204421,
+      "tag": "0011_silky_patriot",
+      "breakpoints": true
     }
   ]
 }
