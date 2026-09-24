@@ -1,4 +1,9 @@
 import { waSnapshot } from "@/lib/whatsapp";
+import {
+  campaignOperation,
+  campaignPreview,
+  platformCampaigns,
+} from "@/lib/campaigns";
 import { helpAnswer, helpStatus } from "@/lib/help";
 import {
   recurringSnapshot,
@@ -114,6 +119,14 @@ export async function GET(req: Request) {
       return ok(await referralPreview(u.searchParams.get("code")));
     }
     if (p[0] === "platform-growth") return ok(await platformGrowth());
+    if (p[0] === "campaign-preview") {
+      await limit(req, "campaign-preview", 30);
+      return ok(await campaignPreview(u.searchParams));
+    }
+    if (p[0] === "campaigns") {
+      await limit(req, "campaign-admin-read", 60);
+      return ok(await platformCampaigns());
+    }
     if (p[0] === "receivables") return ok(await receivableSnapshot(id));
     if (p[0] === "journeys") return ok(await journeySnapshot(id));
     if (p[0] === "shared-journey") {
@@ -266,6 +279,10 @@ export async function POST(req: Request) {
     }
     if (p[0] === "growth") return ok(await saveGrowth(id, x));
     if (p[0] === "platform-growth") return ok(await referralReview(x));
+    if (p[0] === "campaigns") {
+      await limit(req, "campaign-admin-write", 30);
+      return ok(await campaignOperation(x));
+    }
     if (p[0] === "contacts") return ok(await contact(id, x));
     if (p[0] === "receivables") return ok(await createReceivable(id, x));
     if (p[0] === "collections") return ok(await recordCollection(id, x));

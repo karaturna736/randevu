@@ -481,6 +481,8 @@ export const subscriptionOrders = sqliteTable(
       .references(() => businesses.id),
     userId: text("user_id").notNull(),
     amount: integer("amount").notNull(),
+    originalAmount: integer("original_amount").notNull().default(0),
+    campaignId: text("campaign_id"),
     currency: text("currency").notNull().default("TRY"),
     periodDays: integer("period_days").notNull().default(30),
     status: text("status").notNull().default("creating"),
@@ -521,6 +523,102 @@ export const subscriptions = sqliteTable("subscriptions", {
   paidUntil: text("paid_until").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const campaigns = sqliteTable(
+  "campaigns",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    code: text("code").notNull(),
+    description: text("description").notNull().default(""),
+    discountType: text("discount_type").notNull(),
+    discountValue: integer("discount_value").notNull(),
+    targetType: text("target_type").notNull(),
+    applicablePlans: text("applicable_plans").notNull(),
+    startsAt: text("starts_at").notNull(),
+    endsAt: text("ends_at").notNull(),
+    totalUsageLimit: integer("total_usage_limit"),
+    perBusinessLimit: integer("per_business_limit"),
+    firstPaymentOnly: integer("first_payment_only").notNull().default(0),
+    recurringEnabled: integer("recurring_enabled").notNull().default(0),
+    active: integer("active").notNull().default(1),
+    deletedAt: text("deleted_at"),
+    createdBy: text("created_by").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("campaigns_code_unique").on(t.code),
+    index("campaigns_window").on(t.active, t.startsAt, t.endsAt),
+  ],
+);
+export const campaignBusinesses = sqliteTable(
+  "campaign_businesses",
+  {
+    id: text("id").primaryKey(),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id),
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("campaign_businesses_once").on(t.campaignId, t.businessId),
+    index("campaign_businesses_business").on(t.businessId, t.campaignId),
+  ],
+);
+export const campaignRedemptions = sqliteTable(
+  "campaign_redemptions",
+  {
+    id: text("id").primaryKey(),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id),
+    businessId: text("business_id").references(() => businesses.id),
+    userId: text("user_id").notNull(),
+    subscriptionId: text("subscription_id"),
+    paymentId: text("payment_id").notNull(),
+    plan: text("plan").notNull(),
+    originalAmount: integer("original_amount").notNull(),
+    discountAmount: integer("discount_amount").notNull(),
+    finalAmount: integer("final_amount").notNull(),
+    status: text("status").notNull().default("reserved"),
+    failureReason: text("failure_reason").notNull().default(""),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    redeemedAt: text("redeemed_at"),
+  },
+  (t) => [
+    uniqueIndex("campaign_redemptions_payment").on(t.paymentId),
+    index("campaign_redemptions_campaign").on(
+      t.campaignId,
+      t.status,
+      t.createdAt,
+    ),
+    index("campaign_redemptions_business").on(
+      t.businessId,
+      t.campaignId,
+      t.status,
+    ),
+  ],
+);
+export const campaignAttempts = sqliteTable(
+  "campaign_attempts",
+  {
+    id: text("id").primaryKey(),
+    campaignId: text("campaign_id").references(() => campaigns.id),
+    businessId: text("business_id").references(() => businesses.id),
+    userId: text("user_id").notNull(),
+    code: text("code").notNull(),
+    plan: text("plan").notNull(),
+    status: text("status").notNull(),
+    reason: text("reason").notNull().default(""),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("campaign_attempts_campaign").on(t.campaignId, t.createdAt)],
+);
 
 export const receivables = sqliteTable(
   "receivables",

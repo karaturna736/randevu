@@ -15,6 +15,11 @@ import {
 } from "./server";
 import { appOrigin, authStatus } from "./identity";
 import { hmac, equalSecret, utf8Base64 } from "./security";
+import {
+  finalizeCampaignRedemption,
+  quoteCampaign,
+  reserveCampaign,
+} from "./campaigns";
 
 const cfg = () => env as any;
 export function paymentConnection() {
@@ -166,6 +171,7 @@ export async function beginCheckout(req: Request, input: any) {
         tenant_id: z.string().min(1),
         idempotency_key: z.string().uuid(),
         terms_accepted: z.literal(true),
+        campaign_code: z.string().trim().max(32).optional(),
       })
       .parse(input),
     b = await tenant(x.tenant_id),
@@ -215,13 +221,27 @@ export async function beginCheckout(req: Request, input: any) {
     );
   const id = "NETA" + uid().replace(/-/g, ""),
     stamp = now(),
-    test = c.test_mode ? "1" : "0";
+    test = c.test_mode ? "1" : "0",
+    plan = z.enum(["normal", "pro", "plus"]).catch("normal").parse(b.selected_plan),
+    campaign = x.campaign_code
+      ? await quoteCampaign({
+          code: x.campaign_code,
+          plan,
+          originalAmount: s.amount,
+          businessId: b.id,
+          userId: u.userId,
+          record: true,
+        })
+      : null,
+    chargeAmount = campaign?.final_amount || s.amount;
   await q(
-    "INSERT INTO subscription_orders(id,tenant_id,user_id,amount,test_mode,idempotency_key,buyer_name,buyer_email,buyer_address,terms_url,terms_accepted_at,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    "INSERT INTO subscription_orders(id,tenant_id,user_id,amount,original_amount,campaign_id,test_mode,idempotency_key,buyer_name,buyer_email,buyer_address,terms_url,terms_accepted_at,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     id,
     b.id,
     u.userId,
+    chargeAmount,
     s.amount,
+    campaign?.campaign_id || null,
     Number(test),
     x.idempotency_key,
     buyer.name,
@@ -232,9 +252,32 @@ export async function beginCheckout(req: Request, input: any) {
     stamp,
     new Date(Date.now() + 30 * 60000).toISOString(),
   ).run();
+  if (campaign)
+    try {
+      await reserveCampaign({
+        quote: campaign,
+        paymentId: id,
+        businessId: b.id,
+        userId: u.userId,
+        isFirstPayment: await one(
+          "SELECT CASE WHEN EXISTS(SELECT 1 FROM billing_grants WHERE tenant_id=?) OR EXISTS(SELECT 1 FROM recurring_events WHERE tenant_id=? AND test_mode=0) THEN 0 ELSE 1 END first_payment",
+          b.id,
+          b.id,
+        ).then((row) => !!row.first_payment),
+      });
+    } catch (error) {
+      await q("UPDATE subscription_orders SET status='failed' WHERE id=?", id).run();
+      throw error;
+    }
   const basket = utf8Base64(
     JSON.stringify([
-      ["Neta İşletme — 30 günlük erişim", (s.amount / 100).toFixed(2), 1],
+      [
+        campaign
+          ? `Neta İşletme — ${campaign.campaign_name}`
+          : "Neta İşletme — 30 günlük erişim",
+        (chargeAmount / 100).toFixed(2),
+        1,
+      ],
     ]),
   );
   const signature = await hmac(
@@ -242,7 +285,7 @@ export async function beginCheckout(req: Request, input: any) {
       ip +
       id +
       buyer.email +
-      s.amount +
+      chargeAmount +
       basket +
       "1" +
       "0" +
@@ -260,7 +303,7 @@ export async function beginCheckout(req: Request, input: any) {
         user_ip: ip,
         merchant_oid: id,
         email: buyer.email,
-        payment_amount: String(s.amount),
+        payment_amount: String(chargeAmount),
         paytr_token: signature,
         user_basket: basket,
         no_installment: "1",
@@ -307,12 +350,21 @@ export async function beginCheckout(req: Request, input: any) {
         "https://www.paytr.com/odeme/guvenli/" +
         encodeURIComponent(result.token),
       test_mode: c.test_mode,
+      campaign,
     };
   } catch {
     await q(
       "UPDATE subscription_orders SET status='failed' WHERE id=? AND status='creating'",
       id,
     ).run();
+    if (campaign)
+      await finalizeCampaignRedemption(
+        id,
+        false,
+        b.id,
+        null,
+        "Ödeme sağlayıcısı oturumu oluşturulamadı.",
+      );
     throw new ApiError(
       "Ödeme sayfası hazırlanamadı. Kartınızdan bu ekran üzerinden bir çekim yapılmadı; tekrar deneyebilirsiniz.",
       503,
@@ -381,11 +433,29 @@ export async function paymentCallback(req: Request) {
         order.id,
       ),
     ]);
-  } else
-    await q(
-      "UPDATE subscription_orders SET status='failed' WHERE id=? AND status NOT IN ('paid','test_paid')",
+    await finalizeCampaignRedemption(
       order.id,
-    ).run();
+      !order.test_mode,
+      order.tenant_id,
+      order.test_mode ? null : order.tenant_id,
+      order.test_mode
+        ? "Test ödemesi finansal kullanıma sayılmaz."
+        : undefined,
+    );
+  } else
+    await Promise.all([
+      q(
+        "UPDATE subscription_orders SET status='failed' WHERE id=? AND status NOT IN ('paid','test_paid')",
+        order.id,
+      ).run(),
+      finalizeCampaignRedemption(
+        order.id,
+        false,
+        order.tenant_id,
+        null,
+        "PayTR ödemeyi başarısız bildirdi.",
+      ),
+    ]);
   return new Response("OK", {
     headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
   });

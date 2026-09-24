@@ -1,0 +1,1 @@
+ALTER TABLE `campaign_redemptions` ADD `plan` text NOT NULL;

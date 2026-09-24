@@ -73,7 +73,9 @@ function PaymentWizard() {
     [error, setError] = useState(""),
     [checkout, setCheckout] = useState(""),
     [status, setStatus] = useState<any>(null),
-    [referral, setReferral] = useState("");
+    [referral, setReferral] = useState(""),
+    [campaignCode, setCampaignCode] = useState(""),
+    [campaign, setCampaign] = useState<any>(null);
   const idempotencyKey = useRef("");
   const [form, setForm] = useState(() => ({
     name: "",
@@ -126,6 +128,22 @@ function PaymentWizard() {
       .catch((e: any) => setError(e.message));
   }, []);
   const selected = plans.find((p) => p.code === plan)!;
+  async function applyCampaign() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api(
+        `campaign-preview?code=${encodeURIComponent(campaignCode)}&plan=${plan}`,
+      );
+      setCampaign(result);
+      setCampaignCode(result.code);
+    } catch (e: any) {
+      setCampaign(null);
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function next(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -174,6 +192,7 @@ function PaymentWizard() {
           },
         },
         buyer,
+        campaign_code: campaign?.code || undefined,
       });
       if (r.active) {
         location.replace("/panel");
@@ -193,7 +212,7 @@ function PaymentWizard() {
         <h1>Hesabınızı aktifleştirin</h1>
         <div className="payment-total">
           <span>{selected.name}</span>
-          <strong>{money(selected.price)} / ay</strong>
+          <strong>{money(campaign?.final_amount || selected.price)} / ay</strong>
         </div>
         <p>
           İşletmeniz henüz oluşturulmadı. Başarılı tahsilat iyzico API’sinden
@@ -430,8 +449,47 @@ function PaymentWizard() {
                 <strong>{form.name}</strong>
                 <small>{selected.name} · aylık yenileme</small>
               </div>
-              <b>{money(selected.price)}</b>
+              <b>{money(campaign?.final_amount || selected.price)}</b>
             </div>
+            <section className="campaign-payment-card">
+              <Field label="İndirim kodu">
+                <div className="campaign-code-row">
+                  <Input
+                    autoComplete="off"
+                    maxLength={32}
+                    placeholder="Kampanya kodunuz"
+                    value={campaignCode}
+                    onChange={(event) => {
+                      setCampaignCode(
+                        event.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9_-]/g, ""),
+                      );
+                      setCampaign(null);
+                    }}
+                  />
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={busy || campaignCode.length < 3}
+                    onClick={applyCampaign}
+                  >
+                    Uygula
+                  </button>
+                </div>
+              </Field>
+              {campaign && (
+                <div className="campaign-price-lines" role="status">
+                  <div><span>Normal paket fiyatı</span><b>{money(campaign.original_amount)}</b></div>
+                  <div className="campaign-discount"><span>{campaign.campaign_name}</span><b>-{money(campaign.discount_amount)}</b></div>
+                  <div className="campaign-final"><span>Bugün ödenecek</span><b>{money(campaign.final_amount)}</b></div>
+                  <p className="campaign-note">
+                    {new Date(campaign.ends_at).toLocaleDateString("tr-TR")} tarihine kadar geçerli · {campaign.first_payment_only ? "yalnızca ilk ödeme" : campaign.recurring_enabled ? "aylık yenilemeler dahil" : "tek ödeme"}.
+                  </p>
+                  {!campaign.checkout_supported && <p className="notice">{campaign.provider_note}</p>}
+                </div>
+              )}
+            </section>
             <div className="form-grid">
               <Field label="Ad">
                 <Input
@@ -551,6 +609,7 @@ function PaymentWizard() {
             className="button primary"
             disabled={
               busy ||
+              (campaign && !campaign.checkout_supported) ||
               (step === 2 &&
                 (!buyer.terms_accepted || !buyer.card_storage_accepted))
             }
