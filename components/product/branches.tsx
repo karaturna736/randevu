@@ -106,6 +106,12 @@ export function BranchProfitability({ w }: any) {
             </strong>
           </div>
         </div>
+        <div className="notice margin-top">
+          <b>Gelir otomatik hesaplanır.</b> Müşteri kaydı veya bekleyen randevu
+          tek başına gelir oluşturmaz. Randevu “Tamamlandı” olduğunda hizmetin
+          kayıtlı fiyatı ilgili şubenin cirosuna eklenir; net sonuç, bu cirodan
+          manuel kaydettiğiniz gerçek giderler düşülerek hesaplanır.
+        </div>
         {data.branches.length > 1 && (
           <div className="branch-insight">
             <TrendingUp size={18} />

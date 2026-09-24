@@ -59,6 +59,8 @@ try{
  check((await call(`availability?slug=test-a&service=${S}&date=${date}&staff=${P}`)).data.slots.some(s=>s.minute===720),'Cancelled appointment time becomes available again');
  const wafter=(await call('workspace?tenant='+A,{user:'qa-a'})).data;
  check(wafter.customers.length===1&&wafter.appointments.length===1,'Failed booking transaction leaves no orphan customer or appointment');
+ const pendingPnL=(await call('branches?tenant='+A+'&month='+date.slice(0,7),{user:'qa-a'})).data;
+ check(pendingPnL.summary.revenue===0,'Customer creation and an uncompleted appointment do not create manual revenue');
  check((await call('closures',{user:'qa-a',body:{tenant_id:A,staff_id:P,date,reason:'Test izin'}})).status===200,'Free staff day can be marked as leave');
  check((await call(`availability?slug=test-a&service=${S}&date=${date}&staff=${P}`)).data.slots.length===0,'Leave excludes the staff member from availability');
  const raceDate=day(6);
@@ -72,6 +74,8 @@ try{
  await db.prepare('UPDATE appointments SET date=?,minute=540 WHERE id=?').bind(past,second.id).run();
  await db.prepare('DELETE FROM slots WHERE appointment_id=?').bind(second.id).run();
  check((await call('appointment',{user:'qa-a',body:{tenant_id:A,id:second.id,status:'completed'}})).status===200,'Ended appointment can be completed by its owner');
+ const completedPnL=(await call('branches?tenant='+A+'&month='+past.slice(0,7),{user:'qa-a'})).data;
+ check(completedPnL.summary.revenue===65000&&completedPnL.branches.find(b=>b.is_primary===1)?.completed===1,'Completed service price automatically contributes to branch revenue and profit calculation');
  check((await call('manage',{token:second.token,body:{action:'review',rating:5,comment:'İyi bir deneyimdi.'}})).status===200,'Completed appointment accepts one customer review');
  check((await call('manage',{token:second.token,body:{action:'review',rating:5,comment:'Tekrar değerlendirme'}})).status===409,'Duplicate review is rejected');
  check((await call('public/test-a')).data.reviews.length===0,'Unmoderated reviews are not public');

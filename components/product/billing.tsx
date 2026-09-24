@@ -38,9 +38,9 @@ function Header() {
     <header className="public-header">
       <Brand />
       <nav>
-        <a className="text-button" href="/panel">
+        <a className="text-button" href="/">
           <ArrowLeft size={15} />
-          İşletme paneli
+          Ana sayfaya dön
         </a>
         <ThemeToggle />
         <AccountMenu />
