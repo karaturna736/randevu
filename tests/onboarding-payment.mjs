@@ -155,13 +155,23 @@ try {
       await db.prepare(sql).run();
   await db
     .prepare(
-      "INSERT INTO businesses(id,name,slug,invite_code,category,status,demo,hours,created_at) VALUES('referrer','Davet Eden Studio','davet-eden','NETATEST123','Kuaför & Berber','approved',0,'{}',?)",
+      "INSERT INTO businesses(id,name,slug,invite_code,category,status,demo,hours,selected_plan,created_at) VALUES('referrer','Davet Eden Studio','davet-eden','NETATEST123','Kuaför & Berber','approved',0,'{}','plus',?)",
     )
     .bind(new Date().toISOString())
     .run();
   await db
     .prepare(
       "INSERT INTO members(tenant_id,user_id,email,name) VALUES('referrer','referrer-owner','referrer@example.test','Davet Eden')",
+    )
+    .run();
+  await db
+    .prepare(
+      "INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,paid_until,created_at,updated_at) VALUES('referrer','referrer-plus','plus',250000,'ACTIVE','referrer-seed',1,?,?,?)",
+    )
+    .bind(
+      new Date(Date.now() + 86400000).toISOString(),
+      new Date().toISOString(),
+      new Date().toISOString(),
     )
     .run();
   check(
@@ -199,9 +209,12 @@ try {
     (await api("businesses", business)).status === 402,
     "Real business cannot be created before verified payment",
   );
+  const prePaymentWorkspace = await api("workspace");
   check(
-    (await api("workspace")).status === 402,
-    "Workspace API is closed before payment",
+    prePaymentWorkspace.status === 200 &&
+      prePaymentWorkspace.data.needs_onboarding === true &&
+      !prePaymentWorkspace.data.business,
+    "Workspace exposes only the onboarding gate before payment",
   );
   const rejectedCardConsent = await api("onboarding-payment", {
     idempotency_key: randomUUID(),

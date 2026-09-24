@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { makeReferralCode, referralOperation } from "./growth";
 import { PLAN_LIMITS, tenantPlan } from "./entitlements";
 import { z } from "zod";
@@ -250,6 +251,11 @@ export async function demoWorkspaceForUser() {
 export async function createBusiness(input: any) {
   const u = await user();
   const demo = input.demo === true;
+  if (!demo && (env as any).RECURRING_SALES_ENABLED === "true")
+    throw new ApiError(
+      "İşletme, yalnızca doğrulanmış abonelik ödemesinden sonra oluşturulabilir.",
+      402,
+    );
   const owned = await one(
     "SELECT COUNT(*) n FROM members m JOIN businesses b ON b.id=m.tenant_id WHERE m.user_id=? AND m.role='owner' AND m.disabled=0 AND b.status!='deleted' AND b.demo=?",
     u.userId,

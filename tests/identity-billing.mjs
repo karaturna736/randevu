@@ -74,7 +74,6 @@ try{
  check((await call('checkout',{user:'owner-a',body:{...payload,tenant_id:B}})).status===403,'Cross-tenant checkout is rejected');
  check((await call('checkout',{user:'owner-a',body:payload,headers:{origin:'https://attacker.test'}})).status===403,'Cross-origin checkout is rejected');
  const purchase=await call('checkout',{user:'owner-a',body:{...payload,amount:1,price:1,currency:'USD'},headers:{'cf-connecting-ip':'192.0.2.1'}});
- 
  check(purchase.status===200&&purchase.data.checkout_url==='https://www.paytr.com/odeme/guvenli/isolated_test_token_12345','Checkout opens only fixed provider origin');
  const oid=purchase.data.order_id;const order=await db.prepare('SELECT * FROM subscription_orders WHERE id=?').bind(oid).first();
  check(order.amount===99000&&providerBody.get('payment_amount')==='99000'&&providerBody.get('currency')==='TL','Client cannot alter signed price or currency');

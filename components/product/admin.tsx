@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Shield,
   Store,
@@ -10,6 +11,7 @@ import {
   Pause,
   Trash2,
   EyeOff,
+  Megaphone,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -85,6 +87,9 @@ export default function Admin() {
             <Shield size={14} />
             Yetkili erişim
           </span>
+          <Link className="button primary" href="/admin/kampanyalar">
+            <Megaphone size={16} /> Kampanyalar
+          </Link>
         </div>
         {error ? (
           <section className="panel">
