@@ -13,6 +13,7 @@ import {
   approveReferral,
   platformGrowth,
   referralReview,
+  referralPreview,
 } from "@/lib/growth";
 import {
   contact,
@@ -108,6 +109,10 @@ export async function GET(req: Request) {
     if (p[0] === "recurring") return ok(await recurringSnapshot(id));
     if (p[0] === "platform-recurring") return ok(await platformRecurring());
     if (p[0] === "growth") return ok(await growthSnapshot(id));
+    if (p[0] === "referral-preview") {
+      await limit(req, "referral-preview", 30);
+      return ok(await referralPreview(u.searchParams.get("code")));
+    }
     if (p[0] === "platform-growth") return ok(await platformGrowth());
     if (p[0] === "receivables") return ok(await receivableSnapshot(id));
     if (p[0] === "journeys") return ok(await journeySnapshot(id));
