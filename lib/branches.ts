@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { all, one, q, db, tenant, uid, now, ApiError } from "./server";
-import { PLAN_LIMITS, tenantPlan } from "./entitlements";
+import {
+  PLAN_LIMITS,
+  tenantPlan,
+  requirePlanModule,
+} from "./entitlements";
 
 const monthSchema = z
   .string()
@@ -160,13 +164,7 @@ export async function saveBranch(tenantId: string, input: any) {
 }
 
 export async function saveBranchExpense(tenantId: string, input: any) {
-  await tenant(tenantId);
-  const plan = await tenantPlan(tenantId);
-  if (plan === "normal")
-    throw new ApiError(
-      "Şube giderleri ve kâr/zarar analizi Business veya Kurumsal pakette kullanılabilir.",
-      403,
-    );
+  await requirePlanModule(tenantId, "branchProfit");
   const x = expenseSchema.parse(input);
   await ownedBranch(tenantId, x.branch_id);
   if (x.catalog_item_id) {
@@ -220,12 +218,8 @@ export async function saveBranchExpense(tenantId: string, input: any) {
 }
 
 export async function saveExpenseCatalogItem(tenantId: string, input: any) {
-  await tenant(tenantId);
-  if ((await tenantPlan(tenantId)) === "normal")
-    throw new ApiError(
-      "Kayıtlı gider kalemleri Business veya Kurumsal pakette kullanılabilir.",
-      403,
-    );
+  // Muhasebe kataloğu: tekrar kullanılabilir gider kalemleri yalnızca Plus paketinde.
+  await requirePlanModule(tenantId, "accounting");
   const x = catalogSchema.parse(input),
     id = x.id || uid(),
     stamp = now();

@@ -2,6 +2,7 @@ import {z} from 'zod';
 import {all,one,q,db,tenant,hash,uid,now,date as dateSchema,ApiError} from './server';
 import {available,range} from './booking';
 import {today,addDays,time} from './types';
+import {requirePlanModule,tenantPlan,PLAN_LIMITS} from './entitlements';
 
 const keySchema=z.string().regex(/^[a-f0-9]{64}$/);
 export async function startVisit(b:any,input:any){
@@ -55,14 +56,18 @@ const ranked=`WITH ranked AS (
  SELECT 1 FROM demand_visits v2 WHERE v2.tenant_id=r.tenant_id AND v2.visitor_hash=r.visitor_hash AND v2.converted_at>=r.searched_at)
 ) `;
 export async function demandAnalytics(id:string,raw:any){
- await tenant(id);const days=period(raw),day=addDays(today(),1-days),since=new Date(day+'T00:00:00+03:00').toISOString();
+ await tenant(id);await requirePlanModule(id,'demand');
+ // Talep fırsatları pakette sınırlıdır: Pro son 30 güne kadar bakar; Plus 90 gün.
+ const plan=await tenantPlan(id),maxDays=PLAN_LIMITS[plan].advancedReports?90:30,
+   requested=period(raw),days=requested>maxDays?maxDays:requested,
+   day=addDays(today(),1-days),since=new Date(day+'T00:00:00+03:00').toISOString(),window_limited=requested>maxDays;
  const totals=await one(`SELECT COUNT(DISTINCT visitor_hash) visits,COUNT(DISTINCT CASE WHEN converted_at IS NOT NULL THEN visitor_hash END) converted FROM demand_visits WHERE tenant_id=? AND day>=?`,id,day);
  const searches=await one(`SELECT COUNT(DISTINCT v.visitor_hash) searchers,COUNT(DISTINCT CASE WHEN i.matched=0 THEN v.visitor_hash END) encountered_empty FROM demand_searches i JOIN demand_visits v ON v.id=i.visit_id AND v.tenant_id=i.tenant_id WHERE i.tenant_id=? AND i.searched_at>=?`,id,since);
  const unresolved=await one(ranked+`SELECT COUNT(*) count,COALESCE(SUM(price),0) value,COUNT(CASE WHEN reason='closed_hours' THEN 1 END) outside_hours,COALESCE(SUM(CASE WHEN reason='closed_hours' THEN price ELSE 0 END),0) outside_value FROM unresolved`,id,since);
  const windows=await all(ranked+`SELECT CAST(strftime('%w',requested_date) AS INTEGER) weekday,minute_from,minute_to,reason,COUNT(*) count,SUM(price) value,AVG(duration) duration,COUNT(DISTINCT requested_date) distinct_dates,COUNT(CASE WHEN staff_key!='any' THEN 1 END) specific_staff FROM unresolved GROUP BY weekday,minute_from,minute_to,reason ORDER BY count DESC,value DESC LIMIT 100`,id,since);
  const topWindow=await one(ranked+`SELECT minute_from,minute_to,COUNT(*) count FROM unresolved GROUP BY minute_from,minute_to ORDER BY count DESC LIMIT 1`,id,since);
  const services=await all(ranked+`SELECT s.id,s.name,COUNT(*) count,SUM(u.price) value FROM unresolved u JOIN services s ON s.id=u.service_id AND s.tenant_id=u.tenant_id GROUP BY s.id ORDER BY count DESC LIMIT 10`,id,since);
- return {days,since:day,totals:{...totals,...searches,...unresolved},windows,top_window:topWindow,services,measured_at:now()};
+ return {days,since:day,totals:{...totals,...searches,...unresolved},windows,top_window:topWindow,services,measured_at:now(),window_limited};
 }
 export async function serviceAnalytics(id:string,raw:any){
  await tenant(id);const days=period(raw),start=addDays(today(),1-days);

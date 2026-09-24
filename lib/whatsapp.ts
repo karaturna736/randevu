@@ -6,6 +6,7 @@ import { appOrigin } from "./identity";
 import { money, time } from "./types";
 import { hmacHex, equalSecret, seal, unseal } from "./security";
 import { defaultGrowth, recallCandidates } from "./growth";
+import { requirePlanModule } from "./entitlements";
 const cfg = () => env as any;
 const connections = z.array(
   z.object({
@@ -59,6 +60,7 @@ export function waReady(id: string) {
 }
 export async function waSnapshot(id: string) {
   await tenant(id);
+  await requirePlanModule(id, "whatsapp");
   const c = waConnection(id);
   return {
     connected: waReady(id),

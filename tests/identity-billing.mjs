@@ -46,7 +46,7 @@ try{
  check(secondBusiness.status===201&&secondBusiness.data.id!==A,'One owner can create a separately isolated second business');
  check((await call('billing?tenant='+secondBusiness.data.id,{user:'owner-a'})).status===200,'Second business has its own billing workspace');
  const subscriptionId=randomUUID(),subscriptionStamp=new Date().toISOString();
- await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,reference,customer_reference,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,NULL,NULL,'test-business','pro',99900,'ACTIVE',?,1,?,?)").bind(A,subscriptionId,subscriptionStamp,subscriptionStamp).run();
+ await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,reference,customer_reference,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,NULL,NULL,'test-business','plus',250000,'ACTIVE',?,1,?,?)").bind(A,subscriptionId,subscriptionStamp,subscriptionStamp).run();
  const branch=(await db.prepare('SELECT id FROM branches WHERE tenant_id=? AND is_primary=1').bind(A).first()).id;
  const catalog=await call('expense-catalog',{user:'owner-a',body:{tenant_id:A,name:'Saç kremi',category:'malzeme',unit:'kutu',default_unit_amount:45000,note:'Aylık stok'}});
  check(catalog.status===200,'Owner can save a reusable expense catalog item');

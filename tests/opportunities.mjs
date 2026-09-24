@@ -3,6 +3,7 @@
 import {createRequire} from 'node:module';
 import {readdirSync,readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {randomUUID} from 'node:crypto';
 import assert from 'node:assert/strict';
 const require=createRequire(import.meta.url);
 const wranglerRequire=createRequire(require.resolve('wrangler/package.json'));
@@ -35,6 +36,7 @@ try{
   await call('staff',{user,body:{tenant_id:id,name:'Birinci Uzman',title:'Uzman',hours}});
  }
  const wa=(await call('workspace?tenant='+A,{user:'owner-a'})).data,wb=(await call('workspace?tenant='+B,{user:'owner-b'})).data,S=wa.services[0].id,P=wa.staff[0].id;
+ const subStamp=new Date().toISOString();await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,reference,customer_reference,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,NULL,NULL,'test-ops-pro','pro',99900,'ACTIVE',?,1,?,?)").bind(A,randomUUID(),subStamp,subStamp).run();
  const payload={slug:'talep-a',service_id:S,staff_id:P,date:day(3),minute:1080,name:'Test Müşteri',phone:'05551110000',customer_note:'Makas kesimi istiyorum.'};
  const metrics=()=>call('demand-insights?tenant='+A+'&days=7',{user:'owner-a'});
  await call(`availability?slug=talep-a&service=${S}&date=${day(3)}`);

@@ -309,7 +309,7 @@ export default function Landing() {
             <span className="neta-eyebrow">NET KAPSAM. NET FİYAT.</span>
             <h2>İşletmenize yer açın.</h2>
             <p>
-              Starter 600 TL, Business 999 TL, Kurumsal 2.500 TL/ay. Müşteri
+              Standart 600 TL, Pro 999 TL, Plus 2.500 TL/ay. Müşteri
               tahsilatlarınıza Neta karışmaz.
             </p>
             <div className="neta-price-note">
@@ -325,7 +325,7 @@ export default function Landing() {
               <span className="neta-mini-logo">
                 <img src="/neta-logo.png" alt="" />
               </span>
-              <h3>Neta Business</h3>
+              <h3>Neta Pro</h3>
               <span>İşletme büyüme paketi</span>
             </div>
             <div className="neta-price">
@@ -334,13 +334,14 @@ export default function Landing() {
             </div>
             <ul>
               {[
-                "5 şubeye kadar · sınırsız personel",
+                "3 şubeye kadar · sınırsız personel",
                 "Borç / Veresiye ve tahsilat takibi",
                 "Neta Hizmet Yolculuğu",
                 "Pazarlama ve büyüme araçları",
                 "Gelir kurtarma ve bekleme listesi",
                 "Talep fırsatları ve kaçan gelir analizi",
-                "Şube kâr/zarar ve kayıtlı gider kalemleri",
+                "İşlem analizi ve gelir raporu",
+                "Şube kârlılığı · 3 şubeye kadar",
                 "Çift yönlü WhatsApp ve AI asistanı",
                 "Online ödeme altyapısına hazır entegrasyon",
                 "Günde 50 AI sorusu · ayda 1.000 WhatsApp mesajı",

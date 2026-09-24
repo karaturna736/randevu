@@ -6,6 +6,15 @@ export type PlanCode = "normal" | "pro" | "plus";
  * Neta paketlerinin kullanım sınırları. Hiçbir paket sınırsız dış sağlayıcı
  * kullanımı vaat etmez; sağlayıcı maliyeti ve kötüye kullanım kontrolü bu
  * sayaçlarla sunucu tarafında uygulanır.
+ *
+ * Modül anahtarları: receivables (borç/veresiye), journeys (hizmet
+ * yolculuğu), growth (pazarlama ve büyüme; ortaklık hariç), recovery
+ * (gelir kurtarma), demand (talep fırsatları), serviceReport (işlem
+ * analizi), revenueReport (gelir raporu), branchProfit (şube kârlılığı),
+ * whatsapp (çift yönlü WhatsApp kurulumu), accounting (tekrar
+ * kullanılabilir gider kalemleri), referral (Neta ortaklık programı),
+ * website (işletme web sitesi). "limited" işaretli modüller paketin
+ * kendi kota sınırlarıyla çalışır.
  */
 export const PLAN_LIMITS: Record<
   PlanCode,
@@ -16,32 +25,135 @@ export const PLAN_LIMITS: Record<
     branches: number | null;
     staff: number | null;
     advancedReports: boolean;
+    modules: Record<
+      | "receivables"
+      | "journeys"
+      | "growth"
+      | "recovery"
+      | "demand"
+      | "serviceReport"
+      | "revenueReport"
+      | "branchProfit"
+      | "whatsapp"
+      | "accounting"
+      | "referral"
+      | "website",
+      boolean
+    >;
   }
 > = {
   normal: {
     whatsappMonthly: 0,
     aiDaily: 0,
-    label: "Starter",
+    label: "Standart",
     branches: 1,
     staff: 5,
     advancedReports: false,
+    modules: {
+      receivables: false,
+      journeys: false,
+      growth: false,
+      recovery: false,
+      demand: false,
+      serviceReport: true,
+      revenueReport: false,
+      branchProfit: false,
+      whatsapp: false,
+      accounting: false,
+      referral: false,
+      website: false,
+    },
   },
   pro: {
     whatsappMonthly: 1000,
     aiDaily: 50,
-    label: "Business",
-    branches: 5,
+    label: "Pro",
+    branches: 3,
     staff: null,
     advancedReports: false,
+    modules: {
+      receivables: true,
+      journeys: true,
+      growth: true,
+      recovery: true,
+      demand: true,
+      serviceReport: true,
+      revenueReport: true,
+      branchProfit: true,
+      whatsapp: true,
+      accounting: false,
+      referral: false,
+      website: false,
+    },
   },
   plus: {
     whatsappMonthly: 5000,
     aiDaily: 200,
-    label: "Kurumsal",
+    label: "Plus",
     branches: null,
     staff: null,
     advancedReports: true,
+    modules: {
+      receivables: true,
+      journeys: true,
+      growth: true,
+      recovery: true,
+      demand: true,
+      serviceReport: true,
+      revenueReport: true,
+      branchProfit: true,
+      whatsapp: true,
+      accounting: true,
+      referral: true,
+      website: true,
+    },
   },
+};
+
+export type PlanModule =
+  | "receivables"
+  | "journeys"
+  | "growth"
+  | "recovery"
+  | "demand"
+  | "serviceReport"
+  | "revenueReport"
+  | "branchProfit"
+  | "whatsapp"
+  | "accounting"
+  | "referral"
+  | "website";
+
+/** Sunucu tarafı modül kilidi: paketin izin vermediği özellik 402 döner. */
+export async function requirePlanModule(
+  tenantId: string,
+  module: PlanModule,
+) {
+  const plan = await tenantPlan(tenantId);
+  if (!PLAN_LIMITS[plan].modules[module])
+    throw new ApiError(
+      PLAN_LIMITS[plan].label +
+        " paketi " +
+        MODULE_LABELS[module] +
+        " özelliğini içermez. Paketinizi yükseltin.",
+      402,
+    );
+  return plan;
+}
+
+export const MODULE_LABELS: Record<PlanModule, string> = {
+  receivables: "Borç / Veresiye takibi",
+  journeys: "Hizmet yolculuğu",
+  growth: "Pazarlama ve büyüme",
+  recovery: "Gelir kurtarma",
+  demand: "Talep fırsatları",
+  serviceReport: "İşlem analizi",
+  revenueReport: "Gelir raporu",
+  branchProfit: "Şube kârlılığı",
+  whatsapp: "WhatsApp kurulumu",
+  accounting: "Muhasebe gider kataloğu",
+  referral: "Neta ortaklık programı",
+  website: "İşletme web sitesi",
 };
 
 export const PLAN_CATALOG: Record<
@@ -52,9 +164,9 @@ export const PLAN_CATALOG: Record<
     limits: { whatsappMonthly: number; aiDaily: number };
   }
 > = {
-  normal: { name: "Neta Starter", amount: 60000, limits: PLAN_LIMITS.normal },
-  pro: { name: "Neta Business", amount: 99900, limits: PLAN_LIMITS.pro },
-  plus: { name: "Neta Kurumsal", amount: 250000, limits: PLAN_LIMITS.plus },
+  normal: { name: "Neta Standart", amount: 60000, limits: PLAN_LIMITS.normal },
+  pro: { name: "Neta Pro", amount: 99900, limits: PLAN_LIMITS.pro },
+  plus: { name: "Neta Plus", amount: 250000, limits: PLAN_LIMITS.plus },
 };
 
 export async function tenantPlan(tenantId: string): Promise<PlanCode> {

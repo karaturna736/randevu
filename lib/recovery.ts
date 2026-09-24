@@ -19,6 +19,7 @@ import { publicBusiness, book } from "./booking";
 import { addDays, time, today } from "./types";
 import { equalSecret } from "./security";
 import { sendRecoveryTemplate, waConnection, waReady } from "./whatsapp";
+import { requirePlanModule } from "./entitlements";
 
 const joinSchema = z.object({
   slug: z.string().min(1),
@@ -106,6 +107,7 @@ export async function joinWaitlist(input: any) {
 
 export async function recoverySnapshot(id: string) {
   await tenant(id);
+  await requirePlanModule(id, "recovery");
   const month = today().slice(0, 7) + "-01";
   const totals = await one(
     "SELECT COUNT(*) filled_slots,COUNT(DISTINCT recovered_customer_id) recovered_customers,COALESCE(SUM(recovered_amount),0) recovered_revenue FROM recovery_slots WHERE tenant_id=? AND status='filled' AND filled_at>=?",

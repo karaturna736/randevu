@@ -41,41 +41,42 @@ const steps = [
 const plans = [
   {
     code: "normal",
-    name: "Neta Starter",
+    name: "Neta Standart",
     price: 60000,
     description: "Tek şubeyle randevu sistemine hızlı ve güvenli başlangıç.",
     features: [
       "1 işletme · 1 şube · 5 personel",
       "7/24 randevu linki ve ortak takvim",
       "Hizmet, müşteri ve çalışma saati yönetimi",
+      "İşlem analizi",
     ],
   },
   {
     code: "pro",
-    name: "Neta Business",
+    name: "Neta Pro",
     price: 99900,
     description:
       "Boş saatleri doldurun, alacakları ve müşteri dönüşünü yönetin.",
     features: [
-      "5 şubeye kadar · sınırsız personel",
+      "3 şubeye kadar · sınırsız personel",
       "Borç / Veresiye ve Hizmet Yolculuğu",
-      "Sınırlı pazarlama, gelir kurtarma ve talep analizi",
-      "AI, çift yönlü WhatsApp ve online ödeme",
-      "Şube kâr/zarar ve kayıtlı gider kalemleri",
+      "Pazarlama, gelir kurtarma ve talep fırsatları",
+      "İşlem analizi, gelir raporu ve şube kârlılığı",
+      "WhatsApp kurulumu, AI ve online ödeme",
     ],
   },
   {
     code: "plus",
-    name: "Neta Kurumsal",
+    name: "Neta Plus",
     price: 250000,
     description:
       "Tüm şubelerin gelirini, giderini ve büyümesini tek merkezden yönetin.",
     features: [
+      "Pro'daki her şey · sınırsız kullanım",
       "Sınırsız şube ve personel",
-      "Sınırsız Borç / Veresiye ve Hizmet Yolculuğu kaydı",
-      "Tam pazarlama, gelir kurtarma ve Ghost Demand",
-      "Şube muhasebesi, gider şablonları ve kâr/zarar",
-      "Yüksek kotalı AI, WhatsApp, API ve gelişmiş raporlama",
+      "Muhasebe ve sınırsız kayıt",
+      "Neta ortaklık programı",
+      "İşletme web sitesi",
     ],
   },
 ] as const;

@@ -132,7 +132,7 @@ export function BranchProfitability({ w }: any) {
         <p className="muted">
           {data.branches.length} şube ·{" "}
           {data.limits.branches === null
-            ? "Kurumsal sınırsız şube"
+            ? "Plus sınırsız şube"
             : `Paket sınırı ${data.limits.branches}`}
         </p>
         <div className="button-group">
@@ -267,9 +267,9 @@ export function BranchProfitability({ w }: any) {
       {!data.branches.length && <Blank title="İlk şubenizi oluşturun" />}
       {data.plan === "normal" && (
         <div className="notice">
-          Starter pakette 1 şube ve temel randevu yönetimi bulunur. Şube gideri,
-          kâr/zarar karşılaştırması ve yeni şubeler için Business paketine
-          geçin.
+          Standart pakette 1 şube ve temel randevu yönetimi bulunur. Şube gideri
+          ve kâr/zarar karşılaştırması Pro pakette, sınırsız şube ise Plus
+          pakettedir.
         </div>
       )}
       {data.plan !== "normal" && (
