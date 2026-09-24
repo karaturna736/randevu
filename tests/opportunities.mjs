@@ -4,6 +4,7 @@ import {createRequire} from 'node:module';
 import {readdirSync,readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
+import {seedPaidBusiness} from './helpers/paid-business.mjs';
 const require=createRequire(import.meta.url);
 const wranglerRequire=createRequire(require.resolve('wrangler/package.json'));
 const {Miniflare}=await import(wranglerRequire.resolve('miniflare'));
@@ -26,8 +27,8 @@ try{
  }
  check((await db.prepare("SELECT role,staff_id FROM members WHERE user_id='legacy-owner'").first()).role==='owner','Migration preserves existing business owners');
  const hours=Object.fromEntries([0,1,2,3,4,5,6].map(k=>[k,[540,1140]]));
- const A=(await call('businesses',{user:'owner-a',body:{name:'Talep Test A',slug:'talep-a',category:'Kuaför & Berber'}})).data.id;
- const B=(await call('businesses',{user:'owner-b',body:{name:'Talep Test B',slug:'talep-b',category:'Kuaför & Berber'}})).data.id;
+ const A=await seedPaidBusiness(db,{id:'talep-a',userId:'owner-a',name:'Talep Test A',slug:'talep-a'});
+ const B=await seedPaidBusiness(db,{id:'talep-b',userId:'owner-b',name:'Talep Test B',slug:'talep-b'});
  for(const [id,user] of [[A,'owner-a'],[B,'owner-b']]){
   await call('admin',{user:'qa-admin',body:{action:'business-status',id,status:'approved'}});
   await call('settings',{user,body:{tenant_id:id,name:'Test '+user,category:'Kuaför & Berber',city:'Test',address:'Test',phone:'',description:'',hours,cancellation_hours:2}});
@@ -74,7 +75,8 @@ try{
  const member={name:'Test Personel',account_type:'business',phone:'',city:'',marketing_consent:false};
  await call('account',{user:'worker-a',body:member});
  check((await call('team-access',{user:'owner-a',body:{tenant_id:A,staff_id:P,email:'worker-a@example.test'}})).status===200,'Owner can attach an existing membership to a staff record');
- check((await call('workspace?tenant='+A,{user:'worker-a'})).status===403&&(await call('demand-insights?tenant='+A,{user:'worker-a'})).status===403,'Staff role cannot read the owner workspace or demand revenue reports');
+ const staffWorkspace=await call('workspace?tenant='+A,{user:'worker-a'}),staffRevenue=await call('demand-insights?tenant='+A,{user:'worker-a'});
+ check(staffWorkspace.status===402&&staffRevenue.status===403,`Staff role cannot bypass the owner payment gate or read demand revenue (${staffWorkspace.status}/${staffRevenue.status})`);
  check((await call('services',{user:'worker-a',body:{tenant_id:A,name:'Forbidden',duration:30,price:1}})).status===403,'Staff role cannot modify business services');
  await call('staff',{user:'owner-a',body:{tenant_id:A,name:'İkinci Uzman',title:'Uzman',hours}});
  const P2=(await call('workspace?tenant='+A,{user:'owner-a'})).data.staff.find(p=>p.id!==P).id;
