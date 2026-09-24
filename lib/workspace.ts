@@ -1,4 +1,4 @@
-import { referralOperation } from "./growth";
+import { makeReferralCode, referralOperation } from "./growth";
 import { z } from "zod";
 import {
   db,
@@ -107,10 +107,11 @@ export async function businessCreation(
       : HOURS;
   const ops = [
     q(
-      "INSERT INTO businesses (id,name,slug,category,city,address,phone,description,status,demo,hours,selected_plan,terminology,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO businesses (id,name,slug,invite_code,category,city,address,phone,description,status,demo,hours,selected_plan,terminology,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       id,
       x.name,
       x.slug,
+      makeReferralCode(id),
       x.category,
       x.city,
       x.address,
