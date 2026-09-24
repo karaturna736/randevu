@@ -401,8 +401,9 @@ export default function Dashboard({
   }, []);
   useEffect(() => {
     const q = new URLSearchParams(location.search);
+    const publicDemo = location.pathname === "/demo" || q.get("demo") === "1";
     if (q.get("view") && TITLES[q.get("view")!]) setView(q.get("view")!);
-    refresh(q.get("tenant") || undefined, q.get("demo") === "1");
+    refresh(q.get("tenant") || undefined, publicDemo);
     if (q.has("setup")) location.assign("/kurulum");
   }, [refresh]);
   useEffect(() => {
@@ -424,6 +425,7 @@ export default function Dashboard({
     !loading &&
     w.preview &&
     !loadError &&
+    location.pathname !== "/demo" &&
     new URLSearchParams(location.search).get("demo") !== "1" &&
     !needsOnboarding
   )
@@ -474,7 +476,11 @@ export default function Dashboard({
             </span>
             <ThemeToggle />
             <span className="topbar-divider" />
-            <AccountMenu />
+            {w.preview ? (
+              <span className="badge neutral">Girişsiz demo</span>
+            ) : (
+              <AccountMenu />
+            )}
           </div>
         </header>
         <main className="dashboard-content">

@@ -119,7 +119,7 @@ export default function Landing() {
               <a className="button primary" href={start}>
                 İşletmemi oluştur <ArrowRight size={18} />
               </a>
-              <a className="button neta-outline" href="/panel?demo=1">
+              <a className="button neta-outline" href="/demo">
                 <Play size={16} />
                 Canlı demoyu incele
               </a>
@@ -227,7 +227,7 @@ export default function Landing() {
                 bu kadar net olabilir.
               </h2>
             </div>
-            <a className="text-button" href="/panel?demo=1">
+            <a className="text-button" href="/demo">
               Paneli keşfet <ArrowUpRight size={18} />
             </a>
           </div>
