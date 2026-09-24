@@ -11,6 +11,7 @@ export const businesses = sqliteTable("businesses", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  inviteCode: text("invite_code").unique(),
   category: text("category").notNull(),
   city: text("city").notNull().default(""),
   address: text("address").notNull().default(""),
