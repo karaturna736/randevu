@@ -1,0 +1,18 @@
+[Unit]
+Description=Neta SQLite online backup
+After=neta.service
+
+[Service]
+Type=oneshot
+User=neta
+Group=neta
+WorkingDirectory=/srv/neta/current
+EnvironmentFile=/etc/neta/neta.env
+ExecStart=/usr/bin/node scripts/backup-sqlite.mjs
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/neta /var/backups/neta

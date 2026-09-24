@@ -1,0 +1,41 @@
+[Unit]
+Description=Neta Randevu production server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=neta
+Group=neta
+WorkingDirectory=/srv/neta/current
+EnvironmentFile=/etc/neta/neta.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/neta /var/backups/neta
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

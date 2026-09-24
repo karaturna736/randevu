@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Neta database backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=neta-backup.service
+
+[Install]
+WantedBy=timers.target

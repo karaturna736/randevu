@@ -1,0 +1,82 @@
+name: VDS production deploy
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: neta-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify-build-deploy:
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.0
+
+      - name: pnpm kur
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+
+      - name: Bağımlılıkları kur
+        run: pnpm install --frozen-lockfile
+
+      - name: Tür ve otomatik testler
+        run: |
+          pnpm exec tsc --noEmit
+          pnpm test
+
+      - name: Production paketi oluştur
+        run: |
+          pnpm build:vps
+          bash scripts/package-vps.sh "$RUNNER_TEMP/neta-vps-release.tar.gz"
+
+      - name: SSH doğrulamasını hazırla
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          test -n "$VPS_SSH_PRIVATE_KEY"
+          test -n "$VPS_KNOWN_HOSTS"
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/neta_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 0600 ~/.ssh/neta_deploy ~/.ssh/known_hosts
+
+      - name: Paketi VDS'ye aktar
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          test -n "$VPS_HOST"
+          test -n "$VPS_USER"
+          remote_dir="/tmp/neta-${GITHUB_SHA}"
+          ssh -i ~/.ssh/neta_deploy "$VPS_USER@$VPS_HOST" "install -d -m 0700 '$remote_dir'"
+          scp -i ~/.ssh/neta_deploy "$RUNNER_TEMP/neta-vps-release.tar.gz" "$VPS_USER@$VPS_HOST:$remote_dir/release.tar.gz"
+          scp -i ~/.ssh/neta_deploy -r deploy "$VPS_USER@$VPS_HOST:$remote_dir/"
+          ssh -i ~/.ssh/neta_deploy "$VPS_USER@$VPS_HOST" \
+            "sudo bash '$remote_dir/deploy/bootstrap-vps.sh' && sudo bash '$remote_dir/deploy/release-vps.sh' '$remote_dir/release.tar.gz' '$GITHUB_SHA'"
+
+      - name: HTTPS sertifikasını doğrula
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+        run: |
+          test -n "$LETSENCRYPT_EMAIL"
+          email_arg=$(printf '%q' "$LETSENCRYPT_EMAIL")
+          remote_dir="/tmp/neta-${GITHUB_SHA}"
+          ssh -i ~/.ssh/neta_deploy "$VPS_USER@$VPS_HOST" \
+            "sudo bash '$remote_dir/deploy/enable-ssl.sh' $email_arg"
+
+      - name: Canlı sağlık kontrolü
+        run: curl --fail --show-error --silent --retry 8 --retry-all-errors --max-time 10 https://netarandevu.com/api/health
