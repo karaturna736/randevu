@@ -230,14 +230,6 @@ try {
     filled.status === "filled" && filled.recovered_amount === 65000,
     "Recovered revenue is attributed to the real appointment",
   );
-  // Revenue recovery is a paid module; grant the Pro plan for analytics reads.
-  const recoveryStamp = new Date().toISOString();
-  await db
-    .prepare(
-      "INSERT INTO recurring_subscriptions(tenant_id,reference,customer_reference,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,'rec-test',NULL,'rec-test-plan','pro',99900,'ACTIVE',?,1,?,?)",
-    )
-    .bind(A, randomUUID(), recoveryStamp, recoveryStamp)
-    .run();
   const metrics = (await call("recovery?tenant=" + A, { user: "owner-a" }))
     .data;
   check(
