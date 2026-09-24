@@ -30,15 +30,16 @@ const buyerSchema = z.object({
       message: "Abonelik koşullarını kabul etmeniz gerekiyor.",
     }),
   }),
-  privacy_accepted: z.literal(true, {
+  card_storage_accepted: z.literal(true, {
     errorMap: () => ({
-      message: "Gizlilik politikasını kabul etmeniz gerekiyor.",
+      message: "Aylık abonelik için güvenli kart saklama onayı gerekiyor.",
     }),
   }),
 });
 const checkoutSchema = z.object({
   business: businessSchema,
   buyer: buyerSchema,
+  idempotency_key: z.string().uuid(),
 });
 const providerRef = z.string().regex(/^[a-zA-Z0-9_-]{8,120}$/);
 const redirect = (path: string) =>
@@ -98,6 +99,7 @@ export function onboardingPaymentStatus() {
     ),
     live: connection.live,
     terms_url: String((env as any).NETA_SUBSCRIPTION_TERMS_URL || ""),
+    kvkk_url: "/kvkk",
     plans: (Object.keys(PLAN_CATALOG) as Array<keyof typeof PLAN_CATALOG>).map(
       (code) => ({
         ...PLAN_CATALOG[code],
@@ -122,6 +124,18 @@ export async function beginOnboardingPayment(input: any) {
     connection = recurringConnection(),
     plan = recurringPlans().find((p) => p.code === x.business.plan),
     origin = appOrigin();
+  const duplicate = await one(
+    "SELECT id,state,tenant_id FROM onboarding_payments WHERE user_id=? AND idempotency_key=?",
+    owner.userId,
+    x.idempotency_key,
+  );
+  if (duplicate?.state === "active")
+    return { active: true, tenant_id: duplicate.tenant_id };
+  if (duplicate)
+    throw new ApiError(
+      "Bu ödeme isteği zaten işleme alındı. Durum sayfasından kontrol edin.",
+      409,
+    );
   if (
     (await one("SELECT COUNT(*) n FROM members WHERE user_id=?", owner.userId))
       .n >= 10
@@ -169,22 +183,43 @@ export async function beginOnboardingPayment(input: any) {
   const id = uid(),
     stamp = now(),
     expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-  await q(
-    "INSERT INTO onboarding_payments(id,user_id,user_email,user_name,slug,provider,plan,plan_reference,amount,currency,payload,state,test_mode,created_at,updated_at,expires_at) VALUES(?,?,?,?,?,'iyzico',?,?,?,'TRY',?,'pending_payment',?,?,?,?)",
-    id,
-    owner.userId,
-    owner.email,
-    owner.displayName,
-    x.business.slug,
-    plan.code,
-    plan.reference,
-    plan.amount,
-    JSON.stringify(x.business),
-    connection.live ? 0 : 1,
-    stamp,
-    stamp,
-    expiresAt,
-  ).run();
+  await db().batch([
+    q(
+      "INSERT INTO onboarding_payments(id,user_id,user_email,user_name,slug,provider,plan,plan_reference,amount,currency,payload,state,test_mode,created_at,updated_at,expires_at,idempotency_key) VALUES(?,?,?,?,?,'iyzico',?,?,?,'TRY',?,'pending_payment',?,?,?,?,?)",
+      id,
+      owner.userId,
+      owner.email,
+      owner.displayName,
+      x.business.slug,
+      plan.code,
+      plan.reference,
+      plan.amount,
+      JSON.stringify(x.business),
+      connection.live ? 0 : 1,
+      stamp,
+      stamp,
+      expiresAt,
+      x.idempotency_key,
+    ),
+    q(
+      "INSERT INTO payment_consents(id,payment_id,user_id,consent_type,document_version,accepted_at) VALUES(?,?,?,?,?,?)",
+      uid(),
+      id,
+      owner.userId,
+      "subscription_terms",
+      "2026-09-23",
+      stamp,
+    ),
+    q(
+      "INSERT INTO payment_consents(id,payment_id,user_id,consent_type,document_version,accepted_at) VALUES(?,?,?,?,?,?)",
+      uid(),
+      id,
+      owner.userId,
+      "iyzico_recurring_card",
+      "iyzico-subscription-v1",
+      stamp,
+    ),
+  ]);
   try {
     const result = await iyzico("/v2/subscription/checkoutform/initialize", {
       locale: "tr",

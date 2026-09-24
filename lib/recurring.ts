@@ -121,6 +121,10 @@ export async function recurringSnapshot(id: string) {
       "SELECT plan,amount,state,test_mode,paid_until,created_at,updated_at FROM recurring_subscriptions WHERE tenant_id=?",
       id,
     ),
+    payment_method: await one(
+      "SELECT CASE WHEN customer_reference IS NOT NULL THEN 1 ELSE 0 END stored,'iyzico' provider FROM recurring_subscriptions WHERE tenant_id=?",
+      id,
+    ),
     payments: await all(
       "SELECT reference,amount,period_start,period_end,test_mode,created_at FROM recurring_events WHERE tenant_id=? ORDER BY period_end DESC LIMIT 100",
       id,
@@ -148,6 +152,7 @@ export async function beginRecurring(id: string, input: any) {
       .object({
         plan: z.enum(["normal", "pro", "plus"]),
         terms_accepted: z.literal(true),
+        card_storage_accepted: z.literal(true),
         name: z.string().trim().min(2).max(80),
         surname: z.string().trim().min(2).max(80),
         identity: z.string().regex(/^\d{10,11}$/),
@@ -221,6 +226,24 @@ export async function beginRecurring(id: string, input: any) {
       u.userId,
       "subscription.terms.accepted:" + plan.code,
       id,
+      stamp,
+    ),
+    q(
+      "INSERT INTO payment_consents(id,payment_id,user_id,consent_type,document_version,accepted_at) VALUES(?,?,?,?,?,?)",
+      uid(),
+      requestId,
+      u.userId,
+      "subscription_terms",
+      "2026-09-23",
+      stamp,
+    ),
+    q(
+      "INSERT INTO payment_consents(id,payment_id,user_id,consent_type,document_version,accepted_at) VALUES(?,?,?,?,?,?)",
+      uid(),
+      requestId,
+      u.userId,
+      "iyzico_recurring_card",
+      "iyzico-subscription-v1",
       stamp,
     ),
   ]);
@@ -503,11 +526,27 @@ export async function recurringAction(id: string, input: any) {
         "/cancel",
       {},
     );
-    const stamp=now(),actor=await user();
+    const stamp = now(),
+      actor = await user();
     await db().batch([
-      q("UPDATE recurring_subscriptions SET state='CANCELED',updated_at=? WHERE tenant_id=?",stamp,id),
-      q("UPDATE onboarding_payments SET state='payment_cancelled',updated_at=? WHERE tenant_id=?",stamp,id),
-      q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)",uid(),actor.userId,'subscription.cancelled',id,stamp),
+      q(
+        "UPDATE recurring_subscriptions SET state='CANCELED',updated_at=? WHERE tenant_id=?",
+        stamp,
+        id,
+      ),
+      q(
+        "UPDATE onboarding_payments SET state='payment_cancelled',updated_at=? WHERE tenant_id=?",
+        stamp,
+        id,
+      ),
+      q(
+        "INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)",
+        uid(),
+        actor.userId,
+        "subscription.cancelled",
+        id,
+        stamp,
+      ),
     ]);
   } else await syncSubscription(row);
   return { ok: true };
