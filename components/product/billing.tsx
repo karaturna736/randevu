@@ -38,9 +38,9 @@ function Header() {
     <header className="public-header">
       <Brand />
       <nav>
-        <a className="text-button" href="/panel">
+        <a className="text-button" href="/">
           <ArrowLeft size={15} />
-          İşletme paneli
+          Ana sayfaya dön
         </a>
         <ThemeToggle />
         <AccountMenu />
@@ -398,6 +398,14 @@ function BusinessBilling() {
         <p className="notice" role="status">
           İşletmeniz oluşturuldu. Seçtiğiniz paketi güvenli ödeme sağlayıcısında
           tamamlayabilirsiniz.
+        </p>
+      )}
+      {new URLSearchParams(location.search).get("gerekli") === "1" && (
+        <p className="notice" role="status">
+          Gerçek işletme panelini açmak için aktif bir Neta aboneliği gerekir.
+          Ödeme tamamlanıp sağlayıcı tarafından doğrulandığında paneliniz
+          otomatik olarak açılır. Ücretsiz denemeyi kullanmak için ana sayfadaki
+          “Canlı demoyu incele” bağlantısını seçebilirsiniz.
         </p>
       )}
       <RecurringPlans

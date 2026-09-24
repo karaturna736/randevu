@@ -4,6 +4,7 @@ import {createRequire} from 'node:module';
 import {readdirSync,readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
 const require=createRequire(import.meta.url);
 const wranglerRequire=createRequire(require.resolve('wrangler/package.json'));
 const {Miniflare}=await import(wranglerRequire.resolve('miniflare'));
@@ -21,6 +22,9 @@ try{
  const A=(await call('businesses',{user:'qa-a',body:{name:'Test Studio A',slug:'test-a',category:'Kuaför & Berber',city:'İstanbul'}})).data.id;
  const B=(await call('businesses',{user:'qa-b',body:{name:'Test Studio B',slug:'test-b',category:'Kuaför & Berber',city:'Ankara'}})).data.id;
  check(!!A&&!!B&&A!==B,'Two independent businesses can be created');
+ check((await call('workspace?tenant='+A,{user:'qa-a'})).data.subscription_required===true,'Real business panel stays locked until an active subscription exists');
+ const accessStamp=new Date().toISOString();
+ for(const tenantId of [A,B])await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,'test-starter','normal',60000,'ACTIVE',?,1,?,?)").bind(tenantId,randomUUID(),accessStamp,accessStamp).run();
  const types=(await call('business-types')).data.businessTypes;
  check(types.length===10&&types.some(x=>x.category==='Psikolog'&&x.config.businessProfile.customerLabel==='Danışan'),'Business type catalog exposes sector-specific terminology');
  check((await call('workspace?tenant='+A,{user:'qa-a'})).data.configuration.businessType==='hair_salon','Workspace includes its resolved business configuration');
@@ -59,6 +63,8 @@ try{
  check((await call(`availability?slug=test-a&service=${S}&date=${date}&staff=${P}`)).data.slots.some(s=>s.minute===720),'Cancelled appointment time becomes available again');
  const wafter=(await call('workspace?tenant='+A,{user:'qa-a'})).data;
  check(wafter.customers.length===1&&wafter.appointments.length===1,'Failed booking transaction leaves no orphan customer or appointment');
+ const pendingPnL=(await call('branches?tenant='+A+'&month='+date.slice(0,7),{user:'qa-a'})).data;
+ check(pendingPnL.summary.revenue===0,'Customer creation and an uncompleted appointment do not create manual revenue');
  check((await call('closures',{user:'qa-a',body:{tenant_id:A,staff_id:P,date,reason:'Test izin'}})).status===200,'Free staff day can be marked as leave');
  check((await call(`availability?slug=test-a&service=${S}&date=${date}&staff=${P}`)).data.slots.length===0,'Leave excludes the staff member from availability');
  const raceDate=day(6);
@@ -72,6 +78,8 @@ try{
  await db.prepare('UPDATE appointments SET date=?,minute=540 WHERE id=?').bind(past,second.id).run();
  await db.prepare('DELETE FROM slots WHERE appointment_id=?').bind(second.id).run();
  check((await call('appointment',{user:'qa-a',body:{tenant_id:A,id:second.id,status:'completed'}})).status===200,'Ended appointment can be completed by its owner');
+ const completedPnL=(await call('branches?tenant='+A+'&month='+past.slice(0,7),{user:'qa-a'})).data;
+ check(completedPnL.summary.revenue===65000&&completedPnL.branches.find(b=>b.is_primary===1)?.completed===1,'Completed service price automatically contributes to branch revenue and profit calculation');
  check((await call('manage',{token:second.token,body:{action:'review',rating:5,comment:'İyi bir deneyimdi.'}})).status===200,'Completed appointment accepts one customer review');
  check((await call('manage',{token:second.token,body:{action:'review',rating:5,comment:'Tekrar değerlendirme'}})).status===409,'Duplicate review is rejected');
  check((await call('public/test-a')).data.reviews.length===0,'Unmoderated reviews are not public');
@@ -123,6 +131,7 @@ try{
  const invalidSetup=await call('businesses',{user:'qa-c1',body:{name:'Kurulum Testi',slug:'invalid-setup',category:'Kuaför & Berber',starter:{service_name:'Test',duration:17,price:10000,staff_name:'Test Uzman',staff_title:'Uzman',hours}}});
  check(invalidSetup.status===400&&(await call('account',{user:'qa-c1'})).data.businesses.length===before,'Invalid initial service leaves no half-created business');
  const setup=await call('businesses',{user:'qa-c1',body:{name:'Kurulum Testi',slug:'setup-test',category:'Kuaför & Berber',city:'İzmir',phone:'05551112233',address:'Test adresi',starter:{service_name:'İlk hizmet',duration:30,price:50000,staff_name:'İlk Personel',staff_title:'Uzman',hours}}});
+ await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,'test-starter','normal',60000,'ACTIVE',?,1,?,?)").bind(setup.data.id,randomUUID(),accessStamp,accessStamp).run();
  const created=(await call('workspace?tenant='+setup.data.id,{user:'qa-c1'})).data;
  check(setup.status===201&&created.services.length===1&&created.staff.length===1&&created.business.status==='pending','Business wizard creates business, owner, first service, staff and hours atomically');
  check((await call('workspace?tenant='+setup.data.id,{user:'qa-c2'})).status===403,'Wizard-created business remains isolated from other members');

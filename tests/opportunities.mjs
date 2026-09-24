@@ -5,6 +5,7 @@ import {readdirSync,readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
 const require=createRequire(import.meta.url);
 const wranglerRequire=createRequire(require.resolve('wrangler/package.json'));
 const {Miniflare}=await import(wranglerRequire.resolve('miniflare'));
@@ -29,6 +30,8 @@ try{
  const hours=Object.fromEntries([0,1,2,3,4,5,6].map(k=>[k,[540,1140]]));
  const A=(await call('businesses',{user:'owner-a',body:{name:'Talep Test A',slug:'talep-a',category:'Kuaför & Berber'}})).data.id;
  const B=(await call('businesses',{user:'owner-b',body:{name:'Talep Test B',slug:'talep-b',category:'Kuaför & Berber'}})).data.id;
+ const accessStamp=new Date().toISOString();
+ for(const tenantId of [A,B])await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,plan_reference,plan,amount,state,request_id,test_mode,created_at,updated_at) VALUES(?,'test-plus','plus',250000,'ACTIVE',?,1,?,?)").bind(tenantId,randomUUID(),accessStamp,accessStamp).run();
  for(const [id,user] of [[A,'owner-a'],[B,'owner-b']]){
   await call('admin',{user:'qa-admin',body:{action:'business-status',id,status:'approved'}});
   await call('settings',{user,body:{tenant_id:id,name:'Test '+user,category:'Kuaför & Berber',city:'Test',address:'Test',phone:'',description:'',hours,cancellation_hours:2}});

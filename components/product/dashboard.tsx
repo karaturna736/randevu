@@ -371,11 +371,21 @@ export default function Dashboard({
     [assistant, setAssistant] = useState(false),
     [loading, setLoading] = useState(true),
     [loadError, setLoadError] = useState("");
-  const refresh = useCallback(async (id?: string) => {
+  const refresh = useCallback(async (id?: string, demo = false) => {
     setLoading(true);
     setLoadError("");
     try {
-      const data = await api("workspace" + (id ? "?tenant=" + id : ""));
+      const data = demo
+        ? await api("demo-workspace", {})
+        : await api("workspace" + (id ? "?tenant=" + id : ""));
+      if (data.subscription_required) {
+        location.replace(
+          "/abonelik?tenant=" +
+            encodeURIComponent(data.business.id) +
+            "&gerekli=1",
+        );
+        return;
+      }
       setNeedsOnboarding(!!data.needs_onboarding);
       if (data.needs_onboarding) {
         setW({ ...demoWorkspace(), user: data.user, isAdmin: data.isAdmin });
@@ -392,7 +402,7 @@ export default function Dashboard({
   useEffect(() => {
     const q = new URLSearchParams(location.search);
     if (q.get("view") && TITLES[q.get("view")!]) setView(q.get("view")!);
-    refresh(q.get("tenant") || undefined);
+    refresh(q.get("tenant") || undefined, q.get("demo") === "1");
     if (q.has("setup")) location.assign("/kurulum");
   }, [refresh]);
   useEffect(() => {
@@ -526,8 +536,8 @@ export default function Dashboard({
             <div className="demo-banner">
               <span className="demo-dot" />
               <span>
-                <strong>Deneme çalışma alanı</strong> · Örnek müşteri verileri
-                içerir; dışarıya açık değildir.
+                <strong>Deneme çalışma alanı</strong> · Tüm değişiklikler yalnızca
+                bu örnek alana kaydedilir; müşterilere mesaj gönderilmez.
               </span>
               <button onClick={() => location.assign("/kurulum")}>
                 Gerçek işletme oluştur <ArrowRight size={14} />
