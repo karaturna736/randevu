@@ -17,6 +17,7 @@ import {
   user,
 } from "./server";
 import { businessCreation, businessSchema } from "./workspace";
+import { quoteCampaign } from "./campaigns";
 
 const buyerSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -40,6 +41,7 @@ const checkoutSchema = z.object({
   business: businessSchema,
   buyer: buyerSchema,
   idempotency_key: z.string().uuid(),
+  campaign_code: z.string().trim().max(32).optional(),
 });
 const providerRef = z.string().regex(/^[a-zA-Z0-9_-]{8,120}$/);
 const redirect = (path: string) =>
@@ -153,6 +155,21 @@ export async function beginOnboardingPayment(input: any) {
   const platformAdmin = await isAdmin(owner);
   if (!connection.live && !platformAdmin)
     throw new ApiError("Ödeme sağlayıcısı test aşamasında.", 403);
+  if (x.campaign_code) {
+    await quoteCampaign({
+      code: x.campaign_code,
+      plan: x.business.plan,
+      originalAmount: plan.amount,
+      businessId: null,
+      userId: owner.userId,
+      isFirstPayment: true,
+      record: true,
+    });
+    throw new ApiError(
+      "Kampanya doğrulandı; ancak mevcut iyzico abonelik planı sabit fiyatlıdır. İndirimli ilk tahsilat PayTR dinamik ödeme bağlantısı açıldığında kullanılabilir.",
+      409,
+    );
+  }
   if (await one("SELECT id FROM businesses WHERE slug=?", x.business.slug))
     throw new ApiError("Bu randevu bağlantısı kullanımda.", 409);
   if (

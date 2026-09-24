@@ -51,6 +51,9 @@ const catalogSchema = z.object({
   unit: z.string().trim().min(1).max(20).default("adet"),
   default_unit_amount: z.coerce.number().int().min(0).max(1000000000),
   note: z.string().trim().max(300).default(""),
+  apply_to_branch_id: z.string().min(1).optional(),
+  apply_month: monthSchema.optional(),
+  quantity: z.coerce.number().positive().max(100000).default(1),
 });
 
 async function ownedBranch(tenantId: string, branchId: string) {
@@ -223,9 +226,12 @@ export async function saveExpenseCatalogItem(tenantId: string, input: any) {
   const x = catalogSchema.parse(input),
     id = x.id || uid(),
     stamp = now();
+  if (!x.id && (!x.apply_to_branch_id || !x.apply_month))
+    throw new ApiError("Giderin ekleneceği şube ve ay seçilmelidir.", 400);
+  if (!x.id) await ownedBranch(tenantId, x.apply_to_branch_id!);
   try {
-    const result = x.id
-      ? await q(
+    if (x.id) {
+      const result = await q(
           "UPDATE expense_catalog_items SET name=?,category=?,unit=?,default_unit_amount=?,note=?,updated_at=? WHERE tenant_id=? AND id=?",
           x.name,
           x.category,
@@ -235,8 +241,13 @@ export async function saveExpenseCatalogItem(tenantId: string, input: any) {
           stamp,
           tenantId,
           x.id,
-        ).run()
-      : await q(
+        ).run();
+      if (!result.meta.changes)
+        throw new ApiError("Gider kalemi bulunamadı.", 404);
+    } else {
+      const expenseId = uid();
+      await db().batch([
+        q(
           "INSERT INTO expense_catalog_items(id,tenant_id,name,category,unit,default_unit_amount,note,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)",
           id,
           tenantId,
@@ -247,9 +258,31 @@ export async function saveExpenseCatalogItem(tenantId: string, input: any) {
           x.note,
           stamp,
           stamp,
-        ).run();
-    if (!result.meta.changes)
-      throw new ApiError("Gider kalemi bulunamadı.", 404);
+        ),
+        q(
+          "INSERT INTO branch_expenses(id,tenant_id,branch_id,month,category,amount,catalog_item_id,quantity,unit,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+          expenseId,
+          tenantId,
+          x.apply_to_branch_id,
+          x.apply_month,
+          x.category,
+          Math.round(x.default_unit_amount * x.quantity),
+          id,
+          x.quantity,
+          x.unit,
+          x.note,
+          stamp,
+          stamp,
+        ),
+        q(
+          "INSERT INTO branch_month_closings(tenant_id,branch_id,month,expenses_confirmed) VALUES(?,?,?,0) ON CONFLICT(tenant_id,branch_id,month) DO UPDATE SET expenses_confirmed=0,confirmed_at=NULL",
+          tenantId,
+          x.apply_to_branch_id,
+          x.apply_month,
+        ),
+      ]);
+      return { ok: true, id, expense_id: expenseId };
+    }
     return { ok: true, id };
   } catch (error: any) {
     if (String(error?.message || error).includes("UNIQUE"))

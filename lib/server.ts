@@ -85,14 +85,19 @@ export async function paidTenant(userId: string, id?: string) {
     userId,
   );
 }
-export async function tenant(id: string) {
+export async function ownedTenant(id: string) {
   const u = await user();
   const owned = await one(
-    "SELECT 1 ok FROM businesses b JOIN members m ON m.tenant_id=b.id WHERE b.id=? AND m.user_id=? AND m.disabled=0 AND m.role='owner' AND b.status NOT IN ('deleted','suspended')",
+    "SELECT b.* FROM businesses b JOIN members m ON m.tenant_id=b.id WHERE b.id=? AND m.user_id=? AND m.disabled=0 AND m.role='owner' AND b.status NOT IN ('deleted','suspended')",
     id,
     u.userId,
   );
   if (!owned) throw new ApiError("Bu işletmeye erişim yetkiniz yok.", 403);
+  return owned;
+}
+export async function tenant(id: string) {
+  const u = await user();
+  await ownedTenant(id);
   const b = await paidTenant(u.userId, id);
   if (!b)
     throw new ApiError(
