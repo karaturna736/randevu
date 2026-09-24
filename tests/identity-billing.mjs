@@ -53,9 +53,8 @@ try{
  await db.prepare("INSERT INTO recurring_subscriptions(tenant_id,reference,customer_reference,plan_reference,plan,amount,state,request_id,test_mode,paid_until,created_at,updated_at) VALUES(?,NULL,NULL,'test-business','plus',250000,'ACTIVE',?,0,?,?,?)").bind(A,subscriptionId,subscriptionUntil,subscriptionStamp,subscriptionStamp).run();
  check((await call('workspace?tenant='+A,{user:'owner-a'})).data.business.id===A,'Active subscription unlocks the real business panel');
  const branch=(await db.prepare('SELECT id FROM branches WHERE tenant_id=? AND is_primary=1').bind(A).first()).id;
- const catalog=await call('expense-catalog',{user:'owner-a',body:{tenant_id:A,name:'Saç kremi',category:'malzeme',unit:'kutu',default_unit_amount:45000,note:'Aylık stok'}});
- check(catalog.status===200,'Owner can save a reusable expense catalog item');
- check((await call('branch-expenses',{user:'owner-a',body:{tenant_id:A,branch_id:branch,month:'2026-09',category:'malzeme',amount:90000,catalog_item_id:catalog.data.id,quantity:2,unit:'kutu',note:'Eylül stoku'}})).status===200,'Saved catalog item can be used in a monthly branch expense');
+ const catalog=await call('expense-catalog',{user:'owner-a',body:{tenant_id:A,name:'Saç kremi',category:'malzeme',unit:'kutu',default_unit_amount:45000,note:'Aylık stok',apply_to_branch_id:branch,apply_month:'2026-09',quantity:2}});
+ check(catalog.status===200&&!!catalog.data.expense_id,'Owner can save a reusable expense catalog item and post it as an expense');
  const branchReport=(await call('branches?tenant='+A+'&month=2026-09',{user:'owner-a'})).data;
  check(branchReport.catalog.length===1&&branchReport.expenses[0].quantity===2&&branchReport.summary.expenses===90000,'Reusable expense remains available and contributes to profit calculation');
  check((await call('billing?tenant='+B,{user:'owner-a'})).status===403,'Cross-tenant billing reads are rejected');

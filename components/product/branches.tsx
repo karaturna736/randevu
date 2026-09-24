@@ -169,6 +169,9 @@ export function BranchProfitability({ w }: any) {
                 category: "malzeme",
                 unit: "adet",
                 default_unit_amount: "",
+                apply_to_branch_id: data.branches[0]?.id || "",
+                apply_month: month,
+                quantity: 1,
                 note: "",
               })
             }
@@ -297,6 +300,9 @@ export function BranchProfitability({ w }: any) {
                   category: "malzeme",
                   unit: "adet",
                   default_unit_amount: "",
+                  apply_to_branch_id: data.branches[0]?.id || "",
+                  apply_month: month,
+                  quantity: 1,
                   note: "",
                 })
               }
@@ -627,6 +633,44 @@ export function BranchProfitability({ w }: any) {
                 }
               />
             </Field>
+            {!catalogItem.id && (
+              <div className="form-grid">
+                <Field label="Giderin işleneceği şube">
+                  <Pick
+                    label="Şube"
+                    value={catalogItem.apply_to_branch_id}
+                    onChange={(apply_to_branch_id) =>
+                      setCatalogItem({ ...catalogItem, apply_to_branch_id })
+                    }
+                    options={data.branches.map((branch: any) => ({
+                      value: branch.id,
+                      label: branch.name,
+                    }))}
+                  />
+                </Field>
+                <Field label="Miktar">
+                  <Input
+                    required
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={catalogItem.quantity}
+                    onChange={(e) =>
+                      setCatalogItem({
+                        ...catalogItem,
+                        quantity: e.target.value,
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+            )}
+            {!catalogItem.id && (
+              <p className="helper">
+                Kaydettiğinizde bu kalem {month} ayı için seçilen şubenin
+                gider toplamına otomatik eklenir.
+              </p>
+            )}
             <Field label="Not">
               <Input
                 maxLength={300}
