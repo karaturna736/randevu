@@ -94,6 +94,7 @@ import {
 } from "@/lib/server";
 import {
   workspace,
+  demoWorkspaceForUser,
   createBusiness,
   saveService,
   saveStaff,
@@ -274,6 +275,8 @@ export async function POST(req: Request) {
       await limit(req, "help", 40);
       return ok(await helpAnswer(id, x));
     }
+    if (p[0] === "demo-workspace")
+      return ok(await demoWorkspaceForUser(), 201);
     if (p[0] === "waitlist") {
       await limit(req, "waitlist", 20);
       return ok(await joinWaitlist(x), 201);

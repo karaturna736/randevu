@@ -400,6 +400,14 @@ function BusinessBilling() {
           tamamlayabilirsiniz.
         </p>
       )}
+      {new URLSearchParams(location.search).get("gerekli") === "1" && (
+        <p className="notice" role="status">
+          Gerçek işletme panelini açmak için aktif bir Neta aboneliği gerekir.
+          Ödeme tamamlanıp sağlayıcı tarafından doğrulandığında paneliniz
+          otomatik olarak açılır. Ücretsiz denemeyi kullanmak için ana sayfadaki
+          “Canlı demoyu incele” bağlantısını seçebilirsiniz.
+        </p>
+      )}
       <RecurringPlans
         key={data.business.id}
         tenantId={data.business.id}

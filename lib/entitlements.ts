@@ -58,6 +58,11 @@ export const PLAN_CATALOG: Record<
 };
 
 export async function tenantPlan(tenantId: string): Promise<PlanCode> {
+  const business = await one(
+    "SELECT demo FROM businesses WHERE id=?",
+    tenantId,
+  );
+  if (Number(business?.demo) === 1) return "plus";
   const row = await one(
     "SELECT plan,state,test_mode,paid_until FROM recurring_subscriptions WHERE tenant_id=?",
     tenantId,

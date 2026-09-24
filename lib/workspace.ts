@@ -17,7 +17,7 @@ import {
   name,
   hours,
 } from "./server";
-import { HOURS, CATEGORIES, today } from "./types";
+import { HOURS, CATEGORIES, today, addDays } from "./types";
 import { SELECT_APPOINTMENTS } from "./booking";
 import { demoWorkspace } from "./demo";
 export async function workspace(id?: string) {
@@ -30,8 +30,23 @@ export async function workspace(id?: string) {
     throw new ApiError("İşletme erişimi reddedildi.", 403);
   if (!businesses.length)
     return { needs_onboarding: true, user: u, isAdmin: await isAdmin(u) };
-  const b = id ? businesses.find((b) => b.id === id) : businesses[0];
+  const b = id
+    ? businesses.find((b) => b.id === id)
+    : businesses.find((business) => !business.demo);
+  if (!b && !id)
+    return { needs_onboarding: true, user: u, isAdmin: await isAdmin(u) };
   if (!b) throw new ApiError("İşletme erişimi reddedildi.", 403);
+  if (!b.demo && !(await panelAccess(b.id)))
+    return {
+      subscription_required: true,
+      business: {
+        id: b.id,
+        name: b.name,
+        selected_plan: b.selected_plan || "normal",
+      },
+      user: u,
+      isAdmin: await isAdmin(u),
+    };
   const rs = await db().batch([
     q("SELECT * FROM services WHERE tenant_id=? ORDER BY name", b.id),
     q(
@@ -75,6 +90,34 @@ export async function workspace(id?: string) {
     isAdmin: await isAdmin(u),
     preview: false,
   };
+}
+
+async function panelAccess(id: string) {
+  const active = await one(
+    `SELECT 1 n FROM recurring_subscriptions
+     WHERE tenant_id=? AND plan IN ('normal','pro','plus') AND
+     ((test_mode=1 AND state IN ('ACTIVE','PENDING','UPGRADED')) OR
+      (test_mode=0 AND paid_until>?))
+     UNION ALL
+     SELECT 1 n FROM subscriptions WHERE tenant_id=? AND paid_until>?
+     LIMIT 1`,
+    id,
+    now(),
+    id,
+    now(),
+  );
+  return !!active;
+}
+
+export async function demoWorkspaceForUser() {
+  const u = await user();
+  let demo = await one(
+    "SELECT b.id FROM businesses b JOIN members m ON m.tenant_id=b.id WHERE m.user_id=? AND m.disabled=0 AND m.role='owner' AND b.demo=1 AND b.status!='deleted' ORDER BY b.created_at DESC LIMIT 1",
+    u.userId,
+  );
+  if (!demo) demo = await createBusiness({ demo: true });
+  await seedDemoExtras(String(demo.id), u.userId);
+  return workspace(String(demo.id));
 }
 export async function createBusiness(input: any) {
   const u = await user();
@@ -237,13 +280,16 @@ export async function createBusiness(input: any) {
     if (referral) ops.push(referral);
   }
   await db().batch(ops);
-  if (demo) await seed(id);
+  if (demo) await seed(id, u.userId);
   return { id, slug: x.slug };
 }
-async function seed(id: string) {
+async function seed(id: string, ownerId: string) {
   const d = demoWorkspace(),
     branchId = "branch-" + id,
-    key = (s: string) => id + "-" + s;
+    key = (s: string) => id + "-" + s,
+    seededAppointments = d.appointments.filter(
+      (a, i) => a.date >= today() || i % 5 === 0,
+    );
   const ops = [];
   for (const s of d.services)
     ops.push(
@@ -282,9 +328,7 @@ async function seed(id: string) {
       ),
     );
   await db().batch(ops);
-  for (const a of d.appointments.filter(
-    (a, i) => a.date >= today() || i % 5 === 0,
-  )) {
+  for (const a of seededAppointments) {
     const batch = [
       q(
         "INSERT INTO appointments (id,tenant_id,branch_id,customer_id,service_id,staff_id,date,minute,duration,price,status,token_hash,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -316,6 +360,59 @@ async function seed(id: string) {
       );
     await db().batch(batch);
   }
+  await seedDemoExtras(id, ownerId);
+}
+
+async function seedDemoExtras(id: string, ownerId: string) {
+  const key = (s: string) => id + "-" + s,
+    branchId = "branch-" + id,
+    catalogCream = key("expense-cream");
+  if (
+    await one(
+      "SELECT id FROM expense_catalog_items WHERE tenant_id=? AND id=?",
+      id,
+      catalogCream,
+    )
+  )
+    return;
+  const d = demoWorkspace(),
+    seededAppointments = d.appointments.filter(
+      (a, i) => a.date >= today() || i % 5 === 0,
+    );
+  const stamp = now(),
+    month = today().slice(0, 7),
+    secondBranch = key("branch-bostanci"),
+    catalogRent = key("expense-rent"),
+    debtOne = key("debt-one"),
+    journeyOne = key("journey-one"),
+    completed = seededAppointments.filter((a) => a.status === "completed");
+  await db().batch([
+    q("INSERT INTO branches(id,tenant_id,name,city,address,phone,active,is_primary,created_at) VALUES(?,?,?,?,?,?,1,0,?)",secondBranch,id,"Bostancı Şubesi","İstanbul","Bostancı, Kadıköy / İstanbul","+902165550200",stamp),
+    q("UPDATE staff SET branch_id=? WHERE tenant_id=? AND id=?",secondBranch,id,key("p2")),
+    q("UPDATE appointments SET branch_id=? WHERE tenant_id=? AND staff_id=?",secondBranch,id,key("p2")),
+    q("INSERT INTO expense_catalog_items(id,tenant_id,name,category,unit,default_unit_amount,note,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)",catalogCream,id,"Saç bakım kremi","malzeme","kutu",48000,"Aylık stok",stamp,stamp),
+    q("INSERT INTO expense_catalog_items(id,tenant_id,name,category,unit,default_unit_amount,note,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)",catalogRent,id,"Şube kirası","kira","ay",2400000,"Aylık sabit gider",stamp,stamp),
+    q("INSERT INTO branch_expenses(id,tenant_id,branch_id,month,category,amount,note,created_at,updated_at,catalog_item_id,quantity,unit) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",key("expense-1"),id,branchId,month,"kira",2400000,"Merkez kira",stamp,stamp,catalogRent,1,"ay"),
+    q("INSERT INTO branch_expenses(id,tenant_id,branch_id,month,category,amount,note,created_at,updated_at,catalog_item_id,quantity,unit) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",key("expense-2"),id,secondBranch,month,"malzeme",192000,"Bakım ürünleri",stamp,stamp,catalogCream,4,"kutu"),
+    q("INSERT INTO branch_month_closings(tenant_id,branch_id,month,expenses_confirmed,confirmed_at) VALUES(?,?,?,?,?)",id,branchId,month,1,stamp),
+    q("INSERT INTO branch_month_closings(tenant_id,branch_id,month,expenses_confirmed,confirmed_at) VALUES(?,?,?,?,?)",id,secondBranch,month,1,stamp),
+    q("INSERT INTO receivables(id,tenant_id,customer_id,appointment_id,title,amount,remaining,due_date,note,created_by,created_at,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",debtOne,id,key("c0"),null,"Bakım paketi",150000,150000,addDays(today(),7),"Örnek veresiye kaydı",ownerId,stamp,key("idem-debt")),
+    q("INSERT INTO receivables(id,tenant_id,customer_id,appointment_id,title,amount,remaining,due_date,note,created_by,created_at,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",key("debt-two"),id,key("c1"),null,"Saç ve bakım işlemi",90000,90000,addDays(today(),-3),"Kısmi tahsilat örneği",ownerId,stamp,key("idem-debt-two")),
+    q("INSERT INTO receivable_payments(id,tenant_id,receivable_id,amount,method,note,created_by,created_at,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?)",key("payment-one"),id,key("debt-two"),45000,"cash","Kısmi ödeme",ownerId,stamp,key("idem-payment")),
+    q("INSERT INTO journeys(id,tenant_id,customer_id,title,template,share_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",journeyOne,id,key("c2"),"4 aşamalı bakım süreci","care",key("share-hash"),stamp,stamp),
+    q("INSERT INTO journey_steps(id,tenant_id,journey_id,position,title,due_date,completed_at) VALUES(?,?,?,?,?,?,?)",key("journey-step-1"),id,journeyOne,0,"İlk görüşme",null,stamp),
+    q("INSERT INTO journey_steps(id,tenant_id,journey_id,position,title,due_date,completed_at) VALUES(?,?,?,?,?,?,?)",key("journey-step-2"),id,journeyOne,1,"Hizmet planı",addDays(today(),2),null),
+    q("INSERT INTO journey_steps(id,tenant_id,journey_id,position,title,due_date,completed_at) VALUES(?,?,?,?,?,?,?)",key("journey-step-3"),id,journeyOne,2,"Uygulama / seans",addDays(today(),9),null),
+    q("INSERT INTO waitlist_entries(id,tenant_id,service_id,staff_id,requested_date,minute_from,minute_to,name,phone,email,consent,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,1,'waiting',?)",key("wait-1"),id,key("s0"),key("p0"),addDays(today(),2),1020,1200,"Melis Karaca","+905559990001","melis@example.com",stamp),
+    q("INSERT INTO waitlist_entries(id,tenant_id,service_id,staff_id,requested_date,minute_from,minute_to,name,phone,email,consent,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,1,'waiting',?)",key("wait-2"),id,key("s1"),null,addDays(today(),3),1080,1260,"Eren Yalın","+905559990002","",stamp),
+    q("INSERT INTO setup_import_batches(id,tenant_id,kind,row_count,created_by,created_at) VALUES(?,?,?,?,?,?)",key("import-1"),id,"customers",18,ownerId,stamp),
+    q("INSERT INTO setup_training_requests(id,tenant_id,preferred_date,note,status,created_at) VALUES(?,?,?,?,?,?)",key("training-1"),id,addDays(today(),5),"Panel ve raporlama eğitimi","pending",stamp),
+    q("INSERT INTO growth_settings(tenant_id,theme,hide_brand,autopilot,recall_days,welcome,updated_at) VALUES(?,?,?,?,?,?,?)",id,"salon",1,0,45,"Merhaba! Hizmeti ve uygun olduğunuz günü yazın; birlikte saat bulalım.",stamp),
+    ...(completed.length >= 2 ? [
+      q("INSERT INTO reviews(id,tenant_id,appointment_id,rating,comment,status,created_at) VALUES(?,?,?,?,?,'published',?)",key("review-1"),id,key(completed[0].id),5,"Çok memnun kaldım, tekrar geleceğim.",stamp),
+      q("INSERT INTO reviews(id,tenant_id,appointment_id,rating,comment,status,created_at) VALUES(?,?,?,?,?,'published',?)",key("review-2"),id,key(completed[1].id),4,"Randevu süreci hızlı ve düzenliydi.",stamp),
+    ] : []),
+  ]);
 }
 export async function saveService(id: string, input: any) {
   await tenant(id);
