@@ -335,9 +335,14 @@ export default function Landing() {
             <ul>
               {[
                 "5 şubeye kadar · sınırsız personel",
-                "AI, çift yönlü WhatsApp ve online ödeme",
-                "Gelir kurtarma motoru",
-                "Şube kâr/zarar karşılaştırması",
+                "Borç / Veresiye ve tahsilat takibi",
+                "Neta Hizmet Yolculuğu",
+                "Pazarlama ve büyüme araçları",
+                "Gelir kurtarma ve bekleme listesi",
+                "Talep fırsatları ve kaçan gelir analizi",
+                "Şube kâr/zarar ve kayıtlı gider kalemleri",
+                "Çift yönlü WhatsApp ve AI asistanı",
+                "Online ödeme altyapısına hazır entegrasyon",
                 "Günde 50 AI sorusu · ayda 1.000 WhatsApp mesajı",
               ].map((f) => (
                 <li key={f}>

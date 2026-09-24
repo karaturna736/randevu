@@ -28,39 +28,68 @@ const cards = [
   {
     code: "normal",
     name: "Neta Starter",
+    badge: "TEMEL RANDEVU DÜZENİ",
     description:
-      "Tek şubenizde randevu düzenini hızlıca kurun ve günlük operasyonu sadeleştirin.",
+      "Tek şubenizde dağınık randevuları tek takvimde toplayın ve işletmenizi dijitalleştirin.",
+    outcome: "Randevu defterinden profesyonel dijital takvime geçin.",
     features: [
-      "1 işletme · 1 şube · 5 personel",
-      "Web randevuları ve ortak takvim",
-      "Hizmet ve müşteri yönetimi",
-      "Sade başlangıç; gereksiz özellik yok",
+      "1 işletme · 1 şube · 5 personele kadar",
+      "7/24 açık kişisel randevu bağlantısı",
+      "Web, panel ve personel için ortak takvim",
+      "Hizmet, fiyat ve süre yönetimi",
+      "Müşteri kartları ve ziyaret geçmişi",
+      "Personel çalışma saatleri ve izin günleri",
+      "Randevu iptal ve değişiklik yönetimi",
     ],
   },
   {
     code: "pro",
     name: "Neta Business",
+    badge: "EN ÇOK TERCİH EDİLEN",
     description:
-      "Boş saatleri doldurun, eski müşterileri geri kazanın ve şubelerinizin net sonucunu görün.",
+      "Sadece randevu yönetmeyin; boş saatleri, unutulan alacakları ve geri dönmeyen müşterileri kazanca çevirin.",
+    outcome:
+      "Daha az boş saat, daha düzenli tahsilat, daha çok geri dönen müşteri.",
     features: [
-      "1 işletme · 5 şubeye kadar",
-      "Sınırsız personel",
-      "AI, çift yönlü WhatsApp ve online ödeme",
-      "Gelir kurtarma ve şube kâr/zarar takibi",
-      "Boş saatleri doldurun; kurtarılan cironuzu görün",
+      "Starter'daki tüm özellikler",
+      "1 işletme · 5 şubeye kadar · sınırsız personel",
+      "Borç / Veresiye takibi ve tahsilat geçmişi",
+      "Neta Hizmet Yolculuğu ile süreç takibi",
+      "Pazarlama ve büyüme araçları · sınırlı kullanım",
+      "Gelir Kurtarma Motoru · sınırlı otomasyon",
+      "Talep fırsatları ve kaçan gelir analizi · standart rapor",
+      "Çift yönlü WhatsApp randevu · ayda 1.000 işlem",
+      "AI işletme asistanı · günde 50 kullanım",
+      "Erken gelirim modu ve bekleme listesi",
+      "Online ödeme altyapısına hazır entegrasyon",
+      "Şube kâr / zarar görünümü",
+      "Kayıtlı gider kalemleri ve aylık gider takibi",
     ],
   },
   {
     code: "plus",
     name: "Neta Kurumsal",
+    badge: "TAM KONTROL · EN KAPSAMLI",
     description:
-      "Tüm şubeleri tek merkezden yönetin; büyümeyi gelişmiş raporlar ve otomasyonla hızlandırın.",
+      "Her şubenin cirosunu, giderini, talebini ve müşteri dönüşünü tek merkezden yöneten büyüme paketi.",
+    outcome:
+      "₺2.500 ile yalnızca yazılım değil, tüm şubeleriniz için kontrol merkezi alın.",
     features: [
-      "Sınırsız şube ve personel",
-      "Yüksek kullanım limitli AI ve WhatsApp",
-      "API ve gelişmiş raporlama",
-      "Şubeler arası otomasyon ve karşılaştırma",
-      "Hangi şube kârda, hangisi zararda tek ekranda görün",
+      "Business'taki tüm özellikler",
+      "Sınırsız şube ve sınırsız personel",
+      "Sınırsız Borç / Veresiye kaydı",
+      "Sınırsız Hizmet Yolculuğu kaydı",
+      "Pazarlama ve büyüme modülüne tam erişim",
+      "Gelir Kurtarma Motoruna tam erişim",
+      "Talep fırsatları ve Ghost Demand gelişmiş analizi",
+      "Şubeler arası otomasyon ve performans karşılaştırması",
+      "Şube bazlı ciro, gider, net kâr ve zarar raporu",
+      "Muhasebe paneli: tekrar kullanılabilir gider kalemleri",
+      "Makas, krem, cihaz, kira ve personel giderlerini aylara taşıma",
+      "Gelişmiş raporlama ve yönetim API'si",
+      "AI asistanı · günde 200 kullanım",
+      "Çift yönlü WhatsApp · ayda 5.000 işlem",
+      "Kurulum merkezi, veri taşıma ve eğitim talebi",
     ],
   },
 ];
@@ -155,16 +184,13 @@ export function RecurringPlans({ tenantId, beforeCheckout, initialPlan }: any) {
               className={
                 "panel plan-card " +
                 (card.code === "pro" ? "featured " : "") +
+                (card.code === "plus" ? "premium " : "") +
                 (card.code === initialPlan ? "selected" : "")
               }
               key={card.code}
             >
               <span className="eyebrow">
-                {card.code === initialPlan
-                  ? "KURULUMDA SEÇTİNİZ"
-                  : card.code === "pro"
-                    ? "İŞLETMENİZİ GELİŞTİRİN"
-                    : "NETA ABONELİK"}
+                {card.code === initialPlan ? "KURULUMDA SEÇTİNİZ" : card.badge}
               </span>
               <h3>{card.name}</h3>
               <p className="plan-card-description">{card.description}</p>
@@ -180,6 +206,10 @@ export function RecurringPlans({ tenantId, beforeCheckout, initialPlan }: any) {
                   </li>
                 ))}
               </ul>
+              <div className="plan-outcome">
+                <ShieldCheck size={17} />
+                <span>{card.outcome}</span>
+              </div>
               <button
                 className="button primary full"
                 disabled={
@@ -206,8 +236,10 @@ export function RecurringPlans({ tenantId, beforeCheckout, initialPlan }: any) {
         })}
       </div>
       <p className="helper">
-        Sağlayıcı masrafları ve mesaj / AI kullanım limitleri satış koşullarında
-        belirtilir. Paketler etkinleşene kadar panel pilot erişimindedir.
+        “Sınırsız” ifadeleri Neta içindeki kayıt ve kullanıcı sayılarını
+        belirtir. WhatsApp ve AI dış sağlayıcıya bağlı olduğu için güvenli
+        kullanım kotasıyla sunulur; ek kullanım koşulları satış sözleşmesinde
+        açıkça gösterilir.
       </p>
       {error && (
         <p className="error-message" role="alert">

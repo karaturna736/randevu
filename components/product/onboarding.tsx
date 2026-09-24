@@ -46,30 +46,36 @@ const plans = [
     description: "Tek şubeyle randevu sistemine hızlı ve güvenli başlangıç.",
     features: [
       "1 işletme · 1 şube · 5 personel",
-      "Web randevuları ve ortak takvim",
-      "Hizmet ve müşteri yönetimi",
+      "7/24 randevu linki ve ortak takvim",
+      "Hizmet, müşteri ve çalışma saati yönetimi",
     ],
   },
   {
     code: "pro",
     name: "Neta Business",
     price: 99900,
-    description: "Boş saatleri gelire dönüştürmek ve şubeleri büyütmek için.",
+    description:
+      "Boş saatleri doldurun, alacakları ve müşteri dönüşünü yönetin.",
     features: [
       "5 şubeye kadar · sınırsız personel",
-      "AI, WhatsApp ve online ödeme",
-      "Gelir kurtarma ve şube kâr/zarar takibi",
+      "Borç / Veresiye ve Hizmet Yolculuğu",
+      "Sınırlı pazarlama, gelir kurtarma ve talep analizi",
+      "AI, çift yönlü WhatsApp ve online ödeme",
+      "Şube kâr/zarar ve kayıtlı gider kalemleri",
     ],
   },
   {
     code: "plus",
     name: "Neta Kurumsal",
     price: 250000,
-    description: "Tüm şubelerin sonucunu tek merkezden yönetin.",
+    description:
+      "Tüm şubelerin gelirini, giderini ve büyümesini tek merkezden yönetin.",
     features: [
       "Sınırsız şube ve personel",
-      "Yüksek kullanım limitli AI ve WhatsApp",
-      "API, otomasyon ve gelişmiş raporlama",
+      "Sınırsız Borç / Veresiye ve Hizmet Yolculuğu kaydı",
+      "Tam pazarlama, gelir kurtarma ve Ghost Demand",
+      "Şube muhasebesi, gider şablonları ve kâr/zarar",
+      "Yüksek kotalı AI, WhatsApp, API ve gelişmiş raporlama",
     ],
   },
 ] as const;
