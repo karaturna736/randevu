@@ -87,6 +87,7 @@ const bindings = {
   PUBLIC_APP_URL: "https://neta.test",
   PUBLIC_SITE_READY: "true",
   RECURRING_SALES_ENABLED: "true",
+  REFERRAL_PROGRAM_ENABLED: "true",
   IYZICO_LIVE: "false",
   IYZICO_API_KEY: "test-key",
   IYZICO_SECRET_KEY: secret,
@@ -152,6 +153,26 @@ try {
       .map((value) => value.trim())
       .filter(Boolean))
       await db.prepare(sql).run();
+  await db
+    .prepare(
+      "INSERT INTO businesses(id,name,slug,invite_code,category,status,demo,hours,created_at) VALUES('referrer','Davet Eden Studio','davet-eden','NETATEST123','Kuaför & Berber','approved',0,'{}',?)",
+    )
+    .bind(new Date().toISOString())
+    .run();
+  await db
+    .prepare(
+      "INSERT INTO members(tenant_id,user_id,email,name) VALUES('referrer','referrer-owner','referrer@example.test','Davet Eden')",
+    )
+    .run();
+  check(
+    (await api("referral-preview?code=netatest123")).data.business_name ===
+      "Davet Eden Studio",
+    "Invite code is normalized and verified by the server",
+  );
+  check(
+    (await api("referral-preview?code=NETAWRONG")).status === 404,
+    "Unknown invite code is rejected before checkout",
+  );
   const hours = Object.fromEntries(
     [0, 1, 2, 3, 4, 5, 6].map((day) => [day, [540, 1080]]),
   );
@@ -164,6 +185,7 @@ try {
     phone: "05551112233",
     description: "",
     plan: "normal",
+    ref: "NETATEST123",
     starter: {
       service_name: "Online danışma",
       duration: 30,
@@ -311,6 +333,15 @@ try {
     staffId = workspace.staff[0].id;
   check(
     (
+      await db
+        .prepare("SELECT status FROM referrals WHERE referred_tenant=?")
+        .bind(workspace.business.id)
+        .first()
+    ).status === "pending",
+    "Verified signup records exactly one pending referral",
+  );
+  check(
+    (
       await api("settings", {
         tenant_id: workspace.business.id,
         name: business.name,
@@ -361,9 +392,40 @@ try {
     "Panel booking uses the shared calendar and returns the online meeting link",
   );
   await db
-    .prepare("UPDATE businesses SET status='approved' WHERE id=?")
+    .prepare("UPDATE recurring_subscriptions SET test_mode=0 WHERE tenant_id=?")
     .bind(workspace.business.id)
     .run();
+  await db
+    .prepare("UPDATE recurring_events SET test_mode=0 WHERE tenant_id=?")
+    .bind(workspace.business.id)
+    .run();
+  await api("admin", {
+    action: "business-status",
+    id: workspace.business.id,
+    status: "approved",
+  });
+  check(
+    (
+      await db
+        .prepare("SELECT COALESCE(SUM(amount),0) balance FROM credit_ledger WHERE tenant_id='referrer'")
+        .first()
+    ).balance === 50000,
+    "First verified live payment and approval awards Neta Credit once",
+  );
+  await api("admin", {
+    action: "business-status",
+    id: workspace.business.id,
+    status: "approved",
+  });
+  check(
+    (
+      await db
+        .prepare("SELECT COUNT(*) n FROM credit_ledger WHERE reference=?")
+        .bind("referral:" + workspace.business.id)
+        .first()
+    ).n === 1,
+    "Repeated approval cannot duplicate referral credit",
+  );
   const waiting = await api("waitlist", {
     slug: business.slug,
     service_id: serviceId,
