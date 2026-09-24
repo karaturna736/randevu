@@ -72,7 +72,8 @@ function PaymentWizard() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [checkout, setCheckout] = useState(""),
-    [status, setStatus] = useState<any>(null);
+    [status, setStatus] = useState<any>(null),
+    [referral, setReferral] = useState("");
   const idempotencyKey = useRef("");
   const [form, setForm] = useState(() => ({
     name: "",
@@ -102,6 +103,9 @@ function PaymentWizard() {
     };
   });
   useEffect(() => {
+    queueMicrotask(() =>
+      setReferral((sessionStorage.getItem("neta-ref") || "").toUpperCase()),
+    );
     const result = new URLSearchParams(location.search).get("durum");
     if (result === "basarisiz")
       setError(
@@ -130,6 +134,18 @@ function PaymentWizard() {
         setError("En az bir çalışma günü seçin.");
         return;
       }
+      if (step === 0 && referral) {
+        try {
+          const verified = await api(
+            "referral-preview?code=" + encodeURIComponent(referral),
+          );
+          setReferral(verified.code);
+          sessionStorage.setItem("neta-ref", verified.code);
+        } catch (e: any) {
+          setError(e.message);
+          return;
+        }
+      }
       setStep((v) => v + 1);
       scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -147,7 +163,7 @@ function PaymentWizard() {
           address: form.address,
           phone: form.phone,
           plan,
-          ref: sessionStorage.getItem("neta-ref") || undefined,
+          ref: referral || undefined,
           starter: {
             service_name: form.service_name,
             duration: Number(form.duration),
@@ -294,6 +310,23 @@ function PaymentWizard() {
                   setForm((v) => ({ ...v, phone: e.target.value }))
                 }
               />
+            </Field>
+            <Field label="Davet kodu (isteğe bağlı)">
+              <Input
+                autoComplete="off"
+                maxLength={24}
+                placeholder="Örn. NETA7K3M9P2Q"
+                value={referral}
+                onChange={(e) =>
+                  setReferral(
+                    e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""),
+                  )
+                }
+              />
+              <small>
+                Geçerli kod, ödeme ve işletme onayından sonra davet eden
+                işletmeye Neta Kredisi kazandırır.
+              </small>
             </Field>
             <div className="form-grid">
               <Field label="İlk hizmet">
