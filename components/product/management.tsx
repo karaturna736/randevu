@@ -105,7 +105,6 @@ export function Management({ w, view, refresh, requireReal }: any) {
           : {
               name: "",
               title: "Uzman",
-              branch_id: w.branches?.[0]?.id || "",
               hours: JSON.parse(HOURS),
               color: "#e1eccd",
               active: 1,
@@ -118,6 +117,8 @@ export function Management({ w, view, refresh, requireReal }: any) {
               duration: 30,
               price: "",
               color: "#789c74",
+              delivery_mode: "in_person",
+              meeting_url: "",
               active: 1,
             },
     );
@@ -206,7 +207,6 @@ export function Management({ w, view, refresh, requireReal }: any) {
                 </>
               )}
             </p>
-            {team && r.branch_name && <small>{r.branch_name}</small>}
             {team ? (
               <div className="staff-card-bottom">
                 <span
@@ -301,19 +301,6 @@ export function Management({ w, view, refresh, requireReal }: any) {
                     }
                   />
                 </Field>
-                {w.branches?.length > 0 && (
-                  <Field label="Çalıştığı şube">
-                    <Pick
-                      label="Şube"
-                      value={edit.branch_id || w.branches[0].id}
-                      onChange={(branch_id) => setEdit({ ...edit, branch_id })}
-                      options={w.branches.map((b: any) => ({
-                        value: b.id,
-                        label: b.name,
-                      }))}
-                    />
-                  </Field>
-                )}
                 <Hours
                   value={edit.hours}
                   onChange={(hours: any) => setEdit({ ...edit, hours })}
@@ -349,16 +336,48 @@ export function Management({ w, view, refresh, requireReal }: any) {
               </div>
             )}
             {!team && (
-              <Field label="İşleme neler dahil?">
-                <Textarea
-                  maxLength={600}
-                  placeholder="Örn. Saç yıkama, kesim ve şekillendirme."
-                  value={edit.description || ""}
-                  onChange={(e) =>
-                    setEdit({ ...edit, description: e.target.value })
-                  }
-                />
-              </Field>
+              <>
+                <Field label="İşleme neler dahil?">
+                  <Textarea
+                    maxLength={600}
+                    placeholder="Örn. Saç yıkama, kesim ve şekillendirme."
+                    value={edit.description || ""}
+                    onChange={(e) =>
+                      setEdit({ ...edit, description: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Randevu türü">
+                  <Pick
+                    label="Randevu türü"
+                    value={edit.delivery_mode || "in_person"}
+                    onChange={(delivery_mode) =>
+                      setEdit({ ...edit, delivery_mode })
+                    }
+                    options={[
+                      { value: "in_person", label: "Yüz yüze" },
+                      { value: "online", label: "Çevrim içi" },
+                      { value: "hybrid", label: "Yüz yüze veya çevrim içi" },
+                    ]}
+                  />
+                </Field>
+                {edit.delivery_mode !== "in_person" && (
+                  <Field label="Güvenli görüşme bağlantısı">
+                    <Input
+                      type="url"
+                      required
+                      placeholder="https://meet.google.com/..."
+                      value={edit.meeting_url || ""}
+                      onChange={(e) =>
+                        setEdit({ ...edit, meeting_url: e.target.value })
+                      }
+                    />
+                    <small>
+                      Bağlantı yalnızca randevusu oluşan müşteriye gösterilir.
+                    </small>
+                  </Field>
+                )}
+              </>
             )}
             <label className="toggle-row">
               Randevuya açık
@@ -509,6 +528,32 @@ export function Settings({ w, refresh, requireReal }: any) {
             onChange={(e) => setF({ ...f, description: e.target.value })}
           />
         </Field>
+        <Field label="Sektörünüzde kullanılan ad">
+          <Pick
+            label="Hizmet adı"
+            value={f.terminology || "Hizmet"}
+            onChange={(terminology) => setF({ ...f, terminology })}
+            options={[
+              "Hizmet",
+              "Seans",
+              "Ders / Antrenman",
+              "Danışmanlık",
+              "Bakım",
+            ].map((value) => ({ value, label: value }))}
+          />
+        </Field>
+        <label className="toggle-row">
+          <span>
+            <strong>Çevrim içi randevu</strong>
+            <small>Hizmetlere güvenli görüşme bağlantısı ekleyin.</small>
+          </span>
+          <Switch
+            checked={!!f.online_enabled}
+            onCheckedChange={(value) =>
+              setF({ ...f, online_enabled: value ? 1 : 0 })
+            }
+          />
+        </label>
         <div className="notice">
           <Link2 size={16} />/{w.business.slug}
         </div>

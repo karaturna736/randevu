@@ -137,14 +137,7 @@ async function graph(c: any, payload: any) {
 export async function sendRecoveryTemplate(
   id: string,
   to: string,
-  x: {
-    name: string;
-    business: string;
-    service: string;
-    date: string;
-    time: string;
-    link: string;
-  },
+  x: { name: string; business: string; service: string; date: string; time: string; link: string },
 ) {
   const c = waConnection(id);
   if (!c?.waitlist_template || !waReady(id))
@@ -155,19 +148,10 @@ export async function sendRecoveryTemplate(
     template: {
       name: c.waitlist_template,
       language: { code: c.language },
-      components: [
-        {
-          type: "body",
-          parameters: [
-            x.name,
-            x.business,
-            x.service,
-            x.date,
-            x.time,
-            x.link,
-          ].map((text) => ({ type: "text", text })),
-        },
-      ],
+      components: [{
+        type: "body",
+        parameters: [x.name, x.business, x.service, x.date, x.time, x.link].map((text) => ({ type: "text", text })),
+      }],
     },
   });
 }
@@ -324,7 +308,7 @@ async function receive(c: any, m: any) {
           undefined,
           async (id, token) =>
             makeOps(
-              `Randevunuz onaylandı.\n${s.name} · ${money(s.price)}\n${old.date} ${time(old.slot.minute)} · ${old.slot.staff_name}\nİptal / değişiklik: ${appOrigin()}/randevum#${token}`,
+              `Randevunuz onaylandı.\n${s.name} · ${money(s.price)}\n${old.date} ${time(old.slot.minute)} · ${old.slot.staff_name}${s.delivery_mode !== "in_person" && s.meeting_url ? "\nGörüşme: " + s.meeting_url : ""}\nİptal / değişiklik: ${appOrigin()}/randevum#${token}`,
               {},
               id,
             ),

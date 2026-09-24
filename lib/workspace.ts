@@ -1,4 +1,4 @@
-import { referralOperation } from "./growth";
+import { makeReferralCode, referralOperation } from "./growth";
 import { PLAN_LIMITS, tenantPlan } from "./entitlements";
 import { z } from "zod";
 import {
@@ -20,6 +20,134 @@ import {
 import { HOURS, CATEGORIES, today, addDays } from "./types";
 import { SELECT_APPOINTMENTS } from "./booking";
 import { demoWorkspace } from "./demo";
+
+const starterSchema = z
+  .object({
+    service_name: name,
+    duration: z.number().int().min(15).max(480).multipleOf(15),
+    price: z.number().int().min(0).max(100000000),
+    staff_name: name,
+    staff_title: z.string().min(2).max(80),
+    hours,
+  })
+  .optional();
+
+export const businessSchema = z.object({
+  name,
+  slug: z
+    .string()
+    .min(3)
+    .max(60)
+    .regex(
+      /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/,
+      "Bağlantı için küçük harf, rakam ve tire kullanın.",
+    ),
+  category: z.enum(CATEGORIES as [string, ...string[]]),
+  city: z.string().max(80).default(""),
+  address: z.string().max(300).default(""),
+  phone: z.string().max(30).default(""),
+  description: z.string().max(1000).default(""),
+  plan: z.enum(["normal", "pro", "plus"]).default("normal"),
+  ref: z.string().optional(),
+  starter: starterSchema,
+});
+
+const reservedSlugs = [
+  "api", "admin", "kesfet", "randevum", "atolye-studio", "giris",
+  "kayit", "hesabim", "randevularim", "kurulum", "panel", "ekibim",
+  "abonelik", "odeme", "yonetim", "gizlilik", "kosullar", "cikis",
+  "signin-with-chatgpt", "signout-with-chatgpt", "callback", "yardim",
+  "yolculugum",
+];
+
+export function terminologyFor(category: string) {
+  return /psikolog|klinik|danış|diyet/i.test(category)
+    ? "Seans"
+    : /spor|fitness|ders/i.test(category)
+      ? "Ders / Antrenman"
+      : /avukat/i.test(category)
+        ? "Danışmanlık"
+        : "Hizmet";
+}
+
+export async function businessCreation(
+  input: any,
+  owner: { userId: string; email: string; displayName: string },
+  id = uid(),
+  demo = false,
+) {
+  const x = businessSchema.parse(
+    demo
+      ? {
+          name: "Atölye Studio",
+          slug: "atolye-" + uid().slice(0, 8),
+          category: CATEGORIES[0],
+          city: "İstanbul",
+        }
+      : input,
+  );
+  if (reservedSlugs.includes(x.slug))
+    throw new ApiError("Bu bağlantı kullanılamaz.");
+  const branchId = "branch-" + id,
+    workingHours = demo
+      ? demoWorkspace().business.hours
+      : x.starter
+        ? JSON.stringify(x.starter.hours)
+        : HOURS;
+  const ops = [
+    q(
+      "INSERT INTO businesses (id,name,slug,invite_code,category,city,address,phone,description,status,demo,hours,selected_plan,terminology,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      id,
+      x.name,
+      x.slug,
+      makeReferralCode(id),
+      x.category,
+      x.city,
+      x.address,
+      x.phone,
+      x.description,
+      demo ? "approved" : "pending",
+      demo ? 1 : 0,
+      workingHours,
+      x.plan,
+      terminologyFor(x.category),
+      now(),
+    ),
+    q(
+      "INSERT INTO members (tenant_id,user_id,email,name) VALUES (?,?,?,?)",
+      id, owner.userId, owner.email, owner.displayName,
+    ),
+    q(
+      "INSERT INTO branches(id,tenant_id,name,city,address,phone,active,is_primary,created_at) VALUES(?,?,?,?,?,?,1,1,?)",
+      branchId, id, "Merkez Şube", x.city, x.address, x.phone, now(),
+    ),
+  ];
+  if (!demo)
+    ops.push(
+      q(
+        "INSERT INTO billing_profiles(tenant_id,name,address,phone,email,updated_at) VALUES(?,?,?,?,?,?)",
+        id, owner.displayName || x.name, x.address, x.phone, owner.email, now(),
+      ),
+    );
+  if (x.starter)
+    ops.push(
+      q(
+        "INSERT INTO services (id,tenant_id,name,duration,price,color) VALUES (?,?,?,?,?,?)",
+        uid(), id, x.starter.service_name, x.starter.duration, x.starter.price, "#789c74",
+      ),
+      q(
+        "INSERT INTO staff (id,tenant_id,branch_id,name,title,hours,color) VALUES (?,?,?,?,?,?,?)",
+        uid(), id, branchId, x.starter.staff_name, x.starter.staff_title,
+        workingHours, "#e1eccd",
+      ),
+    );
+  if (!demo) {
+    const referral = await referralOperation(id, owner.userId, x.ref);
+    if (referral) ops.push(referral);
+  }
+  return { id, x, ops };
+}
+
 export async function workspace(id?: string) {
   const u = await user(),
     businesses = await all(
@@ -129,156 +257,7 @@ export async function createBusiness(input: any) {
   );
   if (demo && owned.n >= 1)
     throw new ApiError("Bu hesap için bir demo işletme zaten var.", 409);
-  const starter = z
-    .object({
-      service_name: name,
-      duration: z.number().int().min(15).max(480).multipleOf(15),
-      price: z.number().int().min(0).max(100000000),
-      staff_name: name,
-      staff_title: z.string().min(2).max(80),
-      hours,
-    })
-    .optional();
-  const x = z
-    .object({
-      name,
-      slug: z
-        .string()
-        .min(3)
-        .max(60)
-        .regex(
-          /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/,
-          "Bağlantı için küçük harf, rakam ve tire kullanın.",
-        ),
-      category: z.enum(CATEGORIES as [string, ...string[]]),
-      city: z.string().max(80).default(""),
-      address: z.string().max(300).default(""),
-      phone: z.string().max(30).default(""),
-      description: z.string().max(1000).default(""),
-      plan: z.enum(["normal", "pro", "plus"]).default("normal"),
-      starter,
-    })
-    .parse(
-      demo
-        ? {
-            name: "Atölye Studio",
-            slug: "atolye-" + uid().slice(0, 8),
-            category: CATEGORIES[0],
-            city: "İstanbul",
-          }
-        : input,
-    );
-  if (
-    [
-      "api",
-      "admin",
-      "kesfet",
-      "randevum",
-      "atolye-studio",
-      "giris",
-      "kayit",
-      "hesabim",
-      "randevularim",
-      "kurulum",
-      "panel",
-      "ekibim",
-      "panel",
-      "abonelik",
-      "yonetim",
-      "gizlilik",
-      "kosullar",
-      "cikis",
-      "signin-with-chatgpt",
-      "signout-with-chatgpt",
-      "callback",
-      "yardim",
-      "yolculugum",
-    ].includes(x.slug)
-  )
-    throw new ApiError("Bu bağlantı kullanılamaz.");
-  const id = uid(),
-    branchId = "branch-" + id,
-    workingHours = demo
-      ? demoWorkspace().business.hours
-      : x.starter
-        ? JSON.stringify(x.starter.hours)
-        : HOURS;
-  const ops = [
-    q(
-      "INSERT INTO businesses (id,name,slug,category,city,address,phone,description,status,demo,hours,selected_plan,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      id,
-      x.name,
-      x.slug,
-      x.category,
-      x.city,
-      x.address,
-      x.phone,
-      x.description,
-      demo ? "approved" : "pending",
-      demo ? 1 : 0,
-      workingHours,
-      x.plan,
-      now(),
-    ),
-    q(
-      "INSERT INTO members (tenant_id,user_id,email,name) VALUES (?,?,?,?)",
-      id,
-      u.userId,
-      u.email,
-      u.displayName,
-    ),
-    q(
-      "INSERT INTO branches(id,tenant_id,name,city,address,phone,active,is_primary,created_at) VALUES(?,?,?,?,?,?,1,1,?)",
-      branchId,
-      id,
-      "Merkez Şube",
-      x.city,
-      x.address,
-      x.phone,
-      now(),
-    ),
-  ];
-  if (!demo)
-    ops.push(
-      q(
-        "INSERT INTO billing_profiles(tenant_id,name,address,phone,email,updated_at) VALUES(?,?,?,?,?,?)",
-        id,
-        u.displayName || x.name,
-        x.address,
-        x.phone,
-        u.email,
-        now(),
-      ),
-    );
-  if (x.starter) {
-    ops.push(
-      q(
-        "INSERT INTO services (id,tenant_id,name,duration,price,color) VALUES (?,?,?,?,?,?)",
-        uid(),
-        id,
-        x.starter.service_name,
-        x.starter.duration,
-        x.starter.price,
-        "#789c74",
-      ),
-    );
-    ops.push(
-      q(
-        "INSERT INTO staff (id,tenant_id,branch_id,name,title,hours,color) VALUES (?,?,?,?,?,?,?)",
-        uid(),
-        id,
-        branchId,
-        x.starter.staff_name,
-        x.starter.staff_title,
-        workingHours,
-        "#e1eccd",
-      ),
-    );
-  }
-  if (!demo) {
-    const referral = await referralOperation(id, u.userId, input.ref);
-    if (referral) ops.push(referral);
-  }
+  const { id, x, ops } = await businessCreation(input, u, uid(), demo);
   await db().batch(ops);
   if (demo) await seed(id, u.userId);
   return { id, slug: x.slug };

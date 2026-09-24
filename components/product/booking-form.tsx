@@ -1,4 +1,5 @@
 "use client";
+import { ListPlus, Video } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   Scissors,
@@ -23,7 +24,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import DemandSearch from "./demand-search";
 import { bookingVisit } from "@/lib/demand-client";
-import WaitlistBox from "./waitlist-box";
 export default function BookingForm({
   data,
   tenantId,
@@ -34,9 +34,6 @@ export default function BookingForm({
   const { data: session } = useSession();
   const business = data.business,
     services = data.services.filter((s: any) => s.active !== 0),
-    branches = data.branches?.length
-      ? data.branches
-      : [{ id: "default", name: "Merkez Şube", city: business.city }],
     staff = data.staff.filter((p: any) => p.active !== 0);
   const [demand, setDemand] = useState<any>(null),
     [early, setEarly] = useState(false),
@@ -45,7 +42,6 @@ export default function BookingForm({
     [service, setService] = useState(
       initial?.service_id || services[0]?.id || "",
     ),
-    [branch, setBranch] = useState(initial?.branch_id || branches[0]?.id || ""),
     [person, setPerson] = useState(initial?.slot?.staff_id || "any"),
     [date, setDate] = useState(initial?.date || today()),
     [slots, setSlots] = useState<any[]>([]),
@@ -106,7 +102,7 @@ export default function BookingForm({
       return;
     }
     api(
-      `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&date=${date}&staff=${person}&branch=${branch}`,
+      `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&date=${date}&staff=${person}`,
     )
       .then((r) => !stopped && setSlots(r.slots))
       .catch((e) => !stopped && setError(e.message))
@@ -114,7 +110,7 @@ export default function BookingForm({
     return () => {
       stopped = true;
     };
-  }, [step, service, person, date, branch]);
+  }, [step, service, person, date]);
   async function submit(e: any) {
     e.preventDefault();
     if (!selected) return;
@@ -180,6 +176,16 @@ export default function BookingForm({
           </span>
           <b>{money(result.price)}</b>
         </div>
+        {result.meeting_url && (
+          <a
+            className="button full"
+            href={result.meeting_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Video size={17} /> Çevrim içi görüşme bağlantısını aç
+          </a>
+        )}
         {!demo && (
           <>
             <>
@@ -263,22 +269,6 @@ export default function BookingForm({
       {step === 0 && (
         <>
           <h3>Size nasıl yardımcı olabiliriz?</h3>
-          {branches.length > 1 && (
-            <Field label="Şube seçin">
-              <Pick
-                label="Şube"
-                value={branch}
-                onChange={(v) => {
-                  setBranch(v);
-                  setPerson("any");
-                }}
-                options={branches.map((b: any) => ({
-                  value: b.id,
-                  label: b.name + (b.city ? " · " + b.city : ""),
-                }))}
-              />
-            </Field>
-          )}
           <div className="service-options">
             {services
               .filter((s: any) => s.active !== 0)
@@ -294,13 +284,22 @@ export default function BookingForm({
                     className="service-icon"
                     style={{ color: v.color, background: v.color + "22" }}
                   >
-                    <Scissors size={21} />
+                    {v.delivery_mode === "online" ? (
+                      <Video size={21} />
+                    ) : (
+                      <Scissors size={21} />
+                    )}
                   </span>
                   <span>
                     <strong>{v.name}</strong>
                     <small>
                       <Clock size={13} />
                       {v.duration} dakika
+                      {v.delivery_mode === "online"
+                        ? " · Online"
+                        : v.delivery_mode === "hybrid"
+                          ? " · Yüz yüze / online"
+                          : ""}
                     </small>
                     {v.description && (
                       <span className="service-option-description">
@@ -324,7 +323,6 @@ export default function BookingForm({
                 options={[
                   { value: "any", label: "Fark etmez · İlk uygun uzman" },
                   ...staff
-                    .filter((p: any) => !p.branch_id || p.branch_id === branch)
                     .filter((p: any) => p.active !== 0)
                     .map((p: any) => ({ value: p.id, label: p.name })),
                 ]}
@@ -401,7 +399,7 @@ export default function BookingForm({
                     setSlots(
                       (
                         await api(
-                          `availability?slug=${business.slug}&service=${service}&date=${date}&staff=${person}&branch=${branch}`,
+                          `availability?slug=${business.slug}&service=${service}&date=${date}&staff=${person}`,
                         )
                       ).slots,
                     );
@@ -447,14 +445,15 @@ export default function BookingForm({
                     ? "İstediğiniz aralıkta boş saat yok"
                     : "Bu gün için boş saat yok"
                 }
-                description="Başka bir tarih seçebilir veya açılacak ilk saate yazılabilirsiniz."
+                description="Başka bir tarih deneyebilir veya bekleme listesine katılabilirsiniz."
               />
               {!tenantId && !demo && (
-                <WaitlistBox
+                <WaitlistJoin
                   business={business}
                   service={service}
                   person={person}
                   date={date}
+                  session={session}
                 />
               )}
             </>
@@ -601,5 +600,131 @@ export default function BookingForm({
         </p>
       )}
     </div>
+  );
+}
+
+function WaitlistJoin({ business, service, person, date, session }: any) {
+  const [open, setOpen] = useState(false),
+    [saved, setSaved] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: session?.profile?.name || "",
+    phone: session?.profile?.phone || "",
+    minute_from: 540,
+    minute_to: 1080,
+    consent: false,
+  });
+  if (saved)
+    return (
+      <div className="notice">
+        <Check size={17} />
+        Bekleme listesine eklendiniz. İşletme uygun saat açıldığında sizinle
+        iletişime geçebilir.
+      </div>
+    );
+  if (!open)
+    return (
+      <button className="button full" onClick={() => setOpen(true)}>
+        <ListPlus size={17} />
+        Bekleme listesine katıl
+      </button>
+    );
+  return (
+    <form
+      className="panel form-stack"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        setBusy(true);
+        setError("");
+        try {
+          await api("waitlist", {
+            slug: business.slug,
+            service_id: service,
+            staff_id: person,
+            date,
+            ...form,
+          });
+          setSaved(true);
+        } catch (reason: any) {
+          setError(reason.message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <h3>Bu gün için yer açılırsa haber verin</h3>
+      <div className="form-grid">
+        <Field label="Ad soyad">
+          <Input
+            required
+            minLength={2}
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
+        </Field>
+        <Field label="Telefon">
+          <Input
+            required
+            type="tel"
+            value={form.phone}
+            onChange={(event) =>
+              setForm({ ...form, phone: event.target.value })
+            }
+          />
+        </Field>
+      </div>
+      <div className="form-grid">
+        <Field label="En erken">
+          <Input
+            required
+            type="time"
+            step={900}
+            value={time(form.minute_from)}
+            onChange={(event) => {
+              const [hour, minute] = event.target.value.split(":").map(Number);
+              setForm({ ...form, minute_from: hour * 60 + minute });
+            }}
+          />
+        </Field>
+        <Field label="En geç">
+          <Input
+            required
+            type="time"
+            step={900}
+            value={time(form.minute_to)}
+            onChange={(event) => {
+              const [hour, minute] = event.target.value.split(":").map(Number);
+              setForm({ ...form, minute_to: hour * 60 + minute });
+            }}
+          />
+        </Field>
+      </div>
+      <label className="check-row">
+        <Checkbox
+          checked={form.consent}
+          onCheckedChange={(value) =>
+            setForm({ ...form, consent: value === true })
+          }
+        />
+        <span>
+          Bu bekleme talebiyle ilgili WhatsApp veya telefonla iletişim
+          kurulmasını kabul ediyorum.
+        </span>
+      </label>
+      {error && (
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="button-group">
+        <button type="button" className="button" onClick={() => setOpen(false)}>
+          Vazgeç
+        </button>
+        <button className="button primary" disabled={busy}>
+          {busy ? <Busy /> : <ListPlus size={17} />}Listeye katıl
+        </button>
+      </div>
+    </form>
   );
 }

@@ -31,6 +31,7 @@ import {
   approveReferral,
   platformGrowth,
   referralReview,
+  referralPreview,
 } from "@/lib/growth";
 import {
   contact,
@@ -46,6 +47,12 @@ import {
   sharedJourney,
 } from "@/lib/journeys";
 import { authStatus } from "@/lib/identity";
+import {
+  beginOnboardingPayment,
+  currentPaymentState,
+  onboardingPaymentStatus,
+  paymentHistory,
+} from "@/lib/onboarding-payment";
 import {
   publicPlan,
   billingSnapshot,
@@ -134,6 +141,10 @@ export async function GET(req: Request) {
     if (p[0] === "recurring") return ok(await recurringSnapshot(id));
     if (p[0] === "platform-recurring") return ok(await platformRecurring());
     if (p[0] === "growth") return ok(await growthSnapshot(id));
+    if (p[0] === "referral-preview") {
+      await limit(req, "referral-preview", 30);
+      return ok(await referralPreview(u.searchParams.get("code")));
+    }
     if (p[0] === "platform-growth") return ok(await platformGrowth());
     if (p[0] === "receivables") return ok(await receivableSnapshot(id));
     if (p[0] === "journeys") return ok(await journeySnapshot(id));
@@ -146,6 +157,12 @@ export async function GET(req: Request) {
       );
     }
     if (p[0] === "auth-status") return ok(authStatus());
+    if (p[0] === "payment-status")
+      return ok({
+        account: await currentPaymentState(),
+        ...onboardingPaymentStatus(),
+        history: await paymentHistory(),
+      });
     if (p[0] === "plans") return ok(await publicPlan());
     if (p[0] === "billing") return ok(await billingSnapshot(id || undefined));
     if (p[0] === "platform-billing") return ok(await platformBilling());
@@ -274,6 +291,10 @@ export async function POST(req: Request) {
     if (p[0] === "help") {
       await limit(req, "help", 40);
       return ok(await helpAnswer(id, x));
+    }
+    if (p[0] === "onboarding-payment") {
+      await limit(req, "onboarding-payment", 8);
+      return ok(await beginOnboardingPayment(x));
     }
     if (p[0] === "demo-workspace")
       return ok(await demoWorkspaceForUser(), 201);

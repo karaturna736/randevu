@@ -15,7 +15,7 @@ import {
   date as dateSchema,
 } from "./server";
 import { today, addDays, time } from "./types";
-export const SELECT_APPOINTMENTS = `SELECT a.id,a.tenant_id,a.branch_id,a.customer_id,a.service_id,a.staff_id,a.date,a.minute,a.duration,a.price,a.status,a.source,a.version,a.early_from,a.customer_note,a.service_description_snapshot service_description,c.name customer_name,c.phone customer_phone,COALESCE(NULLIF(a.service_name_snapshot,''),s.name) service_name,p.name staff_name,p.color staff_color,br.name branch_name FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id JOIN services s ON s.tenant_id=a.tenant_id AND s.id=a.service_id JOIN staff p ON p.tenant_id=a.tenant_id AND p.id=a.staff_id LEFT JOIN branches br ON br.tenant_id=a.tenant_id AND br.id=a.branch_id`;
+export const SELECT_APPOINTMENTS = `SELECT a.id,a.tenant_id,a.customer_id,a.service_id,a.staff_id,a.date,a.minute,a.duration,a.price,a.status,a.source,a.meeting_url,a.deposit_amount,a.payment_status,a.version,a.early_from,a.customer_note,a.service_description_snapshot service_description,c.name customer_name,c.phone customer_phone,COALESCE(NULLIF(a.service_name_snapshot,''),s.name) service_name,p.name staff_name,p.color staff_color FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id JOIN services s ON s.tenant_id=a.tenant_id AND s.id=a.service_id JOIN staff p ON p.tenant_id=a.tenant_id AND p.id=a.staff_id`;
 export async function publicBusiness(slug: string) {
   const b = await one(
     "SELECT * FROM businesses WHERE slug=? AND status='approved' AND demo=0",
@@ -37,7 +37,6 @@ export async function available(
   person = "any",
   exclude = "",
   durationOverride?: number,
-  branchId?: string,
 ) {
   dateSchema.parse(d);
   if (d < today() || d > addDays(today(), 90))
@@ -49,21 +48,9 @@ export async function available(
   );
   if (!s) throw new ApiError("Hizmet bulunamadı.", 404);
   const duration = durationOverride ?? s.duration;
-  const branch =
-    branchId ||
-    String(
-      (
-        await one(
-          "SELECT id FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC,created_at LIMIT 1",
-          b.id,
-        )
-      )?.id || "",
-    );
-  if (!branch) throw new ApiError("Aktif şube bulunamadı.", 404);
   const team = await all(
-      "SELECT * FROM staff WHERE tenant_id=? AND branch_id=? AND active=1",
+      "SELECT * FROM staff WHERE tenant_id=? AND active=1",
       b.id,
-      branch,
     ),
     closed = await all(
       "SELECT staff_id FROM closures WHERE tenant_id=? AND date=?",
@@ -168,7 +155,7 @@ export async function book(
   accountId?: string,
   visitId?: string,
   extra?: (id: string, token: string) => Promise<any[]>,
-  source: "web" | "panel" | "whatsapp" | "recovery" = "web",
+  source = "web",
 ) {
   await assertBookingPlan(b);
   const x = booking.parse(input),
@@ -178,13 +165,6 @@ export async function book(
       x.service_id,
     );
   if (!service) throw new ApiError("Hizmet bulunamadı.", 404);
-  const staffBranch = await one(
-    "SELECT branch_id FROM staff WHERE tenant_id=? AND id=? AND active=1",
-    b.id,
-    x.staff_id,
-  );
-  if (!staffBranch?.branch_id)
-    throw new ApiError("Personel bu işletme veya şube için uygun değil.", 409);
   if (x.early_from != null && x.early_from >= x.minute)
     throw new ApiError("Erken geliş saati randevunuzdan önce olmalı.");
   const slots = await available(
@@ -194,12 +174,16 @@ export async function book(
     x.staff_id,
     "",
     service.duration,
-    staffBranch.branch_id,
   );
   if (!slots.some((s) => s.minute === x.minute))
     throw new ApiError("Bu saat dolu. Başka bir saat seçin.", 409);
   const id = uid(),
-    token = secret();
+    token = secret(),
+    channel = z.enum(["web", "panel", "whatsapp"]).parse(source),
+    meetingUrl =
+      b.online_enabled && service.delivery_mode !== "in_person"
+        ? service.meeting_url
+        : "";
   const ops = [
     q(
       "INSERT INTO customers (id,tenant_id,name,phone,email,consent,created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(tenant_id,phone) DO NOTHING",
@@ -212,10 +196,9 @@ export async function book(
       now(),
     ),
     q(
-      "INSERT INTO appointments (id,tenant_id,branch_id,customer_id,service_id,staff_id,date,minute,duration,price,status,token_hash,created_at,service_name_snapshot,service_description_snapshot,customer_note,early_from,source) VALUES (?,?,?,(SELECT id FROM customers WHERE tenant_id=? AND phone=?),?,?,?,?,?,?,'confirmed',?,?,?,?,?,?,?)",
+      "INSERT INTO appointments (id,tenant_id,customer_id,service_id,staff_id,date,minute,duration,price,status,source,meeting_url,token_hash,created_at,service_name_snapshot,service_description_snapshot,customer_note,early_from) VALUES (?,?,(SELECT id FROM customers WHERE tenant_id=? AND phone=?),?,?,?,?,?,?,'confirmed',?,?,?,?,?,?,?,?)",
       id,
       b.id,
-      staffBranch.branch_id,
       b.id,
       x.phone,
       x.service_id,
@@ -224,13 +207,14 @@ export async function book(
       x.minute,
       service.duration,
       service.price,
+      channel,
+      meetingUrl,
       await hash(token),
       now(),
       service.name,
       service.description || "",
       x.customer_note,
       x.early_from ?? null,
-      source,
     ),
     ...blocks(b.id, x.staff_id, x.date, x.minute, service.duration, id),
     event(b.id, id, "created"),
@@ -270,6 +254,8 @@ export async function book(
     time: time(x.minute),
     service: service.name,
     price: service.price,
+    delivery_mode: service.delivery_mode,
+    meeting_url: meetingUrl,
     saved_to_account: !!accountId,
   };
 }
@@ -354,28 +340,11 @@ export async function change(
     ),
     cancelPending,
   ];
-  if (status === "cancelled") {
+  if (status === "cancelled")
     ops.push(
       q("DELETE FROM slots WHERE tenant_id=? AND appointment_id=?", b.id, a.id),
       event(b.id, a.id, "cancelled"),
     );
-    if (starts > Date.now() + 300000)
-      ops.push(
-        q(
-          "INSERT OR IGNORE INTO recovery_slots(id,tenant_id,source_appointment_id,service_id,staff_id,date,minute,duration,price,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,'queued',?)",
-          uid(),
-          b.id,
-          a.id,
-          a.service_id,
-          a.staff_id,
-          a.date,
-          a.minute,
-          a.duration,
-          a.price,
-          now(),
-        ),
-      );
-  }
   await db().batch([...ops, ...extraOps]);
   return { ok: true };
 }
