@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getAppUser } from "./identity";
+import { appOrigin, getAppUser } from "./identity";
 import { cookieValue } from "./security";
 import { z } from "zod";
 export class ApiError extends Error {
@@ -157,11 +157,12 @@ export const hours = z
   );
 export async function body(req: Request) {
   const origin = req.headers.get("origin"),
-    site = req.headers.get("sec-fetch-site");
+    site = req.headers.get("sec-fetch-site"),
+    expectedOrigin = appOrigin() || new URL(req.url).origin;
   let invalid = site === "cross-site";
   if (origin) {
     try {
-      invalid = invalid || new URL(origin).origin !== new URL(req.url).origin;
+      invalid = invalid || new URL(origin).origin !== expectedOrigin;
     } catch {
       invalid = true;
     }
