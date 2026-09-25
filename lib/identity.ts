@@ -34,6 +34,9 @@ export function appOrigin() {
     return null;
   }
 }
+function chatGPTAuthEnabled() {
+  return String(config().CHATGPT_AUTH_ENABLED || "true").toLowerCase() === "true";
+}
 export function authStatus() {
   return {
     google: !!(
@@ -64,6 +67,7 @@ export async function getAppUser() {
         }
       : null;
   }
+  if (!chatGPTAuthEnabled()) return null;
   const u = await getChatGPTUser();
   return u ? { ...u, provider: "chatgpt" } : null;
 }
@@ -233,7 +237,11 @@ export async function signOutApp(req: Request) {
     await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash=?")
       .bind(await digest(token))
       .run();
-  return redirect(token ? "/giris" : "/signout-with-chatgpt?return_to=%2Fgiris", [
+  const destination =
+    token || !chatGPTAuthEnabled()
+      ? "/giris"
+      : "/signout-with-chatgpt?return_to=%2Fgiris";
+  return redirect(destination, [
     cookie(SESSION, "", 0),
     cookie(FLOW, "", 0),
   ]);
