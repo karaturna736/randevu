@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { PublicShell } from "./public";
 import { Busy } from "./common";
 
+type AdminAccessResponse = { error?: string };
+
 export default function AdminLock() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,7 +23,7 @@ export default function AdminLock() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = (await response.json().catch(() => ({}))) as AdminAccessResponse;
       if (!response.ok) throw new Error(data.error || "Giriş doğrulanamadı.");
       location.replace("/admin");
     } catch (e: any) {
