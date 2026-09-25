@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_load_test:
+        description: "Deploy sonrası izole 100 kullanıcı senkronizasyon testini çalıştır"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: neta-production
@@ -73,3 +79,10 @@ jobs:
           curl --fail --show-error --silent --head https://netarandevu.com
           auth_status="$(curl --fail --show-error --silent --retry 6 --retry-delay 3 https://netarandevu.com/api/v1/auth-status)"
           AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
+      - name: Run isolated 100-user synchronization test
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_load_test) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[loadtest]')) }}
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
+          VPS_USER: ${{ secrets.VPS_USER || 'root' }}
+        run: |
+          ssh -o BatchMode=yes "$VPS_USER@$VPS_HOST" "set -a; source /etc/neta/neta.env; set +a; ALLOW_LOAD_TEST=1 LOAD_TEST_USERS=100 node /opt/neta/current/scripts/load-test-100.mjs"
