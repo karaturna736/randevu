@@ -35,7 +35,13 @@ export function appOrigin() {
   }
 }
 function chatGPTAuthEnabled() {
-  return String(config().CHATGPT_AUTH_ENABLED || "true").toLowerCase() === "true";
+  const configured = String(config().CHATGPT_AUTH_ENABLED || "").toLowerCase();
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+  const origin = appOrigin();
+  if (!origin) return false;
+  const host = new URL(origin).hostname;
+  return host.endsWith(".chatgpt.site") || host.endsWith(".test");
 }
 export function authStatus() {
   return {
