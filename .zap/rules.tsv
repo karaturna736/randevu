@@ -1,10 +1,10 @@
 # Neta ZAP baseline policy
-# Security-relevant findings stay WARN/FAIL by default and therefore fail CI.
-# The items below are intentionally informational because they are expected
-# application characteristics or compatibility decisions, not ignored findings.
-10015	INFO	(Public/dynamic route cache directives are application-controlled and reviewed separately)
+# Action-baseline rules.tsv supports IGNORE/WARN/FAIL. Security findings that
+# must break the pipeline remain FAIL. Compatibility/behaviour findings below
+# are explicitly documented and ignored only after review.
+10015	IGNORE	(Public/dynamic route cache directives are application-controlled; API responses are separately required to be no-store)
 10036	FAIL	(Server software version must not be exposed)
-10049	INFO	(Dynamic Next.js responses may be intentionally non-storable)
-10055	INFO	(CSP wildcard is restricted to iyzico/iyzipay payment-provider subdomains required by hosted checkout)
-10109	INFO	(Modern web application detection is informational)
-90004	INFO	(COEP is intentionally not forced because hosted payment and external identity flows require cross-origin compatibility)
+10049	IGNORE	(Dynamic Next.js responses may be intentionally non-storable)
+10055	IGNORE	(Next.js hydration currently requires inline bootstrap scripts; inline event-handler attributes are blocked with script-src-attr 'none', and third-party script origins are restricted to iyzico/iyzipay)
+10109	IGNORE	(Modern web application detection is informational)
+90004	IGNORE	(COEP is not forced because hosted payment and external identity flows require cross-origin compatibility; COOP and CORP remain enabled)
