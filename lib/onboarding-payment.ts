@@ -28,13 +28,11 @@ const buyerSchema = z.object({
   city: z.string().trim().min(2).max(80),
   terms_accepted: z.literal(true, {
     errorMap: () => ({
-      message: "Abonelik koşullarını kabul etmeniz gerekiyor.",
-    }),
+      message: "Abonelik koşullarını kabul etmeniz gerekiyor." }),
   }),
   card_storage_accepted: z.literal(true, {
     errorMap: () => ({
-      message: "Aylık abonelik için güvenli kart saklama onayı gerekiyor.",
-    }),
+      message: "Aylık abonelik için güvenli kart saklama onayı gerekiyor." }),
   }),
 });
 const checkoutSchema = z.object({
@@ -53,6 +51,18 @@ const redirect = (path: string) =>
       "Referrer-Policy": "no-referrer",
     },
   });
+
+async function zeroCheckoutEnabled(actor: any) {
+  let host = "";
+  try {
+    host = new URL(appOrigin() || "").hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (host !== "netarandevu.com" && host !== "www.netarandevu.com")
+    return false;
+  return isAdmin(actor);
+}
 
 export async function accountPaymentState(userId: string) {
   const access = await paidTenant(userId);
@@ -86,6 +96,11 @@ export async function accountPaymentState(userId: string) {
 
 export async function currentPaymentState() {
   const u = await user();
+  if (await zeroCheckoutEnabled(u))
+    return {
+      state: "pending_payment",
+      zero_test_mode: true,
+    };
   return accountPaymentState(u.userId);
 }
 export function onboardingPaymentStatus() {
@@ -114,14 +129,17 @@ export function onboardingPaymentStatus() {
 
 export async function beginOnboardingPayment(input: any) {
   const owner = await user(),
-    current = await accountPaymentState(owner.userId);
-  if (current.state === "active")
-    return { active: true, tenant_id: current.tenant_id };
-  if (current.state === "payment_processing")
-    throw new ApiError(
-      "Devam eden ödeme işleminiz var. Durum sayfasından kontrol edin.",
-      409,
-    );
+    platformAdmin = await zeroCheckoutEnabled(owner);
+  if (!platformAdmin) {
+    const current = await accountPaymentState(owner.userId);
+    if (current.state === "active")
+      return { active: true, tenant_id: current.tenant_id };
+    if (current.state === "payment_processing")
+      throw new ApiError(
+        "Devam eden ödeme işleminiz var. Durum sayfasından kontrol edin.",
+        409,
+      );
+  }
   const x = checkoutSchema.parse(input),
     connection = recurringConnection(),
     plan = recurringPlans().find((p) => p.code === x.business.plan),
@@ -139,10 +157,98 @@ export async function beginOnboardingPayment(input: any) {
       409,
     );
   if (
+    !platformAdmin &&
     (await one("SELECT COUNT(*) n FROM members WHERE user_id=?", owner.userId))
       .n >= 10
   )
     throw new ApiError("En fazla 10 işletme oluşturabilirsiniz.");
+  if (await one("SELECT id FROM businesses WHERE slug=?", x.business.slug))
+    throw new ApiError("Bu randevu bağlantısı kullanımda.", 409);
+  if (
+    await one(
+      "SELECT id FROM onboarding_payments WHERE slug=? AND state IN ('payment_processing','active')",
+      x.business.slug,
+    )
+  )
+    throw new ApiError("Bu bağlantı devam eden bir kurulumda ayrılmış.", 409);
+
+  if (platformAdmin) {
+    const selectedPlan = x.business.plan as keyof typeof PLAN_CATALOG,
+      tenantId = uid(),
+      paymentId = uid(),
+      stamp = now(),
+      paidUntil = new Date(Date.now() + 30 * 86400000).toISOString(),
+      created = await businessCreation(x.business, owner, tenantId, false);
+    await db().batch([
+      ...created.ops,
+      q(
+        "UPDATE businesses SET status='approved',selected_plan=? WHERE id=?",
+        selectedPlan,
+        tenantId,
+      ),
+      q(
+        `INSERT INTO subscriptions(tenant_id,paid_until,updated_at,plan) VALUES(?,?,?,?)
+         ON CONFLICT(tenant_id) DO UPDATE SET paid_until=excluded.paid_until,updated_at=excluded.updated_at,plan=excluded.plan`,
+        tenantId,
+        paidUntil,
+        stamp,
+        selectedPlan,
+      ),
+      q(
+        "INSERT INTO payments(id,tenant_id,kind,amount,status,provider_ref,created_at) VALUES(?,?,'subscription',0,'paid',?,?)",
+        paymentId,
+        tenantId,
+        "neta-zero-test:" + paymentId,
+        stamp,
+      ),
+      q(
+        `INSERT INTO onboarding_payments(
+          id,user_id,user_email,user_name,slug,provider,plan,plan_reference,amount,currency,payload,state,test_mode,
+          created_at,updated_at,paid_at,account_activated_at,expires_at,idempotency_key,tenant_id
+        ) VALUES(?,?,?,?,?,'neta_zero_test',?,'zero-test',0,'TRY',?,'active',1,?,?,?,?,?,?,?)`,
+        paymentId,
+        owner.userId,
+        owner.email,
+        owner.displayName,
+        x.business.slug,
+        selectedPlan,
+        JSON.stringify(x.business),
+        stamp,
+        stamp,
+        stamp,
+        stamp,
+        paidUntil,
+        x.idempotency_key,
+        tenantId,
+      ),
+      q(
+        "INSERT INTO payment_consents(id,payment_id,user_id,consent_type,document_version,accepted_at) VALUES(?,?,?,?,?,?)",
+        uid(),
+        paymentId,
+        owner.userId,
+        "subscription_terms",
+        "2026-09-23",
+        stamp,
+      ),
+      q(
+        "INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)",
+        uid(),
+        owner.userId,
+        "payment.zero-test.activated",
+        tenantId,
+        stamp,
+      ),
+    ]);
+    return {
+      active: true,
+      tenant_id: tenantId,
+      test_mode: true,
+      zero_test_mode: true,
+      amount: 0,
+      plan: selectedPlan,
+    };
+  }
+
   if (
     !connection.configured ||
     !connection.enabled ||
@@ -152,8 +258,7 @@ export async function beginOnboardingPayment(input: any) {
     !plan
   )
     throw new ApiError("iyzico abonelik hesabı henüz satışa açılmadı.", 503);
-  const platformAdmin = await isAdmin(owner);
-  if (!connection.live && !platformAdmin)
+  if (!connection.live && !(await isAdmin(owner)))
     throw new ApiError("Ödeme sağlayıcısı test aşamasında.", 403);
   if (x.campaign_code) {
     await quoteCampaign({
@@ -170,15 +275,6 @@ export async function beginOnboardingPayment(input: any) {
       409,
     );
   }
-  if (await one("SELECT id FROM businesses WHERE slug=?", x.business.slug))
-    throw new ApiError("Bu randevu bağlantısı kullanımda.", 409);
-  if (
-    await one(
-      "SELECT id FROM onboarding_payments WHERE slug=? AND state IN ('payment_processing','active')",
-      x.business.slug,
-    )
-  )
-    throw new ApiError("Bu bağlantı devam eden bir kurulumda ayrılmış.", 409);
   const verified = (
     await iyzico(
       "/v2/subscription/pricing-plans/" + encodeURIComponent(plan.reference),
@@ -309,7 +405,7 @@ export async function onboardingPaymentCallback(req: Request) {
     return redirect("/panel?tenant=" + encodeURIComponent(row.tenant_id));
   if (row.expires_at <= now()) {
     await q(
-      "UPDATE onboarding_payments SET state='payment_failed',failure_reason='Ödeme oturumunun süresi doldu.',failed_at=?,updated_at=? WHERE id=?",
+      "UPDATE onboarding_payments SET state='payment_failed',failure_reason='Ödeme oturumunun süresi doldu.',failed_at=?,updated_at=? WHERE id=? AND state='payment_processing'",
       now(),
       now(),
       row.id,
