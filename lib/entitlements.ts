@@ -5,16 +5,8 @@ export type PlanCode = "normal" | "pro" | "plus";
 /**
  * Neta paketlerinin kullanım sınırları. Hiçbir paket sınırsız dış sağlayıcı
  * kullanımı vaat etmez; sağlayıcı maliyeti ve kötüye kullanım kontrolü bu
- * sayaçlarla sunucu tarafında uygulanır.
- *
- * Modül anahtarları: receivables (borç/veresiye), journeys (hizmet
- * yolculuğu), growth (pazarlama ve büyüme; ortaklık hariç), recovery
- * (gelir kurtarma), demand (talep fırsatları), serviceReport (işlem
- * analizi), revenueReport (gelir raporu), branchProfit (şube kârlılığı),
- * whatsapp (çift yönlü WhatsApp kurulumu), accounting (tekrar
- * kullanılabilir gider kalemleri), referral (Neta ortaklık programı),
- * website (işletme web sitesi). "limited" işaretli modüller paketin
- * kendi kota sınırlarıyla çalışır.
+ * sayaçlarla sunucu tarafında uygulanır. Demo işletmeler ayrı tutulur ve
+ * satış sunumu/testi için Neta içi kota engeline takılmaz.
  */
 export const PLAN_LIMITS: Record<
   PlanCode,
@@ -175,16 +167,28 @@ export async function tenantPlan(tenantId: string): Promise<PlanCode> {
     tenantId,
   );
   if (Number(business?.demo) === 1) return "plus";
-  const row = await one(
+
+  const recurring = await one(
     "SELECT plan,state,test_mode,paid_until FROM recurring_subscriptions WHERE tenant_id=?",
     tenantId,
   );
-  if (!row || !["normal", "pro", "plus"].includes(row.plan)) return "normal";
-  const paid = typeof row.paid_until === "string" && row.paid_until > now();
-  const test =
-    Number(row.test_mode) === 1 &&
-    ["ACTIVE", "PENDING", "UPGRADED"].includes(String(row.state));
-  return paid || test ? (row.plan as PlanCode) : "normal";
+  if (recurring && ["normal", "pro", "plus"].includes(recurring.plan)) {
+    const paid =
+        typeof recurring.paid_until === "string" && recurring.paid_until > now(),
+      test =
+        Number(recurring.test_mode) === 1 &&
+        ["ACTIVE", "PENDING", "UPGRADED"].includes(String(recurring.state));
+    if (paid || test) return recurring.plan as PlanCode;
+  }
+
+  const manual = await one(
+    "SELECT plan,paid_until FROM subscriptions WHERE tenant_id=? AND paid_until>?",
+    tenantId,
+    now(),
+  );
+  if (manual && ["normal", "pro", "plus"].includes(manual.plan))
+    return manual.plan as PlanCode;
+  return "normal";
 }
 
 function windowFor(feature: "whatsapp" | "ai") {
@@ -199,11 +203,22 @@ function windowFor(feature: "whatsapp" | "ai") {
 }
 
 /** Atomic, tenant-scoped quota reservation. A failed provider call still
- * consumes the attempt, preventing retry storms and unexpected overage. */
+ * consumes the attempt, preventing retry storms and unexpected overage.
+ * Demo tenantleri yalnız satış sunumu ve test içindir; Neta içi sayaçlardan
+ * muaftır. Dış sağlayıcı gerçekten bağlıysa onun kendi maliyet/limitleri sürer. */
 export async function consumePlanQuota(
   tenantId: string,
   feature: "whatsapp" | "ai",
 ) {
+  const business = await one("SELECT demo FROM businesses WHERE id=?", tenantId);
+  if (Number(business?.demo) === 1)
+    return {
+      plan: "plus" as PlanCode,
+      limit: Number.MAX_SAFE_INTEGER,
+      used: 0,
+      unlimitedDemo: true,
+    };
+
   const plan = await tenantPlan(tenantId),
     limit = PLAN_LIMITS[plan][feature === "ai" ? "aiDaily" : "whatsappMonthly"],
     window = windowFor(feature),
