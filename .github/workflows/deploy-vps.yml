@@ -71,3 +71,5 @@ jobs:
         run: |
           curl --fail --show-error --silent --retry 12 --retry-delay 5 https://netarandevu.com/api/health
           curl --fail --show-error --silent --head https://netarandevu.com
+          auth_status="$(curl --fail --show-error --silent --retry 6 --retry-delay 3 https://netarandevu.com/api/v1/auth-status)"
+          AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
