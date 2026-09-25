@@ -91,6 +91,7 @@ async function createCampaign(overrides = {}) {
     recurring_enabled: true,
     active: true,
     business_ids: [],
+    user_ids: [],
     ...overrides,
   });
   assert.equal(result.status, 200, JSON.stringify(result.data));
@@ -180,6 +181,22 @@ try {
     (await api("campaign-preview?tenant=tenant-b&plan=pro&code=SADECEA", "owner-b")).status === 403,
     "Another tenant cannot use a private campaign",
   );
+
+  const personal = await createCampaign({
+    code: "KISIYEOZEL",
+    target_type: "selected_users",
+    business_ids: [],
+    user_ids: ["owner-a"],
+  });
+  check(
+    (await api("campaign-preview?tenant=tenant-a&plan=pro&code=KISIYEOZEL", "owner-a")).status === 200,
+    "Assigned registered account can use its personal campaign",
+  );
+  check(
+    (await api("campaign-preview?tenant=tenant-b&plan=pro&code=KISIYEOZEL", "owner-b")).status === 403,
+    "Leaked personal campaign code is rejected for another account",
+  );
+
   await createCampaign({ code: "BITTI", starts_at: at(-10), ends_at: at(-1) });
   check(
     (await api("campaign-preview?tenant=tenant-a&plan=pro&code=BITTI", "owner-a")).status === 409,
@@ -235,13 +252,25 @@ try {
       metric.top_plan === "pro",
     "Campaign analytics reflect verified financial values",
   );
+  check(
+    snapshot.data.user_assignments.some(
+      (item) => item.campaign_id === personal.id && item.user_id === "owner-a",
+    ),
+    "Admin snapshot exposes personal campaign assignments",
+  );
+  check(
+    snapshot.data.users.some(
+      (item) => item.user_id === "owner-a" && item.business_names.includes("A Studio"),
+    ),
+    "Admin campaign directory includes registered accounts and their businesses",
+  );
   await api("campaigns", "platform-admin", { action: "delete", id: limited.id });
   check(
     (await db.prepare("SELECT COUNT(*) n FROM campaign_redemptions WHERE campaign_id=?").bind(limited.id).first()).n === 1,
     "Soft deletion preserves campaign financial history",
   );
   check(
-    (await db.prepare("SELECT COUNT(*) n FROM audit WHERE action LIKE 'campaign.%'").first()).n >= 7,
+    (await db.prepare("SELECT COUNT(*) n FROM audit WHERE action LIKE 'campaign.%'").first()).n >= 8,
     "Campaign administrator actions are written to audit log",
   );
   let duplicateCodeRejected = false;
