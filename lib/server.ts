@@ -158,7 +158,8 @@ export const hours = z
 export async function body(req: Request) {
   const origin = req.headers.get("origin"),
     site = req.headers.get("sec-fetch-site"),
-    expectedOrigin = appOrigin() || new URL(req.url).origin;
+    expectedOrigin = appOrigin() || new URL(req.url).origin,
+    hasSession = !!cookieValue(req.headers.get("cookie"), "__Host-neta-session");
   let invalid = site === "cross-site";
   if (origin) {
     try {
@@ -166,8 +167,9 @@ export async function body(req: Request) {
     } catch {
       invalid = true;
     }
-  } else if (cookieValue(req.headers.get("cookie"), "__Host-neta-session"))
+  } else if (hasSession && site !== "same-origin") {
     invalid = true;
+  }
   if (invalid) throw new ApiError("İstek kaynağı geçersiz.", 403);
   if (
     !req.headers
