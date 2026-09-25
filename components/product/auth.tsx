@@ -71,7 +71,11 @@ export default function AuthPage({ signup = false }: { signup?: boolean }) {
         : "/randevularim",
     );
   const continuation =
-    "/kayit?rol=" + role + "&sonra=" + encodeURIComponent(destination());
+    (signup ? "/kayit" : "/giris") +
+    "?rol=" +
+    role +
+    "&sonra=" +
+    encodeURIComponent(destination());
   async function verifyReferral() {
     const code = referral.trim().toUpperCase();
     if (!code) {
