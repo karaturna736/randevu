@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { CATEGORIES, HOURS, money } from "@/lib/types";
 
-async function temporary(body?: Record<string, unknown>) {
+async function temporary(body?: Record<string, unknown>): Promise<any> {
   const response = await fetch("/api/temporary-payment", {
     method: body ? "POST" : "GET",
     credentials: "same-origin",
@@ -17,7 +17,7 @@ async function temporary(body?: Record<string, unknown>) {
     headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const data = await response.json();
+  const data: any = await response.json();
   if (!response.ok) throw new Error(data.error || "İşlem tamamlanamadı.");
   return data;
 }
@@ -65,7 +65,7 @@ function Wizard() {
 
   async function load() {
     try {
-      const next = await temporary();
+      const next: any = await temporary();
       setData(next);
       if (next.request?.status === "approved" && next.request?.tenant_id)
         location.replace("/panel?tenant=" + encodeURIComponent(next.request.tenant_id));
@@ -83,7 +83,7 @@ function Wizard() {
     setBusy(true);
     setError("");
     try {
-      const request = await temporary({
+      const request: any = await temporary({
         action: "prepare",
         plan,
         terms_accepted: accepted,
