@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
   description: "İşletmenizin randevuları, ekibi ve müşterileri bir arada.",
   icons: {
-    icon: "/neta-logo.png",
-    shortcut: "/neta-logo.png",
+    icon: "/favicon-white.svg",
+    shortcut: "/favicon-white.svg",
     apple: "/neta-logo.png",
   },
 };
