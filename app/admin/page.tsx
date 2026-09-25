@@ -1,3 +1,7 @@
-import Admin from '@/components/product/admin';
-export const dynamic='force-dynamic';
-export default function Page(){return <Admin/>}
+import AdminHome from "@/components/product/admin-home";
+
+export const dynamic = "force-dynamic";
+
+export default function Page() {
+  return <AdminHome />;
+}
