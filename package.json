@@ -13,7 +13,7 @@
     "start:vps": "node .next/standalone/server.js",
     "db:migrate:vps": "node scripts/migrate-sqlite.mjs",
     "db:backup:vps": "node scripts/backup-sqlite.mjs",
-    "test": "pnpm build && node tests/campaigns.mjs && node tests/customer-operations.mjs && node tests/identity-billing.mjs && node tests/onboarding-payment.mjs && node tests/opportunities.mjs && node tests/recovery-setup.mjs && node tests/scheduling.mjs",
+    "test": "pnpm build && node tests/campaigns.mjs && node tests/customer-operations.mjs && node tests/plan-integrity.mjs && node tests/identity-billing.mjs && node tests/onboarding-payment.mjs && node tests/opportunities.mjs && node tests/recovery-setup.mjs && node tests/scheduling.mjs",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

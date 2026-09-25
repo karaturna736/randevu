@@ -100,7 +100,8 @@ export const PLAN_LIMITS: Record<
       whatsapp: true,
       accounting: true,
       referral: true,
-      website: true,
+      // Özel işletme web sitesi henüz ürünleştirilmedi; satış kapsamına açılmaz.
+      website: false,
       setupCenter: true,
     },
   },

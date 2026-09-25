@@ -6,7 +6,7 @@ import { appOrigin } from "./identity";
 import { money, time } from "./types";
 import { hmacHex, equalSecret, seal, unseal } from "./security";
 import { defaultGrowth, recallCandidates } from "./growth";
-import { requirePlanModule } from "./entitlements";
+import { requirePlanModule, consumePlanQuota } from "./entitlements";
 const cfg = () => env as any;
 const connections = z.array(
   z.object({
@@ -108,6 +108,9 @@ export async function verifyWa(req: Request) {
   });
 }
 async function graph(c: any, payload: any) {
+  // Her gerçek Meta gönderimi paket kotasından atomik olarak tüketilir.
+  // Başarısız sağlayıcı denemeleri de kotaya dahildir; tekrar fırtınasını engeller.
+  await consumePlanQuota(c.tenant_id, "whatsapp");
   const r = await fetch(
     "https://graph.facebook.com/" +
       cfg().WHATSAPP_GRAPH_VERSION +
@@ -185,7 +188,11 @@ async function deliver(c: any, id: string) {
   } catch (e) {
     await q(
       "UPDATE wa_messages SET status=? WHERE id=?",
-      e instanceof ApiError ? "failed" : "unknown",
+      e instanceof ApiError && e.status === 429
+        ? "quota"
+        : e instanceof ApiError
+          ? "failed"
+          : "unknown",
       id,
     ).run();
   }
