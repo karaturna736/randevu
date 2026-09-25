@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
 
 if (process.env.ALLOW_LOAD_TEST !== "1") {
@@ -9,12 +9,13 @@ if (process.env.ALLOW_LOAD_TEST !== "1") {
 
 const users = Math.max(2, Math.min(250, Number(process.env.LOAD_TEST_USERS || 100)));
 const dbPath = process.env.DATABASE_PATH;
-const origin = String(process.env.PUBLIC_APP_URL || "https://netarandevu.com").replace(/\/$/, "");
+const publicOrigin = String(process.env.PUBLIC_APP_URL || "https://netarandevu.com").replace(/\/$/, "");
+const targetOrigin = "http://127.0.0.1:3000";
 if (!dbPath || !dbPath.startsWith("/")) {
   console.error("LOADTEST_REFUSED: DATABASE_PATH mutlak yol olmalı.");
   process.exit(2);
 }
-if (origin !== "https://netarandevu.com") {
+if (publicOrigin !== "https://netarandevu.com") {
   console.error("LOADTEST_REFUSED: yalnızca doğrulanmış Neta production origin üzerinde çalışır.");
   process.exit(2);
 }
@@ -67,17 +68,18 @@ async function request(session, path, options = {}) {
   try {
     const headers = {
       Accept: "application/json",
+      Host: "netarandevu.com",
       Cookie: `__Host-neta-session=${session.token}`,
       ...(options.body
         ? {
             "Content-Type": "application/json",
-            Origin: origin,
+            Origin: publicOrigin,
             "Sec-Fetch-Site": "same-origin",
           }
         : {}),
       ...(options.headers || {}),
     };
-    const response = await fetch(origin + path, {
+    const response = await fetch(targetOrigin + path, {
       method: options.method || (options.body ? "POST" : "GET"),
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
@@ -169,7 +171,8 @@ function cleanup() {
 
 async function main() {
   setup();
-  console.log(`LOADTEST_START users=${users} tenant=${tenantId}`);
+  console.log(`LOADTEST_START users=${users} tenant=${tenantId} target=${targetOrigin}`);
+  console.log("LOADTEST_NOTE Nginx /api per-IP rate limit bilerek bypass edildi; amaç 100 farklı kullanıcıya karşı Node+SQLite senkronizasyonunu ölçmek.");
 
   const warm = await request(sessions[0], `/api/v1/workspace?tenant=${encodeURIComponent(tenantId)}`);
   if (!warm.ok || warm.data?.business?.id !== tenantId) {
@@ -237,6 +240,8 @@ async function main() {
 
   const result = {
     users,
+    transport: "direct_node_upstream",
+    nginx_per_ip_rate_limit_bypassed: true,
     tenant_isolated: true,
     payment_bypassed_via_demo_tenant: true,
     concurrent_workspace_reads: phaseStats(readResults),
