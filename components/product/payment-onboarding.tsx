@@ -120,6 +120,10 @@ function PaymentWizard() {
     api("payment-status")
       .then((r) => {
         setStatus(r);
+        if (r.account.zero_test_mode) {
+          setBuyer((x) => ({ ...x, card_storage_accepted: true }));
+          return;
+        }
         if (r.account.state === "active") location.replace("/panel");
         else if (r.account.state === "payment_processing")
           location.replace("/odeme/bekleniyor");
@@ -128,7 +132,20 @@ function PaymentWizard() {
       .catch((e: any) => setError(e.message));
   }, []);
   const selected = plans.find((p) => p.code === plan)!;
+  const zeroTestMode = !!status?.account?.zero_test_mode;
+  const priceFor = (code: string, fallback: number) => {
+    if (zeroTestMode) return 0;
+    const serverPlan = status?.plans?.find((item: any) => item.code === code);
+    return Number.isFinite(Number(serverPlan?.amount))
+      ? Number(serverPlan.amount)
+      : fallback;
+  };
+  const selectedPrice = priceFor(selected.code, selected.price);
+  const payableAmount = zeroTestMode
+    ? 0
+    : campaign?.final_amount || selectedPrice;
   async function applyCampaign() {
+    if (zeroTestMode) return;
     setBusy(true);
     setError("");
     try {
@@ -192,10 +209,14 @@ function PaymentWizard() {
           },
         },
         buyer,
-        campaign_code: campaign?.code || undefined,
+        campaign_code: zeroTestMode ? undefined : campaign?.code || undefined,
       });
       if (r.active) {
-        location.replace("/panel");
+        location.replace(
+          r.tenant_id
+            ? "/panel?tenant=" + encodeURIComponent(r.tenant_id)
+            : "/panel",
+        );
         return;
       }
       setCheckout(r.form);
@@ -212,7 +233,7 @@ function PaymentWizard() {
         <h1>Hesabınızı aktifleştirin</h1>
         <div className="payment-total">
           <span>{selected.name}</span>
-          <strong>{money(campaign?.final_amount || selected.price)} / ay</strong>
+          <strong>{money(payableAmount)} / ay</strong>
         </div>
         <p>
           İşletmeniz henüz oluşturulmadı. Başarılı tahsilat iyzico API’sinden
@@ -239,8 +260,9 @@ function PaymentWizard() {
           <span className="eyebrow">GÜVENLİ ÜYELİK</span>
           <h1>Hesabınızı aktifleştirin.</h1>
           <p>
-            Demo ücretsizdir. Gerçek işletme ve panel erişimi yalnızca
-            doğrulanmış aylık ödeme sonrasında açılır.
+            {zeroTestMode
+              ? "Geçici test fiyatı 0 TL. Normal ödeme akışından seçtiğiniz paket gerçek paket yetkileriyle açılır."
+              : "Demo ücretsizdir. Gerçek işletme ve panel erişimi yalnızca doğrulanmış aylık ödeme sonrasında açılır."}
           </p>
         </div>
         <span className="badge neutral">{step + 1} / 3</span>
@@ -416,7 +438,11 @@ function PaymentWizard() {
                   className={
                     "onboarding-plan " + (plan === p.code ? "selected" : "")
                   }
-                  onClick={() => setPlan(p.code)}
+                  onClick={() => {
+                    setPlan(p.code);
+                    setCampaign(null);
+                    setCampaignCode("");
+                  }}
                   key={p.code}
                 >
                   <span className="onboarding-plan-check">
@@ -427,7 +453,7 @@ function PaymentWizard() {
                     <small>{p.features.join(" · ")}</small>
                   </span>
                   <b>
-                    {money(p.price)}
+                    {money(priceFor(p.code, p.price))}
                     <small> / ay</small>
                   </b>
                 </button>
@@ -435,8 +461,9 @@ function PaymentWizard() {
             </div>
             <div className="notice">
               <ShieldCheck size={18} />
-              Bu ödeme yalnızca Neta aboneliğidir. İşletmenizin müşterilerinden
-              aldığı para Neta’dan geçmez.
+              {zeroTestMode
+                ? "0 TL test işlemi gerçek tahsilat yapmaz; seçilen paketin sunucu tarafındaki gerçek özellik ve limitleri açılır."
+                : "Bu ödeme yalnızca Neta aboneliğidir. İşletmenizin müşterilerinden aldığı para Neta’dan geçmez."}
             </div>
           </>
         )}
@@ -449,47 +476,49 @@ function PaymentWizard() {
                 <strong>{form.name}</strong>
                 <small>{selected.name} · aylık yenileme</small>
               </div>
-              <b>{money(campaign?.final_amount || selected.price)}</b>
+              <b>{money(payableAmount)}</b>
             </div>
-            <section className="campaign-payment-card">
-              <Field label="İndirim kodu">
-                <div className="campaign-code-row">
-                  <Input
-                    autoComplete="off"
-                    maxLength={32}
-                    placeholder="Kampanya kodunuz"
-                    value={campaignCode}
-                    onChange={(event) => {
-                      setCampaignCode(
-                        event.target.value
-                          .toUpperCase()
-                          .replace(/[^A-Z0-9_-]/g, ""),
-                      );
-                      setCampaign(null);
-                    }}
-                  />
-                  <button
-                    className="button"
-                    type="button"
-                    disabled={busy || campaignCode.length < 3}
-                    onClick={applyCampaign}
-                  >
-                    Uygula
-                  </button>
-                </div>
-              </Field>
-              {campaign && (
-                <div className="campaign-price-lines" role="status">
-                  <div><span>Normal paket fiyatı</span><b>{money(campaign.original_amount)}</b></div>
-                  <div className="campaign-discount"><span>{campaign.campaign_name}</span><b>-{money(campaign.discount_amount)}</b></div>
-                  <div className="campaign-final"><span>Bugün ödenecek</span><b>{money(campaign.final_amount)}</b></div>
-                  <p className="campaign-note">
-                    {new Date(campaign.ends_at).toLocaleDateString("tr-TR")} tarihine kadar geçerli · {campaign.first_payment_only ? "yalnızca ilk ödeme" : campaign.recurring_enabled ? "aylık yenilemeler dahil" : "tek ödeme"}.
-                  </p>
-                  {!campaign.checkout_supported && <p className="notice">{campaign.provider_note}</p>}
-                </div>
-              )}
-            </section>
+            {!zeroTestMode && (
+              <section className="campaign-payment-card">
+                <Field label="İndirim kodu">
+                  <div className="campaign-code-row">
+                    <Input
+                      autoComplete="off"
+                      maxLength={32}
+                      placeholder="Kampanya kodunuz"
+                      value={campaignCode}
+                      onChange={(event) => {
+                        setCampaignCode(
+                          event.target.value
+                            .toUpperCase()
+                            .replace(/[^A-Z0-9_-]/g, ""),
+                        );
+                        setCampaign(null);
+                      }}
+                    />
+                    <button
+                      className="button"
+                      type="button"
+                      disabled={busy || campaignCode.length < 3}
+                      onClick={applyCampaign}
+                    >
+                      Uygula
+                    </button>
+                  </div>
+                </Field>
+                {campaign && (
+                  <div className="campaign-price-lines" role="status">
+                    <div><span>Normal paket fiyatı</span><b>{money(campaign.original_amount)}</b></div>
+                    <div className="campaign-discount"><span>{campaign.campaign_name}</span><b>-{money(campaign.discount_amount)}</b></div>
+                    <div className="campaign-final"><span>Bugün ödenecek</span><b>{money(campaign.final_amount)}</b></div>
+                    <p className="campaign-note">
+                      {new Date(campaign.ends_at).toLocaleDateString("tr-TR")} tarihine kadar geçerli · {campaign.first_payment_only ? "yalnızca ilk ödeme" : campaign.recurring_enabled ? "aylık yenilemeler dahil" : "tek ödeme"}.
+                    </p>
+                    {!campaign.checkout_supported && <p className="notice">{campaign.provider_note}</p>}
+                  </div>
+                )}
+              </section>
+            )}
             <div className="form-grid">
               <Field label="Ad">
                 <Input
@@ -570,23 +599,26 @@ function PaymentWizard() {
                 kabul ediyorum.
               </span>
             </label>
-            <label className="check-row">
-              <Checkbox
-                checked={buyer.card_storage_accepted}
-                onCheckedChange={(v) =>
-                  setBuyer((x) => ({ ...x, card_storage_accepted: v === true }))
-                }
-              />
-              <span>
-                Kartımın aylık yenilemeler için iyzico’nun güvenli altyapısında
-                saklanmasını ve plan ücretinin her ay tahsil edilmesini kabul
-                ediyorum. Neta kart numarası veya CVC saklamaz.
-              </span>
-            </label>
+            {!zeroTestMode && (
+              <label className="check-row">
+                <Checkbox
+                  checked={buyer.card_storage_accepted}
+                  onCheckedChange={(v) =>
+                    setBuyer((x) => ({ ...x, card_storage_accepted: v === true }))
+                  }
+                />
+                <span>
+                  Kartımın aylık yenilemeler için iyzico’nun güvenli altyapısında
+                  saklanmasını ve plan ücretinin her ay tahsil edilmesini kabul
+                  ediyorum. Neta kart numarası veya CVC saklamaz.
+                </span>
+              </label>
+            )}
             <div className="notice">
               <LockKeyhole size={18} />
-              Tutar sunucudaki paketten alınır. Tarayıcıdan fiyat veya ödeme
-              durumu kabul edilmez.
+              {zeroTestMode
+                ? "Test tutarı 0 TL'dir. Kart bilgisi istenmez, kaydedilmez ve gerçek tahsilat yapılmaz."
+                : "Tutar sunucudaki paketten alınır. Tarayıcıdan fiyat veya ödeme durumu kabul edilmez."}
             </div>
           </>
         )}
@@ -609,13 +641,22 @@ function PaymentWizard() {
             className="button primary"
             disabled={
               busy ||
-              (campaign && !campaign.checkout_supported) ||
+              (!zeroTestMode && campaign && !campaign.checkout_supported) ||
               (step === 2 &&
-                (!buyer.terms_accepted || !buyer.card_storage_accepted))
+                (!buyer.terms_accepted ||
+                  (!zeroTestMode && !buyer.card_storage_accepted)))
             }
           >
-            {busy ? <Busy /> : step === 2 ? <CreditCard size={17} /> : null}
-            {step === 2 ? "Ödemeyi tamamla" : "Devam et"}
+            {busy ? (
+              <Busy />
+            ) : step === 2 ? (
+              zeroTestMode ? <Check size={17} /> : <CreditCard size={17} />
+            ) : null}
+            {step === 2
+              ? zeroTestMode
+                ? "0 TL ile paketi aktifleştir"
+                : "Ödemeyi tamamla"
+              : "Devam et"}
             {step < 2 ? <ArrowRight size={16} /> : null}
           </button>
         </div>
