@@ -1,10 +1,7 @@
-import Dashboard from "@/components/product/dashboard";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Canlı Demo · Neta Randevu",
-  description: "Neta Randevu işletme panelini üyelik oluşturmadan inceleyin.",
-};
+export const dynamic = "force-dynamic";
 
 export default function DemoPage() {
-  return <Dashboard />;
+  redirect("/panel?demo=1");
 }
