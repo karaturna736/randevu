@@ -206,9 +206,21 @@ export async function workspace(id?: string) {
       b.id,
     ),
   ]);
+  const plan = await tenantPlan(b.id),
+    planLimits = PLAN_LIMITS[plan];
   return {
     business: b,
     businesses,
+    entitlements: {
+      plan,
+      label: planLimits.label,
+      modules: planLimits.modules,
+      branches: planLimits.branches,
+      staff: planLimits.staff,
+      advancedReports: planLimits.advancedReports,
+      whatsappMonthly: planLimits.whatsappMonthly,
+      aiDaily: planLimits.aiDaily,
+    },
     services: rs[0].results,
     staff: rs[1].results,
     appointments: rs[2].results,

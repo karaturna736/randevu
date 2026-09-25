@@ -91,10 +91,12 @@ export async function branchSnapshot(tenantId: string, monthInput?: string) {
     tenantId,
     month,
   );
-  const catalog = await all(
-    "SELECT * FROM expense_catalog_items WHERE tenant_id=? AND active=1 ORDER BY category,name",
-    tenantId,
-  );
+  const catalog = limits.modules.accounting
+    ? await all(
+        "SELECT * FROM expense_catalog_items WHERE tenant_id=? AND active=1 ORDER BY category,name",
+        tenantId,
+      )
+    : [];
   const rows = branches.map((b: any) => ({
     ...b,
     revenue: Number(b.revenue),

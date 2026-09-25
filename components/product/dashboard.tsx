@@ -114,6 +114,27 @@ const NAV = [
   { id: "help", title: "Yardım merkezi", icon: LifeBuoy },
   { id: "settings", title: "Ayarlar", icon: SettingsIcon },
 ];
+
+const VIEW_MODULES: Record<string, string> = {
+  receivables: "receivables",
+  journeys: "journeys",
+  growth: "growth",
+  recovery: "recovery",
+  demand: "demand",
+  "service-report": "serviceReport",
+  reports: "revenueReport",
+  branches: "branchProfit",
+  whatsapp: "whatsapp",
+  integrations: "whatsapp",
+  "setup-center": "setupCenter",
+};
+function planAllowsView(w: any, id: string) {
+  const module = VIEW_MODULES[id];
+  if (!module) return true;
+  if (w?.preview || w?.business?.demo) return true;
+  return !!w?.entitlements?.modules?.[module];
+}
+
 const TITLES: Record<string, [string, string]> = {
   receivables: [
     "Alacaklarınız kaybolmasın.",
@@ -259,7 +280,7 @@ function SideNavigation({ w, view, navigate, onSetup, selectBusiness }: any) {
       <SidebarContent>
         <span className="nav-label">ÇALIŞMA ALANI</span>
         <SidebarMenu>
-          {NAV.map((n, i) => (
+          {NAV.filter((n) => planAllowsView(w, n.id)).map((n, i) => (
             <SidebarMenuItem
               key={n.id}
               className={i === 6 ? "nav-section-break" : ""}
@@ -419,8 +440,12 @@ export default function Dashboard({
   };
   const openBooking = useCallback(() => setBooking({}), []);
   useAppointmentTools(w, openBooking);
-  const [title, description] = sectorHeading(view, w);
-  const navTitle = NAV.find((n) => n.id === view)?.title || "Geri kazanma";
+  const activeView = planAllowsView(w, view) ? view : "overview";
+  const canUseAssistant =
+    w.preview || w.business?.demo || Number(w.entitlements?.aiDaily || 0) > 0;
+  const [title, description] = sectorHeading(activeView, w);
+  const navTitle =
+    NAV.find((n) => n.id === activeView)?.title || "Genel bakış";
   if (
     !loading &&
     w.preview &&
@@ -448,7 +473,7 @@ export default function Dashboard({
     <SidebarProvider style={{ "--sidebar-width": "238px" } as any}>
       <SideNavigation
         w={w}
-        view={view}
+        view={activeView}
         navigate={setView}
         selectBusiness={(id: string) => {
           setSelected(null);
@@ -497,13 +522,15 @@ export default function Dashboard({
                 <Link2 size={16} />
                 Randevu linkim
               </button>
-              <button
-                className="button assistant-trigger"
-                onClick={() => setAssistant(true)}
-              >
-                <Sparkles size={16} />
-                Randevu asistanı
-              </button>
+              {canUseAssistant && (
+                <button
+                  className="button assistant-trigger"
+                  onClick={() => setAssistant(true)}
+                >
+                  <Sparkles size={16} />
+                  Randevu asistanı
+                </button>
+              )}
               <button className="button primary" onClick={openBooking}>
                 <Plus size={18} />
                 Yeni randevu
@@ -555,7 +582,7 @@ export default function Dashboard({
               randevu sayfası onaydan sonra açılır.
             </div>
           ) : null}
-          {view === "overview" && (
+          {activeView === "overview" && (
             <>
               <BookingLink w={w} compact onNavigate={setView} />
               <BusinessChecklist
@@ -571,51 +598,51 @@ export default function Dashboard({
               />
             </>
           )}{" "}
-          {view === "appointments" && (
+          {activeView === "appointments" && (
             <Appointments w={w} onSelect={setSelected} />
           )}{" "}
-          {view === "calendar" && <Calendar w={w} onSelect={setSelected} />}{" "}
-          {(view === "customers" || view === "retention") && (
+          {activeView === "calendar" && <Calendar w={w} onSelect={setSelected} />}{" "}
+          {(activeView === "customers" || activeView === "retention") && (
             <Customers
               w={w}
-              retention={view === "retention"}
+              retention={activeView === "retention"}
               onSelect={setCustomer}
             />
           )}{" "}
-          {(view === "services" || view === "staff") && (
+          {(activeView === "services" || activeView === "staff") && (
             <Management
               key={w.business.id + view}
               w={w}
-              view={view}
+              view={activeView}
               refresh={() => refresh(w.business.id)}
               requireReal={requireReal}
             />
           )}{" "}
-          {view === "demand" && <DemandInsights w={w} onNavigate={setView} />}{" "}
-          {view === "service-report" && <ServiceInsights w={w} />}{" "}
-          {view === "reports" && <Reports w={w} />}{" "}
-          {view === "branches" && (
+          {activeView === "demand" && <DemandInsights w={w} onNavigate={setView} />}{" "}
+          {activeView === "service-report" && <ServiceInsights w={w} />}{" "}
+          {activeView === "reports" && <Reports w={w} />}{" "}
+          {activeView === "branches" && (
             <BranchProfitability key={w.business.id} w={w} />
           )}{" "}
-          {view === "receivables" && (
+          {activeView === "receivables" && (
             <Receivables key={w.business.id} w={w} requireReal={requireReal} />
           )}{" "}
-          {view === "journeys" && (
+          {activeView === "journeys" && (
             <Journeys key={w.business.id} w={w} requireReal={requireReal} />
           )}{" "}
-          {view === "share" && <BookingLink key={w.business.id} w={w} />}{" "}
-          {view === "growth" && (
+          {activeView === "share" && <BookingLink key={w.business.id} w={w} />}{" "}
+          {activeView === "growth" && (
             <Growth key={w.business.id} w={w} requireReal={requireReal} />
           )}{" "}
-          {view === "recovery" && <RecoveryEngine key={w.business.id} w={w} />}{" "}
-          {(view === "whatsapp" || view === "integrations") && (
+          {activeView === "recovery" && <RecoveryEngine key={w.business.id} w={w} />}{" "}
+          {(activeView === "whatsapp" || activeView === "integrations") && (
             <WhatsAppPanel key={w.business.id} w={w} onNavigate={setView} />
           )}{" "}
-          {view === "help" && (
+          {activeView === "help" && (
             <HelpCenter key={w.business.id} w={w} onNavigate={setView} />
           )}{" "}
-          {view === "setup-center" && <SetupCenter key={w.business.id} w={w} />}{" "}
-          {view === "settings" && (
+          {activeView === "setup-center" && <SetupCenter key={w.business.id} w={w} />}{" "}
+          {activeView === "settings" && (
             <Settings
               key={w.business.id}
               w={w}
