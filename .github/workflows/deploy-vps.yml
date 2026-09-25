@@ -85,4 +85,4 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
           VPS_USER: ${{ secrets.VPS_USER || 'root' }}
         run: |
-          ssh -o BatchMode=yes "$VPS_USER@$VPS_HOST" "set -a; source /etc/neta/neta.env; set +a; ALLOW_LOAD_TEST=1 LOAD_TEST_USERS=250 node /opt/neta/current/scripts/load-test-100.mjs"
+          ssh -o BatchMode=yes "$VPS_USER@$VPS_HOST" "set -a; source /etc/neta/neta.env; set +a; LOAD_TEST_USERS=250 bash /opt/neta/current/scripts/run-isolated-load-test.sh"
