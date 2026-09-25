@@ -2,6 +2,7 @@ import { z } from "zod";
 import { body, fail, limit, ok } from "@/lib/server";
 import {
   cancelTemporaryPayment,
+  completeTemporaryTestPayment,
   prepareTemporaryPayment,
   reviewTemporaryPayment,
   saveTemporaryPaymentSettings,
@@ -33,6 +34,10 @@ export async function POST(request: Request) {
     if (action === "prepare") {
       await limit(request, "temporary-payment-prepare", 8);
       return ok(await prepareTemporaryPayment(input), 201);
+    }
+    if (action === "complete_test") {
+      await limit(request, "temporary-payment-test-complete", 8);
+      return ok(await completeTemporaryTestPayment(input));
     }
     if (action === "submitted") {
       await limit(request, "temporary-payment-submit", 12);
