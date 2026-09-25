@@ -36,6 +36,7 @@ class Prepared {
     const result = getDatabase().prepare(this.sql).run(...this.params);
     return {
       success: true,
+      results: [],
       meta: {
         changes: result.changes,
         last_row_id: Number(result.lastInsertRowid),
@@ -53,8 +54,23 @@ class D1CompatibleDatabase {
     return getDatabase().transaction(() =>
       statements.map((statement) => {
         const internal = statement as unknown as { sql: string; params: Params };
-        const result = getDatabase().prepare(internal.sql).run(...internal.params);
-        return { success: true, meta: { changes: result.changes } };
+        const prepared = getDatabase().prepare(internal.sql);
+        if (prepared.reader) {
+          return {
+            success: true,
+            results: prepared.all(...internal.params),
+            meta: { changes: 0 },
+          };
+        }
+        const result = prepared.run(...internal.params);
+        return {
+          success: true,
+          results: [],
+          meta: {
+            changes: result.changes,
+            last_row_id: Number(result.lastInsertRowid),
+          },
+        };
       }),
     )();
   }
