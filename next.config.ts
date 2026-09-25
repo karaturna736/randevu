@@ -6,7 +6,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""} https://*.iyzipay.com https://*.iyzico.com`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https://*.iyzipay.com https://*.iyzico.com",
   "font-src 'self' data:",
   "connect-src 'self' https://*.iyzipay.com https://*.iyzico.com",
   "frame-src 'self' https://*.iyzipay.com https://*.iyzico.com",
