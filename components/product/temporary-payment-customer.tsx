@@ -67,7 +67,7 @@ function Wizard() {
     try {
       const next: any = await temporary();
       setData(next);
-      if (next.request?.status === "approved" && next.request?.tenant_id)
+      if (!next.test_mode && next.request?.status === "approved" && next.request?.tenant_id)
         location.replace("/panel?tenant=" + encodeURIComponent(next.request.tenant_id));
     } catch (e: any) {
       setError(e.message);
