@@ -386,7 +386,11 @@ async function receive(c: any, m: any) {
                 `${i + 1}. ${slot.time} · ${slot.staff_name}`,
             )
             .join("\n") +
-          "\nSeçmek için saat numarasını yazın. Saatiniz son onayda ayrılır.";
+          "\nSeçmek için saat numarasını yazın. Saatiniz son onayda ayrılır." +
+          "\n\nNeta üzerinden randevu almak için: " +
+          appOrigin() +
+          "/" +
+          b.slug;
       } else {
         next = { stage: "services" };
         reply =
@@ -402,8 +406,7 @@ async function receive(c: any, m: any) {
           "\n" +
           services
             .map(
-              (s: any, i: number) => `${i + 1}. ${s.name} · ${money(s.price)}`,
-            )
+              (s: any, i: number) => `${i + 1}. ${s.name} · ${money(s.price)}`)
             .join("\n") +
           "\nHizmet numarası veya “hizmet adı + gün” yazın. İnternetten: " +
           appOrigin() +
