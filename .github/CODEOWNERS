@@ -1,0 +1,13 @@
+# Kritik üretim ve güvenlik alanları
+/.github/workflows/ @karaturna736
+/.github/dependabot.yml @karaturna736
+/deploy/ @karaturna736
+/scripts/package-vps.sh @karaturna736
+/next.config.ts @karaturna736
+/lib/security.ts @karaturna736
+/lib/admin-access.ts @karaturna736
+/lib/identity.ts @karaturna736
+/lib/server.ts @karaturna736
+/lib/billing.ts @karaturna736
+/lib/recurring.ts @karaturna736
+/lib/temporary-payments.ts @karaturna736
