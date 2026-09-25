@@ -32,7 +32,7 @@ const campaignForm = z
     description: z.string().trim().max(500).default(""),
     discount_type: z.enum(["percentage", "fixed"]),
     discount_value: z.number().int().positive().max(100000000),
-    target_type: z.enum(["all", "new", "selected", "plan"]),
+    target_type: z.enum(["all", "new", "selected", "selected_users", "plan"]),
     applicable_plans: z.array(planCode).min(1).max(3),
     starts_at: z.string().datetime(),
     ends_at: z.string().datetime(),
@@ -42,6 +42,7 @@ const campaignForm = z
     recurring_enabled: z.boolean(),
     active: z.boolean(),
     business_ids: z.array(z.string().min(1)).max(500).default([]),
+    user_ids: z.array(z.string().min(1)).max(400).default([]),
   })
   .superRefine((value, context) => {
     if (value.starts_at >= value.ends_at)
@@ -61,6 +62,12 @@ const campaignForm = z
         code: "custom",
         path: ["business_ids"],
         message: "En az bir işletme seçin.",
+      });
+    if (value.target_type === "selected_users" && !value.user_ids.length)
+      context.addIssue({
+        code: "custom",
+        path: ["user_ids"],
+        message: "En az bir kayıtlı kullanıcı seçin.",
       });
     if (value.first_payment_only && value.recurring_enabled)
       context.addIssue({
@@ -94,7 +101,7 @@ type CampaignRow = {
   description: string;
   discount_type: "percentage" | "fixed";
   discount_value: number;
-  target_type: "all" | "new" | "selected" | "plan";
+  target_type: "all" | "new" | "selected" | "selected_users" | "plan";
   applicable_plans: string;
   starts_at: string;
   ends_at: string;
@@ -211,6 +218,15 @@ export async function quoteCampaign(input: {
       )
         throw new ApiError("Bu kampanya işletmenize tanımlı değil.", 403);
     }
+    if (
+      row.target_type === "selected_users" &&
+      !(await one(
+        "SELECT 1 ok FROM campaign_users WHERE campaign_id=? AND user_id=?",
+        row.id,
+        input.userId,
+      ))
+    )
+      throw new ApiError("Bu kampanya hesabınıza özel olarak tanımlanmamış.", 403);
     const used = await one(
       "SELECT COUNT(*) total,SUM(CASE WHEN business_id=? OR (business_id IS NULL AND user_id=?) THEN 1 ELSE 0 END) subject FROM campaign_redemptions WHERE campaign_id=? AND status IN ('reserved','succeeded')",
       businessId,
@@ -220,7 +236,7 @@ export async function quoteCampaign(input: {
     if (row.total_usage_limit && used.total >= row.total_usage_limit)
       throw new ApiError("Kampanyanın toplam kullanım limiti doldu.", 409);
     if (row.per_business_limit && used.subject >= row.per_business_limit)
-      throw new ApiError("İşletmeniz bu kampanyanın kullanım limitine ulaştı.", 409);
+      throw new ApiError("Hesabınız bu kampanyanın kullanım limitine ulaştı.", 409);
     if (!Number.isInteger(input.originalAmount) || input.originalAmount < 100)
       throw new ApiError("Paket fiyatı doğrulanamadı.", 409);
     const discount = computeDiscount(row, input.originalAmount);
@@ -313,6 +329,7 @@ export async function reserveCampaign(input: {
        WHERE c.id=? AND c.active=1 AND c.deleted_at IS NULL AND c.starts_at<=? AND c.ends_at>=?
        AND instr(c.applicable_plans,?)>0
        AND (c.target_type!='selected' OR EXISTS(SELECT 1 FROM campaign_businesses cb WHERE cb.campaign_id=c.id AND cb.business_id=?))
+       AND (c.target_type!='selected_users' OR EXISTS(SELECT 1 FROM campaign_users cu WHERE cu.campaign_id=c.id AND cu.user_id=?))
        AND (c.target_type!='new' OR ?=1)
        AND (c.first_payment_only=0 OR ?=1)
        AND (?=1 OR c.recurring_enabled=1)
@@ -334,6 +351,7 @@ export async function reserveCampaign(input: {
       stamp,
       `"${input.quote.plan}"`,
       input.businessId,
+      input.userId,
       input.isFirstPayment ? 1 : 0,
       input.isFirstPayment ? 1 : 0,
       input.isFirstPayment ? 1 : 0,
@@ -374,6 +392,7 @@ export async function platformCampaigns() {
   const campaigns = await all(
     `SELECT c.*,
       (SELECT COUNT(*) FROM campaign_businesses cb WHERE cb.campaign_id=c.id) selected_businesses,
+      (SELECT COUNT(*) FROM campaign_users cu WHERE cu.campaign_id=c.id) selected_users,
       (SELECT COUNT(*) FROM campaign_redemptions r WHERE r.campaign_id=c.id AND r.status='succeeded') usage_count,
       (SELECT COUNT(DISTINCT COALESCE(r.business_id,r.user_id)) FROM campaign_redemptions r WHERE r.campaign_id=c.id AND r.status='succeeded') acquired_businesses,
       (SELECT COALESCE(SUM(r.discount_amount),0) FROM campaign_redemptions r WHERE r.campaign_id=c.id AND r.status='succeeded') total_discount,
@@ -387,9 +406,13 @@ export async function platformCampaigns() {
       ...campaign,
       applicable_plans: parsePlans(campaign.applicable_plans),
       business_ids: [],
+      user_ids: [],
     })),
     assignments: await all(
       "SELECT campaign_id,business_id FROM campaign_businesses ORDER BY created_at",
+    ),
+    user_assignments: await all(
+      "SELECT campaign_id,user_id FROM campaign_users ORDER BY created_at",
     ),
     businesses: await all(
       `SELECT b.id,b.name,
@@ -397,13 +420,35 @@ export async function platformCampaigns() {
         COALESCE((SELECT m.email FROM members m WHERE m.tenant_id=b.id AND m.role='owner' ORDER BY m.user_id LIMIT 1),'') owner_email,
         b.selected_plan current_plan,
         COALESCE((SELECT rs.state FROM recurring_subscriptions rs WHERE rs.tenant_id=b.id),b.status) subscription_status,
-        1 branch_count
-       FROM businesses b WHERE b.demo=0 AND b.status!='deleted' ORDER BY b.name LIMIT 1000`,
+        (SELECT COUNT(*) FROM branches br WHERE br.tenant_id=b.id AND br.active=1) branch_count
+       FROM businesses b WHERE b.demo=0 AND b.status!='deleted' ORDER BY b.name LIMIT 2000`,
+    ),
+    users: await all(
+      `WITH registered AS (
+        SELECT p.user_id,p.name,p.email,p.phone,p.city,p.account_type,p.disabled,p.marketing_consent,p.created_at
+        FROM profiles p
+        UNION ALL
+        SELECT m.user_id,MAX(m.name) name,MAX(m.email) email,'' phone,'' city,'business' account_type,MAX(m.disabled) disabled,0 marketing_consent,'' created_at
+        FROM members m
+        WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.user_id=m.user_id)
+        GROUP BY m.user_id
+      )
+      SELECT r.*,
+        (SELECT COUNT(DISTINCT m.tenant_id) FROM members m JOIN businesses b ON b.id=m.tenant_id WHERE m.user_id=r.user_id AND m.disabled=0 AND b.demo=0 AND b.status!='deleted') business_count,
+        COALESCE((SELECT GROUP_CONCAT(b.name,' · ') FROM members m JOIN businesses b ON b.id=m.tenant_id WHERE m.user_id=r.user_id AND m.disabled=0 AND b.demo=0 AND b.status!='deleted'),'') business_names,
+        COALESCE((SELECT GROUP_CONCAT(b.selected_plan,',') FROM members m JOIN businesses b ON b.id=m.tenant_id WHERE m.user_id=r.user_id AND m.disabled=0 AND b.demo=0 AND b.status!='deleted'),'') business_plans
+      FROM registered r
+      ORDER BY CASE WHEN r.created_at='' THEN 1 ELSE 0 END,r.created_at DESC,r.name
+      LIMIT 2000`,
     ),
     redemptions: await all(
-      `SELECT r.*,c.name campaign_name,c.code campaign_code,b.name business_name
+      `SELECT r.*,c.name campaign_name,c.code campaign_code,b.name business_name,
+        COALESCE(p.name,m.name,'') user_name,COALESCE(p.email,m.email,'') user_email
        FROM campaign_redemptions r JOIN campaigns c ON c.id=r.campaign_id
-       LEFT JOIN businesses b ON b.id=r.business_id ORDER BY r.created_at DESC LIMIT 500`,
+       LEFT JOIN businesses b ON b.id=r.business_id
+       LEFT JOIN profiles p ON p.user_id=r.user_id
+       LEFT JOIN members m ON m.user_id=r.user_id AND m.role='owner'
+       GROUP BY r.id ORDER BY r.created_at DESC LIMIT 500`,
     ),
     daily: await all(
       `SELECT substr(redeemed_at,1,10) day,COUNT(*) uses,SUM(discount_amount) discount,SUM(final_amount) revenue
@@ -459,13 +504,24 @@ export async function campaignOperation(input: unknown) {
     );
   if (unique) throw new ApiError("Bu kampanya kodu kullanımda.", 409);
   if (form.target_type === "selected") {
-    const placeholders = form.business_ids.map(() => "?").join(",");
-    const count = await one(
-      `SELECT COUNT(*) n FROM businesses WHERE id IN (${placeholders}) AND demo=0 AND status!='deleted'`,
-      ...form.business_ids,
-    );
-    if (count.n !== new Set(form.business_ids).size)
+    const ids = [...new Set(form.business_ids)],
+      placeholders = ids.map(() => "?").join(","),
+      count = await one(
+        `SELECT COUNT(*) n FROM businesses WHERE id IN (${placeholders}) AND demo=0 AND status!='deleted'`,
+        ...ids,
+      );
+    if (count.n !== ids.length)
       throw new ApiError("Seçilen işletmelerden biri geçersiz.", 409);
+  }
+  if (form.target_type === "selected_users") {
+    const ids = [...new Set(form.user_ids)],
+      placeholders = ids.map(() => "?").join(","),
+      count = await one(
+        `SELECT COUNT(*) n FROM (SELECT user_id FROM profiles UNION SELECT user_id FROM members) registered WHERE user_id IN (${placeholders})`,
+        ...ids,
+      );
+    if (count.n !== ids.length)
+      throw new ApiError("Seçilen kullanıcılardan biri artık kayıtlı değil.", 409);
   }
   const operations: ReturnType<typeof q>[] = [];
   if (action === "create")
@@ -517,6 +573,7 @@ export async function campaignOperation(input: unknown) {
         id,
       ),
       q("DELETE FROM campaign_businesses WHERE campaign_id=?", id),
+      q("DELETE FROM campaign_users WHERE campaign_id=?", id),
     );
   }
   if (form.target_type === "selected")
@@ -527,6 +584,17 @@ export async function campaignOperation(input: unknown) {
           uid(),
           id,
           businessId,
+          stamp,
+        ),
+      );
+  if (form.target_type === "selected_users")
+    for (const userId of new Set(form.user_ids))
+      operations.push(
+        q(
+          "INSERT INTO campaign_users(id,campaign_id,user_id,created_at) VALUES(?,?,?,?)",
+          uid(),
+          id,
+          userId,
           stamp,
         ),
       );
