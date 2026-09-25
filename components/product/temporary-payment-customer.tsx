@@ -113,6 +113,23 @@ function Wizard() {
     }
   }
 
+  async function completeTest() {
+    setBusy(true);
+    setError("");
+    try {
+      const result: any = await temporary({ action: "complete_test", request_id: data.request.id });
+      if (result.tenant_id) {
+        location.replace("/panel?tenant=" + encodeURIComponent(result.tenant_id));
+        return;
+      }
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submitted() {
     setBusy(true);
     setError("");
@@ -132,28 +149,39 @@ function Wizard() {
   if (current && ["awaiting_payment", "awaiting_review", "approving"].includes(current.status)) {
     return (
       <section className="panel payment-checkout">
-        <span className="eyebrow">IYZICO LINK · GÜVENLİ ÖDEME</span>
+        <span className="eyebrow">{data.test_mode ? "YÖNETİCİ TEST ÖDEMESİ · 0 TL" : "IYZICO LINK · GÜVENLİ ÖDEME"}</span>
         <h1>{current.business_name}</h1>
         <div className="payment-total">
           <span>{data.plans.find((item: any) => item.code === current.plan)?.name}</span>
           <strong>{money(current.amount)} / 30 gün</strong>
         </div>
         {current.status === "awaiting_payment" ? (
-          <>
-            <p>Kart işlemi iyzico'nun kendi güvenli sayfasında tamamlanır. Neta kart bilgisi almaz veya saklamaz.</p>
-            <a className="button primary full" href={current.payment_url} target="_blank" rel="noopener noreferrer">
-              iyzico ödeme sayfasını aç <ExternalLink size={16} />
-            </a>
-            <Field label="Ödeme yapan kişi / kısa not">
-              <Input maxLength={240} value={note} onChange={(event) => setNote(event.target.value)} />
-            </Field>
-            <button className="button primary" disabled={busy} onClick={submitted}>
-              {busy ? <Busy /> : <Check size={16} />} Ödemeyi yaptım, doğrulamaya gönder
-            </button>
-          </>
+          data.test_mode ? (
+            <>
+              <div className="notice">
+                <ShieldCheck size={18} /> Bu işlem gerçek tahsilat yapmaz. Yalnızca platform yöneticisi seçtiği paketin özellik kilitlerini gerçek veritabanı üzerinde test eder.
+              </div>
+              <button className="button primary full" disabled={busy} onClick={completeTest}>
+                {busy ? <Busy /> : <Check size={16} />} 0 TL test ödemesini tamamla ve paketi aç
+              </button>
+            </>
+          ) : (
+            <>
+              <p>Kart işlemi iyzico'nun kendi güvenli sayfasında tamamlanır. Neta kart bilgisi almaz veya saklamaz.</p>
+              <a className="button primary full" href={current.payment_url} target="_blank" rel="noopener noreferrer">
+                iyzico ödeme sayfasını aç <ExternalLink size={16} />
+              </a>
+              <Field label="Ödeme yapan kişi / kısa not">
+                <Input maxLength={240} value={note} onChange={(event) => setNote(event.target.value)} />
+              </Field>
+              <button className="button primary" disabled={busy} onClick={submitted}>
+                {busy ? <Busy /> : <Check size={16} />} Ödemeyi yaptım, doğrulamaya gönder
+              </button>
+            </>
+          )
         ) : (
           <div className="notice">
-            <ShieldCheck size={18} /> Ödeme yönetici tarafından iyzico hesabında doğrulanıyor. Doğrulanmadan panel erişimi açılmaz.
+            <ShieldCheck size={18} /> {data.test_mode ? "Test paketi aktifleştiriliyor." : "Ödeme yönetici tarafından iyzico hesabında doğrulanıyor. Doğrulanmadan panel erişimi açılmaz."}
           </div>
         )}
         {error && <p className="error-message">{error}</p>}
@@ -165,9 +193,9 @@ function Wizard() {
     <>
       <div className="member-heading">
         <div>
-          <span className="eyebrow">GEÇİCİ GERÇEK ÖDEME</span>
-          <h1>İşletmenizi 30 gün için aktifleştirin.</h1>
-          <p>Ödeme iyzico Link üzerinden alınır ve yönetici doğrulamasından sonra kullanıma hazır panel açılır.</p>
+          <span className="eyebrow">{data.test_mode ? "PAKET TESTİ · 0 TL" : "GEÇİCİ GERÇEK ÖDEME"}</span>
+          <h1>{data.test_mode ? "Standart, Pro ve Plus paketlerini gerçek kilitleriyle test edin." : "İşletmenizi 30 gün için aktifleştirin."}</h1>
+          <p>{data.test_mode ? "Bu ekran yalnız platform yöneticisinde 0 TL görünür. Normal müşterilere gerçek fiyat ve ödeme akışı gösterilmeye devam eder." : "Ödeme iyzico Link üzerinden alınır ve yönetici doğrulamasından sonra kullanıma hazır panel açılır."}</p>
         </div>
       </div>
       {!data.available ? (
@@ -200,7 +228,7 @@ function Wizard() {
           </div>
           {data.note && <div className="notice">{data.note}</div>}
           <label className="checkbox-line"><Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} /><span>30 günlük erişim ve kullanım koşullarını kabul ediyorum.</span></label>
-          <button className="button primary full" disabled={busy || !accepted}>{busy ? <Busy /> : <ArrowRight size={17} />} Ödeme bağlantısını hazırla</button>
+          <button className="button primary full" disabled={busy || !accepted}>{busy ? <Busy /> : <ArrowRight size={17} />} {data.test_mode ? "0 TL test ödemesini hazırla" : "Ödeme bağlantısını hazırla"}</button>
         </form>
       )}
       {error && <p className="error-message">{error}</p>}
