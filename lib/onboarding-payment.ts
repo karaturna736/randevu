@@ -28,13 +28,11 @@ const buyerSchema = z.object({
   city: z.string().trim().min(2).max(80),
   terms_accepted: z.literal(true, {
     errorMap: () => ({
-      message: "Abonelik koşullarını kabul etmeniz gerekiyor.",
-    }),
+      message: "Abonelik koşullarını kabul etmeniz gerekiyor." }),
   }),
   card_storage_accepted: z.literal(true, {
     errorMap: () => ({
-      message: "Aylık abonelik için güvenli kart saklama onayı gerekiyor.",
-    }),
+      message: "Aylık abonelik için güvenli kart saklama onayı gerekiyor." }),
   }),
 });
 const checkoutSchema = z.object({
@@ -260,7 +258,7 @@ export async function beginOnboardingPayment(input: any) {
     !plan
   )
     throw new ApiError("iyzico abonelik hesabı henüz satışa açılmadı.", 503);
-  if (!connection.live)
+  if (!connection.live && !(await isAdmin(owner)))
     throw new ApiError("Ödeme sağlayıcısı test aşamasında.", 403);
   if (x.campaign_code) {
     await quoteCampaign({
