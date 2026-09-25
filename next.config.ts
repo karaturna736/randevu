@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const contentSecurityPolicy = [
@@ -17,6 +18,19 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  ...(process.env.VPS_BUILD === "true" ? { output: "standalone" as const } : {}),
+  serverExternalPackages: ["better-sqlite3"],
+  webpack(config, { webpack }) {
+    if (process.env.VPS_BUILD === "true") {
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(
+          /^cloudflare:workers$/,
+          path.resolve(process.cwd(), "lib/cloudflare-workers-vps.ts"),
+        ),
+      );
+    }
+    return config;
+  },
   poweredByHeader: false,
   async headers() {
     return [

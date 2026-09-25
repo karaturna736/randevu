@@ -37,6 +37,7 @@ export async function available(
   person = "any",
   exclude = "",
   durationOverride?: number,
+  branchId?: string,
 ) {
   dateSchema.parse(d);
   if (d < today() || d > addDays(today(), 90))
@@ -48,9 +49,16 @@ export async function available(
   );
   if (!s) throw new ApiError("Hizmet bulunamadı.", 404);
   const duration = durationOverride ?? s.duration;
+  if (
+    branchId &&
+    !(await one("SELECT 1 ok FROM branches WHERE tenant_id=? AND id=? AND active=1", b.id, branchId))
+  )
+    throw new ApiError("Şube bulunamadı.", 404);
   const team = await all(
-      "SELECT * FROM staff WHERE tenant_id=? AND active=1",
+      "SELECT * FROM staff WHERE tenant_id=? AND active=1 AND (? IS NULL OR branch_id IS NULL OR branch_id=?)",
       b.id,
+      branchId || null,
+      branchId || null,
     ),
     closed = await all(
       "SELECT staff_id FROM closures WHERE tenant_id=? AND date=?",
@@ -94,6 +102,7 @@ export async function available(
   return slots.sort((a, b) => a.minute - b.minute);
 }
 const booking = z.object({
+  branch_id: z.string().min(1).optional(),
   service_id: z.string(),
   staff_id: z.string(),
   date: dateSchema,
@@ -165,6 +174,19 @@ export async function book(
       x.service_id,
     );
   if (!service) throw new ApiError("Hizmet bulunamadı.", 404);
+  const staff = await one(
+    "SELECT * FROM staff WHERE tenant_id=? AND id=? AND active=1",
+    b.id,
+    x.staff_id,
+  );
+  if (!staff) throw new ApiError("Uzman bulunamadı.", 404);
+  const branch = x.branch_id
+    ? await one("SELECT id FROM branches WHERE tenant_id=? AND id=? AND active=1", b.id, x.branch_id)
+    : staff.branch_id
+      ? { id: staff.branch_id }
+      : await one("SELECT id FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC LIMIT 1", b.id);
+  if (!branch || (staff.branch_id && staff.branch_id !== branch.id))
+    throw new ApiError("Uzman bu şubede çalışmıyor.", 404);
   if (x.early_from != null && x.early_from >= x.minute)
     throw new ApiError("Erken geliş saati randevunuzdan önce olmalı.");
   const slots = await available(
@@ -174,12 +196,13 @@ export async function book(
     x.staff_id,
     "",
     service.duration,
+    branch.id,
   );
   if (!slots.some((s) => s.minute === x.minute))
     throw new ApiError("Bu saat dolu. Başka bir saat seçin.", 409);
   const id = uid(),
     token = secret(),
-    channel = z.enum(["web", "panel", "whatsapp"]).parse(source),
+    channel = z.enum(["web", "panel", "whatsapp", "recovery"]).parse(source),
     meetingUrl =
       b.online_enabled && service.delivery_mode !== "in_person"
         ? service.meeting_url
@@ -196,9 +219,10 @@ export async function book(
       now(),
     ),
     q(
-      "INSERT INTO appointments (id,tenant_id,customer_id,service_id,staff_id,date,minute,duration,price,status,source,meeting_url,token_hash,created_at,service_name_snapshot,service_description_snapshot,customer_note,early_from) VALUES (?,?,(SELECT id FROM customers WHERE tenant_id=? AND phone=?),?,?,?,?,?,?,'confirmed',?,?,?,?,?,?,?,?)",
+      "INSERT INTO appointments (id,tenant_id,branch_id,customer_id,service_id,staff_id,date,minute,duration,price,status,source,meeting_url,token_hash,created_at,service_name_snapshot,service_description_snapshot,customer_note,early_from) VALUES (?,?,?,(SELECT id FROM customers WHERE tenant_id=? AND phone=?),?,?,?,?,?,?,'confirmed',?,?,?,?,?,?,?,?)",
       id,
       b.id,
+      branch.id,
       b.id,
       x.phone,
       x.service_id,
@@ -343,6 +367,19 @@ export async function change(
   if (status === "cancelled")
     ops.push(
       q("DELETE FROM slots WHERE tenant_id=? AND appointment_id=?", b.id, a.id),
+      q(
+        "INSERT OR IGNORE INTO recovery_slots(id,tenant_id,source_appointment_id,service_id,staff_id,date,minute,duration,price,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,'queued',?)",
+        uid(),
+        b.id,
+        a.id,
+        a.service_id,
+        a.staff_id,
+        a.date,
+        a.minute,
+        a.duration,
+        a.price,
+        now(),
+      ),
       event(b.id, a.id, "cancelled"),
     );
   await db().batch([...ops, ...extraOps]);

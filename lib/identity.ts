@@ -42,7 +42,6 @@ export function authStatus() {
       config().GOOGLE_CLIENT_SECRET &&
       appOrigin()
     ),
-    chatgpt: true,
   };
 }
 export async function getAppUser() {
@@ -234,7 +233,7 @@ export async function signOutApp(req: Request) {
     await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash=?")
       .bind(await digest(token))
       .run();
-  return redirect("/signout-with-chatgpt?return_to=%2Fgiris", [
+  return redirect(token ? "/giris" : "/signout-with-chatgpt?return_to=%2Fgiris", [
     cookie(SESSION, "", 0),
     cookie(FLOW, "", 0),
   ]);
