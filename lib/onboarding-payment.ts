@@ -54,6 +54,18 @@ const redirect = (path: string) =>
     },
   });
 
+async function zeroCheckoutEnabled(actor: any) {
+  let host = "";
+  try {
+    host = new URL(appOrigin() || "").hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (host !== "netarandevu.com" && host !== "www.netarandevu.com")
+    return false;
+  return isAdmin(actor);
+}
+
 export async function accountPaymentState(userId: string) {
   const access = await paidTenant(userId);
   if (access)
@@ -86,7 +98,7 @@ export async function accountPaymentState(userId: string) {
 
 export async function currentPaymentState() {
   const u = await user();
-  if (await isAdmin(u))
+  if (await zeroCheckoutEnabled(u))
     return {
       state: "pending_payment",
       zero_test_mode: true,
@@ -119,7 +131,7 @@ export function onboardingPaymentStatus() {
 
 export async function beginOnboardingPayment(input: any) {
   const owner = await user(),
-    platformAdmin = await isAdmin(owner);
+    platformAdmin = await zeroCheckoutEnabled(owner);
   if (!platformAdmin) {
     const current = await accountPaymentState(owner.userId);
     if (current.state === "active")
