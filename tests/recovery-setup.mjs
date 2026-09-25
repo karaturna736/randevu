@@ -20,7 +20,7 @@ const mf = new Miniflare({
   compatibilityDate: "2026-05-15",
   compatibilityFlags: ["nodejs_compat"],
   d1Databases: ["DB"],
-  bindings: { PLATFORM_ADMIN_USER_IDS: "admin" },
+  bindings: { PLATFORM_ADMIN_USER_IDS: "admin", CHATGPT_AUTH_ENABLED: "true" },
   cf: false,
   outboundService: () => {
     throw new Error("No external traffic");
