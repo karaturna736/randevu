@@ -73,13 +73,15 @@ jobs:
           test -n "$VPS_SSH_PRIVATE_KEY"
           printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 0600 ~/.ssh/id_ed25519
-      - name: Upload release
+      - name: Upload release and Nginx policy
         env:
           VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
           VPS_USER: ${{ secrets.VPS_USER || 'root' }}
         run: |
           set -euo pipefail
-          scp -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes /tmp/neta-vps-release.tar.gz "$VPS_USER@$VPS_HOST:/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
+          SCP_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          scp $SCP_OPTS /tmp/neta-vps-release.tar.gz "$VPS_USER@$VPS_HOST:/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
+          scp $SCP_OPTS deploy/nginx-netarandevu.conf "$VPS_USER@$VPS_HOST:/tmp/neta-nginx-${GITHUB_SHA}.conf"
       - name: Deploy with rollback
         env:
           VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
@@ -90,6 +92,7 @@ jobs:
           SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
           ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
           ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl '$LETSENCRYPT_EMAIL'"
+          ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "set -e; sudo install -o root -g root -m 0644 /tmp/neta-nginx-${GITHUB_SHA}.conf /etc/nginx/sites-available/netarandevu; sudo nginx -t; sudo systemctl reload nginx; rm -f /tmp/neta-nginx-${GITHUB_SHA}.conf"
       - name: Verify production and security headers
         run: |
           set -euo pipefail
@@ -106,6 +109,10 @@ jobs:
           done
           if grep -qi '^x-powered-by:' <<< "$headers"; then
             echo "::error::X-Powered-By must not be exposed"
+            exit 1
+          fi
+          if grep -Eqi '^server:[[:space:]]*[^[:space:]]+/[0-9]' <<< "$headers"; then
+            echo "::error::Web server version must not be exposed"
             exit 1
           fi
           auth_status="$(curl --fail --show-error --silent --retry 6 --retry-delay 3 https://netarandevu.com/api/v1/auth-status)"
