@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { money } from "@/lib/types";
 
-async function request(body?: any) {
+async function request(body?: any): Promise<any> {
   const response = await fetch("/api/temporary-payment?scope=admin", {
     method: body ? "POST" : "GET",
     credentials: "same-origin",
@@ -17,7 +17,7 @@ async function request(body?: any) {
     headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const data = await response.json();
+  const data: any = await response.json();
   if (!response.ok) throw new Error(data.error || "İşlem tamamlanamadı.");
   return data;
 }
@@ -39,7 +39,7 @@ export default function TemporaryPaymentAdmin() {
 
   const load = useCallback(async () => {
     try {
-      const next = await request();
+      const next: any = await request();
       setData(next);
       setForm({
         active: !!next.settings.active,
