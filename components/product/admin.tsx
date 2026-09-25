@@ -41,11 +41,11 @@ const labels: Record<string, string> = {
   completed: "Tamamlandı",
   cancelled: "İptal edildi",
 };
-export default function Admin() {
+export default function Admin({ initialView = "businesses" }: { initialView?: string }) {
   const [data, setData] = useState<any>(null),
     [error, setError] = useState(""),
     [denied, setDenied] = useState(false),
-    [view, setView] = useState("businesses"),
+    [view, setView] = useState(initialView),
     [confirm, setConfirm] = useState<any>(null),
     [busy, setBusy] = useState(false);
   async function refresh() {
@@ -81,7 +81,7 @@ export default function Admin() {
           <div>
             <span className="eyebrow">PLATFORM YÖNETİMİ</span>
             <h1>Platformun nabzı.</h1>
-            <p>İşletmeler, kullanıcılar ve müşteri deneyimi.</p>
+            <p>İşletmeler, kayıtlı üyeler ve müşteri deneyimi.</p>
           </div>
           <span className="badge neutral">
             <Shield size={14} />
@@ -137,7 +137,7 @@ export default function Admin() {
                   icon: Shield,
                 },
                 {
-                  label: "İşletme kullanıcıları",
+                  label: "Kayıtlı kullanıcılar",
                   value: data.users.length,
                   icon: Users,
                 },
@@ -168,7 +168,7 @@ export default function Admin() {
                 <TabsList className="filter-tabs admin-tabs">
                   {[
                     ["businesses", "İşletmeler"],
-                    ["users", "Kullanıcılar"],
+                    ["users", "Kayıtlı üyeler"],
                     ["appointments", "Randevular"],
                     ["reviews", "Değerlendirmeler"],
                     ["complaints", "Şikâyetler"],
@@ -273,7 +273,8 @@ export default function Admin() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Kullanıcı</TableHead>
-                      <TableHead>İşletme</TableHead>
+                      <TableHead>Hesap türü</TableHead>
+                      <TableHead>İşletme sayısı</TableHead>
                       <TableHead>Durum</TableHead>
                       <TableHead>İşlem</TableHead>
                     </TableRow>
@@ -282,8 +283,13 @@ export default function Admin() {
                     {data.users.map((u: any) => (
                       <TableRow key={u.user_id}>
                         <TableCell>
-                          {u.name}
+                          <strong>{u.name}</strong>
                           <small>{u.email}</small>
+                        </TableCell>
+                        <TableCell>
+                          <span className="badge neutral">
+                            {u.account_type === "business" ? "İşletme" : "Müşteri"}
+                          </span>
                         </TableCell>
                         <TableCell>{u.businesses}</TableCell>
                         <TableCell>
