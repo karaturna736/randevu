@@ -342,8 +342,7 @@ export default function Landing() {
                 "Talep fırsatları ve kaçan gelir analizi",
                 "İşlem analizi ve gelir raporu",
                 "Şube kârlılığı · 3 şubeye kadar",
-                "Çift yönlü WhatsApp ve AI asistanı",
-                "Online ödeme altyapısına hazır entegrasyon",
+                "Çift yönlü WhatsApp ve AI / randevu asistanı",
                 "Günde 50 AI sorusu · ayda 1.000 WhatsApp mesajı",
               ].map((f) => (
                 <li key={f}>

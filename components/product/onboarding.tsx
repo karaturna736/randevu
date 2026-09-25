@@ -62,7 +62,7 @@ const plans = [
       "Borç / Veresiye ve Hizmet Yolculuğu",
       "Pazarlama, gelir kurtarma ve talep fırsatları",
       "İşlem analizi, gelir raporu ve şube kârlılığı",
-      "WhatsApp kurulumu, AI ve online ödeme",
+      "WhatsApp · ayda 1.000, AI · günde 50",
     ],
   },
   {
@@ -72,11 +72,11 @@ const plans = [
     description:
       "Tüm şubelerin gelirini, giderini ve büyümesini tek merkezden yönetin.",
     features: [
-      "Pro'daki her şey · sınırsız kullanım",
+      "Pro'daki her şey · daha yüksek kullanım limitleri",
       "Sınırsız şube ve personel",
-      "Muhasebe ve sınırsız kayıt",
+      "Muhasebe gider kataloğu ve gelişmiş şube analizi",
       "Neta ortaklık programı",
-      "İşletme web sitesi",
+      "WhatsApp · ayda 5.000, AI · günde 200",
     ],
   },
 ] as const;

@@ -1,4 +1,5 @@
 import { waSnapshot } from "@/lib/whatsapp";
+import { consumePlanQuota } from "@/lib/entitlements";
 import {
   campaignOperation,
   campaignPreview,
@@ -487,6 +488,8 @@ export async function POST(req: Request) {
     }
     if (p[0] === "assistant") {
       await limit(req, "assistant", 50);
+      // Panel asistanı paket AI kotasını paylaşır; herkese açık müşteri asistanı ayrı kalır.
+      if (id) await consumePlanQuota(id, "ai");
       return ok(
         await assistant(
           id

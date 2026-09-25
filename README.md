@@ -48,12 +48,9 @@ koda yazılmamalıdır.
 
 ## Paketler ve çoklu şube
 
-- **Starter — 600 TL/ay:** 1 işletme, 1 şube, en fazla 5 personel ve temel web
-  randevu yönetimi.
-- **Business — 999 TL/ay:** 5 şubeye kadar, sınırsız personel, gelir kurtarma,
-  AI, çift yönlü WhatsApp, online ödeme ve şube kâr/zarar takibi.
-- **Kurumsal — 2.500 TL/ay:** sınırsız şube ve personel, yüksek kullanım
-  limitleri, API, şubeler arası otomasyon ve gelişmiş raporlama.
+- **Neta Standart — 600 TL/ay:** 1 işletme, 1 şube, en fazla 5 personel; randevu, müşteri, hizmet, ekip ve işlem analizi.
+- **Neta Pro — 999 TL/ay:** 3 şubeye kadar, sınırsız personel; borç/veresiye, Hizmet Yolculuğu, pazarlama, gelir kurtarma, talep fırsatları, gelir/şube raporları; ayda 1.000 WhatsApp ve günde 50 AI/randevu asistanı kullanımı.
+- **Neta Plus — 2.500 TL/ay:** sınırsız şube ve personel; Pro kapsamına ek olarak 90 günlük gelişmiş talep analizi, tekrar kullanılabilir gider kataloğu, Neta ortaklık programı ve kurulum/veri taşıma merkezi; ayda 5.000 WhatsApp ve günde 200 AI/randevu asistanı kullanımı.
 
 Her hesap tek bir yasal işletme/tenant oluşturur; şubeler bu işletmenin altında
 yer alır. Personel ve randevular `branch_id` ile şubeye bağlanır. Şube raporu,
