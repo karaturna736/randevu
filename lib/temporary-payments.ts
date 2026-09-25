@@ -4,6 +4,7 @@ import {
   all,
   ApiError,
   db,
+  isAdmin,
   now,
   one,
   q,
@@ -61,9 +62,10 @@ async function readSettings() {
 
 export async function temporaryPaymentSnapshot() {
   const actor = await user(),
+    testMode = await isAdmin(actor),
     settings = await readSettings(),
     latest = await one(
-      `SELECT id,plan,amount,business_name,business_slug,status,receipt_note,tenant_id,created_at,updated_at
+      `SELECT id,plan,amount,business_name,business_slug,payment_url,status,receipt_note,tenant_id,created_at,updated_at
        FROM temporary_payment_requests WHERE user_id=? ORDER BY created_at DESC LIMIT 1`,
       actor.userId,
     );
@@ -73,14 +75,17 @@ export async function temporaryPaymentSnapshot() {
     plus: linkFor(settings, "plus"),
   };
   return {
-    available: !!settings?.active && Object.values(links).some(Boolean),
-    provider: "iyzico_link",
-    note: settings?.note || "",
+    available: testMode || (!!settings?.active && Object.values(links).some(Boolean)),
+    provider: testMode ? "admin_test" : "iyzico_link",
+    test_mode: testMode,
+    note: testMode
+      ? "Yönetici test modu: gerçek tahsilat yapılmaz. Seçilen paket 30 gün boyunca gerçek paket yetkileriyle açılır."
+      : settings?.note || "",
     plans: (Object.keys(PLAN_CATALOG) as PlanCode[]).map((code) => ({
       code,
       name: PLAN_CATALOG[code].name,
-      amount: PLAN_CATALOG[code].amount,
-      available: !!settings?.active && !!links[code],
+      amount: testMode ? 0 : PLAN_CATALOG[code].amount,
+      available: testMode || (!!settings?.active && !!links[code]),
     })),
     request: latest || null,
   };
@@ -88,12 +93,13 @@ export async function temporaryPaymentSnapshot() {
 
 export async function prepareTemporaryPayment(input: unknown) {
   const actor = await user(),
+    testMode = await isAdmin(actor),
     x = prepareSchema.parse(input),
     settings = await readSettings();
-  if (!settings?.active)
+  if (!testMode && !settings?.active)
     throw new ApiError("Geçici gerçek ödeme bağlantısı şu anda aktif değil.", 503);
-  const paymentUrl = linkFor(settings, x.plan);
-  if (!paymentUrl)
+  const paymentUrl = testMode ? "" : linkFor(settings, x.plan);
+  if (!testMode && !paymentUrl)
     throw new ApiError("Seçilen paket için ödeme bağlantısı hazırlanmadı.", 503);
 
   const business = businessSchema.parse({ ...x.business, plan: x.plan });
@@ -111,7 +117,7 @@ export async function prepareTemporaryPayment(input: unknown) {
 
   const id = uid(),
     stamp = now(),
-    amount = PLAN_CATALOG[x.plan].amount;
+    amount = testMode ? 0 : PLAN_CATALOG[x.plan].amount;
   try {
     await q(
       `INSERT INTO temporary_payment_requests(
@@ -143,7 +149,101 @@ export async function prepareTemporaryPayment(input: unknown) {
     business_slug: business.slug,
     payment_url: paymentUrl,
     status: "awaiting_payment",
+    test_mode: testMode,
   };
+}
+
+export async function completeTemporaryTestPayment(input: unknown) {
+  const actor = await user();
+  if (!(await isAdmin(actor)))
+    throw new ApiError("Bu test ödeme akışı yalnızca platform yöneticisine açıktır.", 403);
+  const x = z
+      .object({ action: z.literal("complete_test"), request_id: z.string().uuid() })
+      .parse(input),
+    request = await one(
+      "SELECT * FROM temporary_payment_requests WHERE id=? AND user_id=?",
+      x.request_id,
+      actor.userId,
+    );
+  if (!request) throw new ApiError("Test ödeme talebi bulunamadı.", 404);
+  if (request.status === "approved" && request.tenant_id)
+    return { ok: true, status: "approved", tenant_id: request.tenant_id };
+  if (request.status !== "awaiting_payment" || Number(request.amount) !== 0 || request.payment_url)
+    throw new ApiError("Bu kayıt 0 TL yönetici test ödemesi değildir.", 409);
+  if (await one("SELECT 1 ok FROM businesses WHERE slug=?", request.business_slug))
+    throw new ApiError("Bu randevu bağlantısı kullanımda.", 409);
+
+  const stamp = now(),
+    claimed = await q(
+      "UPDATE temporary_payment_requests SET status='approving',updated_at=? WHERE id=? AND user_id=? AND status='awaiting_payment'",
+      stamp,
+      request.id,
+      actor.userId,
+    ).run();
+  if (!claimed.meta.changes)
+    throw new ApiError("Test aktivasyonu başka bir işlem tarafından değiştirildi.", 409);
+
+  try {
+    const plan = planCode.parse(request.plan),
+      payload = businessSchema.parse(JSON.parse(request.business_payload)),
+      tenantId = uid(),
+      created = await businessCreation(
+        { ...payload, plan },
+        {
+          userId: request.user_id,
+          email: request.user_email,
+          displayName: request.user_name,
+        },
+        tenantId,
+        false,
+      ),
+      paidUntil = new Date(Date.now() + 30 * 86400000).toISOString(),
+      ops = [
+        ...created.ops,
+        q("UPDATE businesses SET status='approved',selected_plan=? WHERE id=?", plan, tenantId),
+        q(
+          `INSERT INTO subscriptions(tenant_id,paid_until,updated_at,plan) VALUES(?,?,?,?)
+           ON CONFLICT(tenant_id) DO UPDATE SET paid_until=MAX(subscriptions.paid_until,excluded.paid_until),updated_at=excluded.updated_at,plan=excluded.plan`,
+          tenantId,
+          paidUntil,
+          stamp,
+          plan,
+        ),
+        q(
+          "INSERT INTO payments(id,tenant_id,kind,amount,status,provider_ref,created_at) VALUES(?,?,'subscription',0,'paid',?,?)",
+          uid(),
+          tenantId,
+          "admin-test:" + request.id,
+          stamp,
+        ),
+        q(
+          `UPDATE temporary_payment_requests SET status='approved',tenant_id=?,reviewed_by=?,reviewed_at=?,updated_at=?
+           WHERE id=? AND status='approving'`,
+          tenantId,
+          actor.userId,
+          stamp,
+          stamp,
+          request.id,
+        ),
+        q(
+          "INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)",
+          uid(),
+          actor.userId,
+          "temporary-payment.admin-test-approved",
+          request.id,
+          stamp,
+        ),
+      ];
+    await db().batch(ops);
+    return { ok: true, status: "approved", tenant_id: tenantId, paid_until: paidUntil };
+  } catch (error) {
+    await q(
+      "UPDATE temporary_payment_requests SET status='awaiting_payment',updated_at=? WHERE id=? AND status='approving'",
+      now(),
+      request.id,
+    ).run();
+    throw error;
+  }
 }
 
 export async function submitTemporaryPayment(input: unknown) {
@@ -153,7 +253,7 @@ export async function submitTemporaryPayment(input: unknown) {
     result = await q(
       `UPDATE temporary_payment_requests
        SET status='awaiting_review',receipt_note=?,updated_at=?
-       WHERE id=? AND user_id=? AND status='awaiting_payment'`,
+       WHERE id=? AND user_id=? AND status='awaiting_payment' AND amount>0`,
       x.receipt_note,
       stamp,
       x.request_id,
@@ -161,10 +261,12 @@ export async function submitTemporaryPayment(input: unknown) {
     ).run();
   if (!result.meta.changes) {
     const current = await one(
-      "SELECT status,tenant_id FROM temporary_payment_requests WHERE id=? AND user_id=?",
+      "SELECT status,tenant_id,amount FROM temporary_payment_requests WHERE id=? AND user_id=?",
       x.request_id,
       actor.userId,
     );
+    if (Number(current?.amount) === 0)
+      throw new ApiError("0 TL yönetici testinde ödeme doğrulama kuyruğu kullanılmaz.", 409);
     if (current?.status === "awaiting_review" || current?.status === "approved")
       return { ok: true, status: current.status, tenant_id: current.tenant_id || null };
     throw new ApiError("Ödeme talebi bulunamadı veya artık değiştirilemez.", 409);
@@ -289,6 +391,8 @@ export async function reviewTemporaryPayment(input: unknown) {
   if (!request) throw new ApiError("Ödeme talebi bulunamadı.", 404);
   if (request.status === "approved")
     return { ok: true, status: "approved", tenant_id: request.tenant_id };
+  if (Number(request.amount) === 0)
+    throw new ApiError("0 TL yönetici test ödemesi bu onay kuyruğundan geçirilemez.", 409);
   if (request.status !== "awaiting_review")
     throw new ApiError("Yalnızca kullanıcı tarafından ödenmiş olarak işaretlenen talepler onaylanabilir.", 409);
   if (await one("SELECT 1 ok FROM businesses WHERE slug=?", request.business_slug))
