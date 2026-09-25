@@ -29,7 +29,8 @@ export const PLAN_LIMITS: Record<
       | "whatsapp"
       | "accounting"
       | "referral"
-      | "website",
+      | "website"
+      | "setupCenter",
       boolean
     >;
   }
@@ -54,6 +55,7 @@ export const PLAN_LIMITS: Record<
       accounting: false,
       referral: false,
       website: false,
+      setupCenter: false,
     },
   },
   pro: {
@@ -76,6 +78,7 @@ export const PLAN_LIMITS: Record<
       accounting: false,
       referral: false,
       website: false,
+      setupCenter: false,
     },
   },
   plus: {
@@ -98,6 +101,7 @@ export const PLAN_LIMITS: Record<
       accounting: true,
       referral: true,
       website: true,
+      setupCenter: true,
     },
   },
 };
@@ -114,7 +118,8 @@ export type PlanModule =
   | "whatsapp"
   | "accounting"
   | "referral"
-  | "website";
+  | "website"
+  | "setupCenter";
 
 /** Sunucu tarafı modül kilidi: paketin izin vermediği özellik 402 döner. */
 export async function requirePlanModule(
@@ -146,6 +151,7 @@ export const MODULE_LABELS: Record<PlanModule, string> = {
   accounting: "Muhasebe gider kataloğu",
   referral: "Neta ortaklık programı",
   website: "İşletme web sitesi",
+  setupCenter: "Kurulum merkezi, veri taşıma ve eğitim",
 };
 
 export const PLAN_CATALOG: Record<

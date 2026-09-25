@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requirePlanModule } from "./entitlements";
 import {
   all,
   db,
@@ -38,6 +39,8 @@ const importSchema = z.object({
 });
 
 export async function setupSnapshot(id: string) {
+  await tenant(id);
+  await requirePlanModule(id, "setupCenter");
   const b = await tenant(id),
     counts = await one(
       "SELECT (SELECT COUNT(*) FROM customers WHERE tenant_id=?) customers,(SELECT COUNT(*) FROM services WHERE tenant_id=? AND active=1) services,(SELECT COUNT(*) FROM staff WHERE tenant_id=? AND active=1) staff",
@@ -61,6 +64,8 @@ export async function setupSnapshot(id: string) {
 }
 
 export async function importSetup(id: string, input: any) {
+  await tenant(id);
+  await requirePlanModule(id, "setupCenter");
   const b = await tenant(id),
     u = await user(),
     x = importSchema.parse(input);
@@ -174,6 +179,7 @@ export async function importSetup(id: string, input: any) {
 
 export async function requestTraining(id: string, input: any) {
   await tenant(id);
+  await requirePlanModule(id, "setupCenter");
   const x = z
       .object({
         preferred_date: z

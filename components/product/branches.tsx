@@ -161,24 +161,26 @@ export function BranchProfitability({ w }: any) {
             <ReceiptText size={16} />
             Gider ekle
           </button>
-          <button
-            className="button"
-            onClick={() =>
-              setCatalogItem({
-                name: "",
-                category: "malzeme",
-                unit: "adet",
-                default_unit_amount: "",
-                apply_to_branch_id: data.branches[0]?.id || "",
-                apply_month: month,
-                quantity: 1,
-                note: "",
-              })
-            }
-            disabled={data.plan === "normal"}
-          >
-            <LibraryBig size={16} /> Gider kalemi kaydet
-          </button>
+          {data.plan === "plus" && (
+            <button
+              className="button"
+              onClick={() =>
+                setCatalogItem({
+                  name: "",
+                  category: "malzeme",
+                  unit: "adet",
+                  default_unit_amount: "",
+                  apply_to_branch_id: data.branches[0]?.id || "",
+                  apply_month: month,
+                  quantity: 1,
+                  note: "",
+                })
+              }
+              disabled={data.plan === "normal"}
+            >
+              <LibraryBig size={16} /> Gider kalemi kaydet
+            </button>
+          )}
           <button
             className="button primary"
             onClick={() =>
@@ -281,7 +283,7 @@ export function BranchProfitability({ w }: any) {
           pakettedir.
         </div>
       )}
-      {data.plan !== "normal" && (
+      {data.plan === "plus" && (
         <section className="panel expense-catalog-panel">
           <div className="section-heading">
             <div>
@@ -457,36 +459,38 @@ export function BranchProfitability({ w }: any) {
                 }))}
               />
             </Field>
-            <Field label="Kayıtlı gider kalemi">
-              <Pick
-                label="Gider kalemi"
-                value={expense.catalog_item_id || "manual"}
-                onChange={(catalog_item_id) => {
-                  const item = data.catalog.find(
-                    (x: any) => x.id === catalog_item_id,
-                  );
-                  setExpense(
-                    item
-                      ? {
-                          ...expense,
-                          catalog_item_id,
-                          category: item.category,
-                          unit: item.unit,
-                          amount: item.default_unit_amount / 100,
-                          note: item.name,
-                        }
-                      : { ...expense, catalog_item_id: "manual" },
-                  );
-                }}
-                options={[
-                  { value: "manual", label: "Manuel gider" },
-                  ...data.catalog.map((x: any) => ({
-                    value: x.id,
-                    label: `${x.name} · ${money(x.default_unit_amount)}/${x.unit}`,
-                  })),
-                ]}
-              />
-            </Field>
+            {data.plan === "plus" && (
+              <Field label="Kayıtlı gider kalemi">
+                <Pick
+                  label="Gider kalemi"
+                  value={expense.catalog_item_id || "manual"}
+                  onChange={(catalog_item_id) => {
+                    const item = data.catalog.find(
+                      (x: any) => x.id === catalog_item_id,
+                    );
+                    setExpense(
+                      item
+                        ? {
+                            ...expense,
+                            catalog_item_id,
+                            category: item.category,
+                            unit: item.unit,
+                            amount: item.default_unit_amount / 100,
+                            note: item.name,
+                          }
+                        : { ...expense, catalog_item_id: "manual" },
+                    );
+                  }}
+                  options={[
+                    { value: "manual", label: "Manuel gider" },
+                    ...data.catalog.map((x: any) => ({
+                      value: x.id,
+                      label: `${x.name} · ${money(x.default_unit_amount)}/${x.unit}`,
+                    })),
+                  ]}
+                />
+              </Field>
+            )}
             <div className="form-grid">
               <Field label="Ay">
                 <Input
