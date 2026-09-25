@@ -78,15 +78,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install pinned Semgrep
+      - name: Install pinned Semgrep outside repository
         run: |
           set -euo pipefail
-          python3 -m venv .semgrep-venv
-          .semgrep-venv/bin/pip install --disable-pip-version-check 'semgrep==1.177.0'
+          python3 -m venv /tmp/neta-semgrep-venv
+          /tmp/neta-semgrep-venv/bin/pip install --disable-pip-version-check 'semgrep==1.177.0'
       - name: Semgrep OWASP scan
         run: |
           set -euo pipefail
-          .semgrep-venv/bin/semgrep scan \
+          /tmp/neta-semgrep-venv/bin/semgrep scan \
             --config p/owasp-top-ten \
             --severity ERROR \
             --error \
@@ -94,6 +94,7 @@ jobs:
             --exclude node_modules \
             --exclude .next \
             --exclude dist \
+            --exclude coverage \
             .
 
   codeql:
