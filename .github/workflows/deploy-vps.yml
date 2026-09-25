@@ -39,7 +39,7 @@ jobs:
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 0600 ~/.ssh/known_hosts
           ssh-keygen -F "$VPS_HOST" -f ~/.ssh/known_hosts >/dev/null
-          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | grep -F 'SHA256:i4GKfLIMMmljIW1aEzIAegXZ/pHAZ1tcizJBR7EE7Pg'
+          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | grep -F 'SHA256:obaLTUoVsjYlC2SqO3XKdu3Lmwk62NS+YBZwKshc9J0'
       - name: Install deploy key
         env:
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
