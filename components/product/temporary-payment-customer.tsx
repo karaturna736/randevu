@@ -7,7 +7,7 @@ import { AccountGate, useSession } from "./session";
 import { Busy, Field, Pick } from "./common";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { CATEGORIES, money } from "@/lib/types";
+import { CATEGORIES, HOURS, money } from "@/lib/types";
 
 async function temporary(body?: Record<string, unknown>) {
   const response = await fetch("/api/temporary-payment", {
@@ -56,6 +56,11 @@ function Wizard() {
     city: session.profile.city || "",
     address: "",
     phone: session.profile.phone || "",
+    service_name: "İlk Hizmet",
+    duration: 30,
+    price: "0",
+    staff_name: session.profile.name || "İşletme Sahibi",
+    staff_title: "Yetkili",
   });
 
   async function load() {
@@ -82,7 +87,23 @@ function Wizard() {
         action: "prepare",
         plan,
         terms_accepted: accepted,
-        business: { ...form, plan },
+        business: {
+          name: form.name,
+          slug: form.slug,
+          category: form.category,
+          city: form.city,
+          address: form.address,
+          phone: form.phone,
+          plan,
+          starter: {
+            service_name: form.service_name,
+            duration: Number(form.duration),
+            price: Math.round(Number(form.price || 0) * 100),
+            staff_name: form.staff_name,
+            staff_title: form.staff_title,
+            hours: JSON.parse(HOURS),
+          },
+        },
       });
       setData((current: any) => ({ ...current, request }));
     } catch (e: any) {
@@ -146,7 +167,7 @@ function Wizard() {
         <div>
           <span className="eyebrow">GEÇİCİ GERÇEK ÖDEME</span>
           <h1>İşletmenizi 30 gün için aktifleştirin.</h1>
-          <p>Ödeme iyzico Link üzerinden alınır ve yönetici doğrulamasından sonra panel açılır.</p>
+          <p>Ödeme iyzico Link üzerinden alınır ve yönetici doğrulamasından sonra kullanıma hazır panel açılır.</p>
         </div>
       </div>
       {!data.available ? (
@@ -162,11 +183,21 @@ function Wizard() {
             />
           </Field>
           <Field label="İşletme adı"><Input required minLength={2} maxLength={100} value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value, slug: slugify(event.target.value) }))} /></Field>
-          <Field label="Randevu bağlantısı"><Input required minLength={3} maxLength={60} value={form.slug} onChange={(event) => setForm((value) => ({ ...value, slug: event.target.value }))} /></Field>
+          <Field label="Randevu bağlantısı"><Input required minLength={3} maxLength={60} pattern="[a-z][a-z0-9]*(?:-[a-z0-9]+)*" value={form.slug} onChange={(event) => setForm((value) => ({ ...value, slug: event.target.value }))} /></Field>
           <Field label="Sektör"><Pick label="Sektör" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value }))} options={CATEGORIES.map((value) => ({ value, label: value }))} /></Field>
-          <Field label="Şehir"><Input required maxLength={80} value={form.city} onChange={(event) => setForm((value) => ({ ...value, city: event.target.value }))} /></Field>
+          <div className="form-grid">
+            <Field label="Şehir"><Input required maxLength={80} value={form.city} onChange={(event) => setForm((value) => ({ ...value, city: event.target.value }))} /></Field>
+            <Field label="Telefon"><Input required maxLength={30} value={form.phone} onChange={(event) => setForm((value) => ({ ...value, phone: event.target.value }))} /></Field>
+          </div>
           <Field label="Adres"><Input required maxLength={300} value={form.address} onChange={(event) => setForm((value) => ({ ...value, address: event.target.value }))} /></Field>
-          <Field label="Telefon"><Input required maxLength={30} value={form.phone} onChange={(event) => setForm((value) => ({ ...value, phone: event.target.value }))} /></Field>
+          <div className="form-grid">
+            <Field label="İlk hizmet"><Input required minLength={2} maxLength={100} value={form.service_name} onChange={(event) => setForm((value) => ({ ...value, service_name: event.target.value }))} /></Field>
+            <Field label="Hizmet fiyatı (₺)"><Input required type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm((value) => ({ ...value, price: event.target.value }))} /></Field>
+          </div>
+          <div className="form-grid">
+            <Field label="Personel / işletme sahibi"><Input required minLength={2} maxLength={100} value={form.staff_name} onChange={(event) => setForm((value) => ({ ...value, staff_name: event.target.value }))} /></Field>
+            <Field label="Unvan"><Input required minLength={2} maxLength={80} value={form.staff_title} onChange={(event) => setForm((value) => ({ ...value, staff_title: event.target.value }))} /></Field>
+          </div>
           {data.note && <div className="notice">{data.note}</div>}
           <label className="checkbox-line"><Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} /><span>30 günlük erişim ve kullanım koşullarını kabul ediyorum.</span></label>
           <button className="button primary full" disabled={busy || !accepted}>{busy ? <Busy /> : <ArrowRight size={17} />} Ödeme bağlantısını hazırla</button>
