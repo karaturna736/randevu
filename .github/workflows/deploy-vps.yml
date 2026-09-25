@@ -32,21 +32,14 @@ jobs:
       - run: bash scripts/package-vps.sh /tmp/neta-vps-release.tar.gz
       - name: Verify SSH host key
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           install -d -m 0700 ~/.ssh
-          if [ -z "$VPS_KNOWN_HOSTS" ]; then
-            echo "::error::VPS_KNOWN_HOSTS production secret is missing. Pin one of the host keys printed below after verifying it with the hosting console."
-            ssh-keyscan -T 10 "$VPS_HOST" 2>/dev/null | tee /tmp/neta-known-hosts
-            test -s /tmp/neta-known-hosts
-            ssh-keygen -lf /tmp/neta-known-hosts -E sha256
-            exit 1
-          fi
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 0600 ~/.ssh/known_hosts
           ssh-keygen -F "$VPS_HOST" -f ~/.ssh/known_hosts >/dev/null
-          ssh-keygen -lf ~/.ssh/known_hosts -E sha256
+          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | grep -F 'SHA256:obaLTUoVsjYlC2SqO3XKdu3Lmwk62NS+YBZwKshc9J0'
       - name: Install deploy key
         env:
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
@@ -55,14 +48,14 @@ jobs:
           chmod 0600 ~/.ssh/id_ed25519
       - name: Upload release
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
-          VPS_USER: ${{ secrets.VPS_USER || 'root' }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
         run: |
           scp -o BatchMode=yes /tmp/neta-vps-release.tar.gz "$VPS_USER@$VPS_HOST:/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
       - name: Deploy with rollback
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
-          VPS_USER: ${{ secrets.VPS_USER || 'root' }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
           LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         run: |
           ssh -o BatchMode=yes "$VPS_USER@$VPS_HOST" "sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
