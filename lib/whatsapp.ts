@@ -240,7 +240,8 @@ async function receive(c: any, m: any) {
     )
       .slice(0, 500)
       .trim(),
-    lower = text.toLocaleLowerCase("tr-TR");
+    lower = text.toLocaleLowerCase("tr-TR"),
+    linkCommand = lower.replace(/[.!?]+$/g, "").trim();
   let next: any = { ...old },
     reply = "",
     bookingId: string | null = null;
@@ -278,7 +279,24 @@ async function receive(c: any, m: any) {
     await deliver(c, x.id);
     return;
   }
-  if (["iptal", "baştan", "menü"].includes(lower)) {
+  if (
+    [
+      "link",
+      "randevu",
+      "randevu linki",
+      "online randevu",
+      "randevu al",
+      "randevu almak",
+      "site",
+      "rezervasyon",
+    ].includes(linkCommand)
+  ) {
+    reply =
+      "Neta üzerinden online randevu alabilirsiniz:\n" +
+      appOrigin() +
+      "/" +
+      b.slug;
+  } else if (["iptal", "baştan", "menü"].includes(lower)) {
     next = {};
     reply =
       "Seçimler sıfırlandı. Mevcut randevunuz iptal edilmedi. Yeni randevu için hizmet ve gün yazın; mevcut randevuyu özel bağlantısından yönetin.";
