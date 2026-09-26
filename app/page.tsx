@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import Landing from "@/components/product/landing";
 
 const SITE_URL = "https://netarandevu.com";
-const TITLE = "Neta | Online Randevu ve İşletme Yönetim Sistemi";
+const TITLE = "Neta | Online Randevu ve İşletme Yönetimi";
 const DESCRIPTION =
-  "Neta; kuaför, berber, güzellik salonu ve randevuyla çalışan işletmeler için online randevu, ekip, müşteri, WhatsApp ve talep yönetim sistemidir.";
-
-export const dynamic = "force-dynamic";
+  "Neta; kuaför, berber, güzellik salonu ve randevuyla çalışan işletmeler için online randevu, WhatsApp randevu, ekip, müşteri ve talep yönetim sistemidir.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -71,6 +69,20 @@ const brandSchema = {
       publisher: { "@id": `${SITE_URL}/#organization` },
     },
     {
+      "@type": "WebPage",
+      "@id": `${SITE_URL}/#webpage`,
+      url: SITE_URL,
+      name: TITLE,
+      description: DESCRIPTION,
+      inLanguage: "tr-TR",
+      isPartOf: { "@id": `${SITE_URL}/#website` },
+      about: { "@id": `${SITE_URL}/#software` },
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/neta-logo.png`,
+      },
+    },
+    {
       "@type": "SoftwareApplication",
       "@id": `${SITE_URL}/#software`,
       name: "Neta",
@@ -80,7 +92,16 @@ const brandSchema = {
       operatingSystem: "Web",
       inLanguage: "tr-TR",
       description: DESCRIPTION,
+      brand: { "@id": `${SITE_URL}/#organization` },
       publisher: { "@id": `${SITE_URL}/#organization` },
+      featureList: [
+        "Online randevu yönetimi",
+        "WhatsApp randevu otomasyonu",
+        "Personel ve şube yönetimi",
+        "Müşteri takibi",
+        "Talep ve kaçan gelir analizi",
+        "Bekleme listesi ve gelir kurtarma",
+      ],
     },
   ],
 };
