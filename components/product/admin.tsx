@@ -186,6 +186,7 @@ export default function Admin({ initialView = "businesses" }: { initialView?: st
                   <TableHeader>
                     <TableRow>
                       <TableHead>İşletme</TableHead>
+                      <TableHead>Neta işletme no</TableHead>
                       <TableHead>Sektör</TableHead>
                       <TableHead>Durum</TableHead>
                       <TableHead className="right">İşlem</TableHead>
@@ -199,6 +200,14 @@ export default function Admin({ initialView = "businesses" }: { initialView?: st
                           <small>
                             /{b.slug}
                             {b.demo ? " · Deneme" : ""}
+                          </small>
+                        </TableCell>
+                        <TableCell>
+                          <small
+                            title="Kalıcı ve benzersiz Neta işletme kimliği"
+                            style={{ userSelect: "all", fontFamily: "monospace" }}
+                          >
+                            {b.id}
                           </small>
                         </TableCell>
                         <TableCell>
@@ -474,9 +483,7 @@ export default function Admin({ initialView = "businesses" }: { initialView?: st
               )}
             </section>
             <p className="helper margin-top">
-              En fazla 500 işletme/kullanıcı, son 200 randevu ve son 100
-              ödeme/değerlendirme/şikâyet gösterilir. Silinen işletme erişime
-              kapatılır; ilişkili kayıtlar korunur.
+              Neta işletme no, işletmenin veritabanındaki kalıcı ve benzersiz kimliğidir; IP adresi değildir ve internet bağlantısı değişse bile aynı kalır. En fazla 500 işletme/kullanıcı, son 200 randevu ve son 100 ödeme/değerlendirme/şikâyet gösterilir. Silinen işletme erişime kapatılır; ilişkili kayıtlar korunur.
             </p>
           </>
         )}
