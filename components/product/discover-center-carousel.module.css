@@ -271,11 +271,11 @@
   }
 
   .navLeft {
-    left: calc(50% - 52px);
+    left: 16px;
   }
 
   .navRight {
-    left: calc(50% + 8px);
+    left: 68px;
     right: auto;
   }
 
