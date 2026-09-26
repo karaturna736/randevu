@@ -3,7 +3,10 @@
 # must break the pipeline remain FAIL. Compatibility/behaviour findings below
 # are explicitly documented and ignored only after review.
 10015	IGNORE	(Public/dynamic route cache directives are application-controlled; API responses are separately required to be no-store)
+10019	IGNORE	(Trailing-slash canonical 308 redirects for /admin/ and /api/ intentionally carry no response body; missing Content-Type on an empty redirect is not a content-sniffing risk)
+10031	IGNORE	(Login/signup query parameters are rendered through React text/attribute escaping; redirect destination is additionally constrained by safeDestination to same-origin non-API paths, so the passive reflection alert is a reviewed false positive)
 10036	FAIL	(Server software version must not be exposed)
+10044	IGNORE	(Unauthenticated /admin, /kurulum and /panel requests intentionally redirect to the sign-in/onboarding flow; this is expected access-control behaviour and does not include sensitive response data)
 10049	IGNORE	(Dynamic Next.js responses may be intentionally non-storable)
 10055	IGNORE	(Next.js hydration currently requires inline bootstrap scripts; inline event-handler attributes are blocked with script-src-attr 'none', and third-party script origins are restricted to iyzico/iyzipay)
 10109	IGNORE	(Modern web application detection is informational)
