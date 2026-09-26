@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { money } from "@/lib/types";
 import { api, Blank, Busy, Pick } from "./common";
 import { PublicShell } from "./public";
-import { MobileBranchCarousel, MobileBusinessCarousel } from "./discover-center-carousel";
+import { MobileBranchCarousel, MobileBusinessCarousel, MobileCategoryCarousel } from "./discover-center-carousel";
 import styles from "./discover-marketplace.module.css";
 import carouselStyles from "./discover-center-carousel.module.css";
 
@@ -184,6 +184,18 @@ export function DiscoverMarketplace() {
     return [...DISCOVERY_CATEGORIES, ...extras];
   }, [rows]);
 
+  const mobileCategories = useMemo(() => categories.map((item) => {
+    const count = rows.filter((b) => canonicalCategory(b.category) === item).length;
+    const meta = CATEGORY_META[item] || { icon: Store };
+    const Icon = meta.icon;
+    return {
+      key: item,
+      label: item,
+      subtitle: count ? `${count} işletme` : "Yeni işletmeler yakında",
+      icon: <Icon size={42} />,
+    };
+  }), [categories, rows]);
+
   const availableCities = useMemo(() => {
     if (!category) return [];
     return Array.from(new Set(rows.filter((b) => canonicalCategory(b.category) === category).map(normalizedCity)))
@@ -238,9 +250,9 @@ export function DiscoverMarketplace() {
               <div className={styles.sectionHead}>
                 <div><span className={styles.eyebrow}>1. ADIM</span><h2>Hangi hizmeti arıyorsunuz?</h2></div>
                 <span className={styles.sectionMeta}>Kategori seçin</span>
-                <span className={styles.mobileSwipeHint}>Yana kaydır <ArrowRight size={14} /></span>
+                <span className={styles.mobileSwipeHint}>Oklarla veya kaydırarak gez</span>
               </div>
-              <div className={styles.categoryGrid}>
+              <div className={`${styles.categoryGrid} ${carouselStyles.desktopOnly}`}>
                 {categories.map((item, index) => {
                   const count = rows.filter((b) => canonicalCategory(b.category) === item).length;
                   const meta = CATEGORY_META[item] || { icon: Store, tone: styles.toneCyan };
@@ -253,6 +265,11 @@ export function DiscoverMarketplace() {
                   );
                 })}
               </div>
+              <MobileCategoryCarousel
+                categories={mobileCategories}
+                onSelect={chooseCategory}
+                resetKey={`categories|${rows.length}`}
+              />
             </section>
           ) : !city ? (
             <section>
