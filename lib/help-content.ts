@@ -193,22 +193,49 @@ function normalize(value: string) {
     .trim();
 }
 
+const HELP_STOP_WORDS = new Set([
+  'acaba', 'bana', 'ben', 'bir', 'bunu', 'icin', 'ile', 'mi', 'miyim', 'mu',
+  'musun', 'nasil', 'neden', 'nerde', 'nereden', 'neresi', 'olur', 'var', 'yeni',
+  'yapabilirim', 'yaparim', 'yapilir', 'yapmak',
+]);
+
+function meaningfulWords(value: string) {
+  return normalize(value)
+    .split(' ')
+    .filter((word) => word.length > 2 && !HELP_STOP_WORDS.has(word));
+}
+
+function tokenMatch(queryWord: string, candidate: string) {
+  if (queryWord === candidate) return true;
+  if (Math.min(queryWord.length, candidate.length) < 4) return false;
+  return queryWord.startsWith(candidate) || candidate.startsWith(queryWord);
+}
+
+function countHits(words: string[], candidates: string[]) {
+  return words.filter((word) => candidates.some((candidate) => tokenMatch(word, candidate))).length;
+}
+
 export function helpMatches(message: string) {
-  const q = normalize(message);
-  const words = q.split(' ').filter((w) => w.length > 2);
+  const words = meaningfulWords(message);
   if (!words.length) return [];
+
   return HELP_ARTICLES.map((article) => {
-    const title = normalize(article.title);
-    const haystack = normalize([article.title, article.keywords, article.category, article.body].join(' '));
-    let score = 0;
-    if (title.includes(q) || q.includes(title)) score += 8;
-    for (const word of words) {
-      if (title.includes(word)) score += 3;
-      else if (haystack.includes(word)) score += 1;
-    }
-    return { ...article, score };
+    const titleWords = meaningfulWords(article.title);
+    const keywordWords = meaningfulWords(article.keywords + ' ' + article.category);
+    const bodyWords = meaningfulWords(article.body);
+    const titleHits = countHits(words, titleWords);
+    const keywordHits = countHits(words, keywordWords);
+    const bodyHits = countHits(words, bodyWords);
+    const hitWords = words.filter((word) =>
+      [...titleWords, ...keywordWords, ...bodyWords].some((candidate) => tokenMatch(word, candidate)),
+    ).length;
+    const score = titleHits * 4 + keywordHits * 2 + bodyHits;
+    const accepted = words.length === 1
+      ? titleHits > 0 || keywordHits > 0
+      : hitWords >= 2;
+    return { ...article, score, accepted };
   })
-    .filter((article) => article.score > 0)
+    .filter((article) => article.accepted)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 }
