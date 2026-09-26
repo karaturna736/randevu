@@ -214,10 +214,7 @@ export function DiscoverMarketplace() {
                   setBusinessData(null);
                   setSearch("");
                 }}
-                options={[
-                  { value: "", label: "Şehir seçin" },
-                  ...cityOptions.map((item) => ({ value: item, label: item })),
-                ]}
+                options={cityOptions.map((item) => ({ value: item, label: item }))}
               />
             </div>
 
