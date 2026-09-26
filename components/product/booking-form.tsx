@@ -322,7 +322,15 @@ export default function BookingForm({
           </div>
           {branches.length > 1 && (
             <Field label="Şube tercihiniz">
-              <Pick label="Şube" value={branch} onChange={(v)=>{setBranch(v);setPerson("any")}} options={branches.map((b:any)=>({value:b.id,label:b.name+(b.city?" · "+b.city:"")}))} />
+              <Pick
+                label="Şube"
+                value={branch}
+                onChange={(v)=>{setBranch(v);setPerson("any")}}
+                options={branches.map((b:any)=>({
+                  value:b.id,
+                  label:[b.name,b.city,b.address].filter(Boolean).join(" · "),
+                }))}
+              />
             </Field>
           )}
           {staff.filter((p:any)=>!branch||!p.branch_id||p.branch_id===branch).length > 1 && (
@@ -471,10 +479,12 @@ export default function BookingForm({
           )}
           {!tenantId && alternatives.length > 0 && (
             <div className="demand-alternatives">
-              <strong>Diğer şubelerde uygun saatler</strong>
-              <p className="helper">Seçtiğiniz şube dolu. Neta diğer şubeleri otomatik kontrol etti.</p>
+              <strong>Seçtiğiniz şube dolu · diğer şubelerde alternatifler</strong>
+              <p className="helper">
+                Seçili şubede boş saat yok. Aşağıdaki seçenekler farklı şubelerdedir; şube adı, şehir ve açık adres birlikte gösterilir.
+              </p>
               <div className="service-options">
-                {alternatives.map((a:any)=><button type="button" className="service-option" key={a.branch.id} onClick={()=>{setBranch(a.branch.id);setPerson("any");setAlternatives([])}}><span><strong>{a.branch.name}</strong><small>{a.branch.city||a.branch.address||"Diğer şube"} · İlk uygun {a.slots[0]?.time}</small></span><ArrowRight size={16}/></button>)}
+                {alternatives.map((a:any)=><button type="button" className="service-option" key={a.branch.id} onClick={()=>{setBranch(a.branch.id);setPerson("any");setAlternatives([])}}><span><strong>{a.branch.name}</strong><small>{[a.branch.city,a.branch.address].filter(Boolean).join(" · ")||"Adres bilgisi yok"} · İlk uygun {a.slots[0]?.time}</small></span><ArrowRight size={16}/></button>)}
               </div>
             </div>
           )}
