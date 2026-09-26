@@ -8,10 +8,22 @@ import "./branches.css";
 import { ReferralCapture } from "@/components/product/growth";
 import { SessionProvider } from "@/components/product/session";
 
+const SITE_URL = "https://netarandevu.com";
+
 export const metadata: Metadata = {
-  title: "Neta Randevu | Randevunuz net. İşiniz yolunda.",
+  metadataBase: new URL(SITE_URL),
+  title: "Neta | Online Randevu ve İşletme Yönetim Sistemi",
+  description:
+    "Neta; kuaför, berber, güzellik salonu ve randevuyla çalışan işletmeler için online randevu, ekip, müşteri ve talep yönetim sistemidir.",
+  applicationName: "Neta",
+  creator: "Neta",
+  publisher: "Neta",
   referrer: "no-referrer",
-  description: "İşletmenizin randevuları, ekibi ve müşterileri bir arada.",
+  openGraph: {
+    siteName: "Neta",
+    locale: "tr_TR",
+    type: "website",
+  },
   icons: {
     icon: "/favicon-white.svg",
     shortcut: "/favicon-white.svg",
