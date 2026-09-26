@@ -3,18 +3,20 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
+  BarChart3,
+  Bell,
   CalendarDays,
   Check,
   ChevronDown,
   Clock,
-  Scissors,
+  MessageCircle,
+  Play,
+  Radar,
+  Search,
   ShieldCheck,
   Users,
-  Radar,
   Menu,
   X,
-  Wallet,
-  Play,
 } from "lucide-react";
 import { Brand, ThemeToggle, api } from "./common";
 import { useSession } from "./session";
@@ -43,10 +45,22 @@ const features = [
     label: "Müşteri hafızası",
   },
 ];
+
+const sidebarItems = [
+  "Ana sayfa",
+  "Randevular",
+  "Müşteriler",
+  "Ekip",
+  "Hizmetler",
+  "Talep / mesajlar",
+  "Kampanyalar",
+  "Raporlar",
+  "Ayarlar",
+];
+
 export default function Landing() {
   const { data } = useSession();
   const [menu, setMenu] = useState(false),
-    [slot, setSlot] = useState("13:30"),
     [plan, setPlan] = useState<any>(null);
   useEffect(() => {
     api("plans")
@@ -105,15 +119,13 @@ export default function Landing() {
               İŞİNİZİN YENİ RİTMİ
             </span>
             <h1>
-              Her boş saati
+              Takvim dolsun.
               <br />
-              dolu bir <em>randevuya</em>
-              <br />
-              çevirin.
+              İşletmeniz <em>aksın.</em>
             </h1>
             <p>
-              Takviminizi düzenleyin, ekibinizi yönetin, kaçırdığınız talebi
-              fark edin. İşletmenize özel randevu sistemi, tek bir bağlantıda.
+              Randevu, ekip, müşteri ve talep yönetimini tek yerde toplayın.
+              Neta boş saatleri fırsata, yoğunluğu düzene çevirir.
             </p>
             <div className="neta-hero-actions">
               <a className="button primary" href={start}>
@@ -133,74 +145,134 @@ export default function Landing() {
                 <Check size={15} />
                 Size özel randevu linki
               </span>
+              <span>
+                <Check size={15} />
+                WhatsApp’tan randevu
+              </span>
+            </div>
+            <div className="neta-hero-proof" aria-label="Neta ürün kapsamı">
+              <div>
+                <strong>Online + WhatsApp</strong>
+                <span>Randevular tek akışta birleşsin.</span>
+              </div>
+              <div>
+                <strong>Tek takvim</strong>
+                <span>Ekip ve saatler tek yerde yönetilsin.</span>
+              </div>
+              <div>
+                <strong>Talep görünürlüğü</strong>
+                <span>Boş saatlerin arkasındaki talebi görün.</span>
+              </div>
             </div>
           </div>
-          <div className="neta-hero-visual">
-            <div className="neta-orbit-caption">
-              <span className="neta-mini-logo">
-                <img src="/neta-logo.png" alt="" />
-              </span>
-              Atölye Studio <span>Örnek görünüm</span>
-            </div>
-            <div className="neta-booking-example">
-              <div className="neta-example-head">
-                <span>
-                  <CalendarDays size={18} />
-                  Cumartesi, 26 Eylül
-                </span>
-                <span>3 uygun saat</span>
-              </div>
-              <div className="neta-example-service">
-                <span>
-                  <Scissors size={23} />
-                </span>
-                <div>
-                  <strong>Saç kesimi</strong>
-                  <small>45 dakika · Ahmet Yılmaz</small>
+
+          <div className="neta-hero-visual" aria-label="Neta işletme paneli örneği">
+            <div className="neta-live-badge"><i /> Canlı randevu görünümü</div>
+            <div className="neta-workspace">
+              <aside className="neta-ws-sidebar">
+                <div className="neta-ws-brand">
+                  <img src="/neta-logo.png" alt="" />
+                  <span>neta</span>
                 </div>
-                <b>₺650</b>
+                <div className="neta-ws-nav">
+                  {sidebarItems.map((item, index) => (
+                    <span key={item} className={index === 1 ? "active" : ""}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <div className="neta-ws-side-note">
+                  <MessageCircle size={16} />
+                  <strong>WhatsApp’tan randevu</strong>
+                  Mesajlar aynı takvime düşer.
+                </div>
+              </aside>
+
+              <div className="neta-ws-main">
+                <div className="neta-ws-top">
+                  <div className="neta-ws-search">
+                    <Search size={12} />
+                    Müşteri ara, randevu kontrol et...
+                  </div>
+                  <Bell size={15} />
+                  <div className="neta-ws-owner">
+                    <b>AS</b>
+                    <span>Atölye Studio</span>
+                  </div>
+                </div>
+
+                <div className="neta-ws-stats">
+                  <div className="neta-ws-stat">
+                    <span><CalendarDays size={16} /></span>
+                    <div><small>Bugün</small><strong>12 randevu</strong></div>
+                  </div>
+                  <div className="neta-ws-stat">
+                    <span><BarChart3 size={16} /></span>
+                    <div><small>Doluluk</small><strong>%78</strong></div>
+                  </div>
+                  <div className="neta-ws-stat">
+                    <span><Radar size={16} /></span>
+                    <div><small>Kaçan talep</small><strong>4 sinyal</strong></div>
+                  </div>
+                </div>
+
+                <div className="neta-ws-body">
+                  <div className="neta-schedule">
+                    <div className="neta-schedule-head">
+                      <strong>26 Eylül 2026, Cumartesi</strong>
+                      <span>Bugün · Tüm ekip</span>
+                    </div>
+                    <div className="neta-team-head">
+                      <span />
+                      <span><b>AY</b>Ahmet</span>
+                      <span><b>ZG</b>Zeynep</span>
+                      <span><b>MK</b>Mert</span>
+                    </div>
+                    <div className="neta-calendar-grid">
+                      {[
+                        "09:00","10:00","11:00","12:00","13:00","14:00","15:00"
+                      ].map((hour) => <span className="neta-hour" key={hour}>{hour}</span>)}
+
+                      <div className="neta-event purple" style={{gridColumn:2,gridRow:1}}><strong>Ayşe Demir</strong><span>Saç kesimi</span></div>
+                      <div className="neta-event blue" style={{gridColumn:3,gridRow:2}}><strong>Mehmet Kaya</strong><span>Sakal bakımı</span></div>
+                      <div className="neta-event green" style={{gridColumn:4,gridRow:3}}><strong>Elif Yılmaz</strong><span>Cilt bakımı</span></div>
+                      <div className="neta-gap-slot" style={{gridColumn:2,gridRow:5}}>+</div>
+                      <div className="neta-event purple" style={{gridColumn:2,gridRow:6}}><strong>Merve Arslan</strong><span>Saç rengi</span></div>
+                      <div className="neta-event green" style={{gridColumn:3,gridRow:6}}><strong>Deniz Çetin</strong><span>Cilt bakımı</span></div>
+                      <div className="neta-event blue" style={{gridColumn:4,gridRow:6}}><strong>Burak Yıldız</strong><span>Saç kesimi</span></div>
+                      <div className="neta-event rose" style={{gridColumn:4,gridRow:7}}><strong>Emre Taş</strong><span>Sakal bakımı</span></div>
+                    </div>
+                  </div>
+
+                  <div className="neta-ws-side">
+                    <div className="neta-insight-card">
+                      <span><BarChart3 size={15} /></span>
+                      <strong>Cumartesi 18:00–20:00 talep artıyor.</strong>
+                      <p>Bu saatlerde görüntülenen uygunluk diğer zamanlardan daha yüksek.</p>
+                    </div>
+                    <div className="neta-request-card">
+                      <div className="neta-request-head">
+                        <span><MessageCircle size={15} /></span>
+                        <div><strong>Yeni randevu talebi</strong><small>13:30 · Melis Karaca</small></div>
+                      </div>
+                      <a className="button primary full" href="/demo">Detayları gör</a>
+                    </div>
+                  </div>
+                </div>
+                <div className="neta-example-label">Örnek panel verileri · gerçek müşteri bilgisi içermez</div>
               </div>
-              <div className="neta-example-times">
-                {["09:30", "10:15", "11:00", "11:45", "13:30", "15:00"].map(
-                  (s, i) => (
-                    <button
-                      key={s}
-                      disabled={[0, 1, 3].includes(i)}
-                      onClick={() => setSlot(s)}
-                      aria-pressed={slot === s}
-                      className={slot === s ? "selected" : ""}
-                    >
-                      {s}
-                      {[0, 1, 3].includes(i) && <small>Dolu</small>}
-                    </button>
-                  ),
-                )}
-              </div>
-              <a href="/atolye-studio" className="button primary full">
-                {slot} için örnek akışı aç <ArrowRight size={16} />
-              </a>
-              <p>
-                <ShieldCheck size={13} />
-                Bu kart gerçek rezervasyon oluşturmaz.
-              </p>
             </div>
-            <div className="neta-demand-float">
-              <span>
-                <Radar size={22} />
-              </span>
-              <div>
-                <small>TALEP FIRSATI · ÖRNEK</small>
-                <strong>Cumartesi akşamına talep var.</strong>
-                <p>Kapalı saatlerdeki aramaları keşfedin.</p>
-              </div>
-              <ArrowUpRight size={18} />
-            </div>
-            <div className="neta-visual-note">
-              <span />
-              Planlı günler. Daha az telefon trafiği.
+
+            <div className="neta-feature-ribbon">
+              <div><CalendarDays size={17}/><div><strong>Randevu</strong><span>Online & WhatsApp</span></div></div>
+              <div><MessageCircle size={17}/><div><strong>WhatsApp</strong><span>Tek takvime bağlanır</span></div></div>
+              <div><Users size={17}/><div><strong>Ekip</strong><span>Personel yönetimi</span></div></div>
+              <div><Radar size={17}/><div><strong>Talep</strong><span>Fırsatları görün</span></div></div>
+              <div><BarChart3 size={17}/><div><strong>Raporlama</strong><span>İşinizi takip edin</span></div></div>
             </div>
           </div>
         </section>
+
         <section className="neta-sectors">
           <div className="neta-container">
             <span>RANDEVUYLA ÇALIŞAN HER İŞLETMEYE</span>
