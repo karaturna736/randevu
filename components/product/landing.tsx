@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   Clock,
-  Scissors,
   ShieldCheck,
   Users,
   Radar,
@@ -19,6 +18,7 @@ import {
 import { Brand, ThemeToggle, api } from "./common";
 import { useSession } from "./session";
 import { money } from "@/lib/types";
+import { LandingDashboardPreview } from "./landing-dashboard-preview";
 
 const features = [
   {
@@ -46,7 +46,6 @@ const features = [
 export default function Landing() {
   const { data } = useSession();
   const [menu, setMenu] = useState(false),
-    [slot, setSlot] = useState("13:30"),
     [plan, setPlan] = useState<any>(null);
   useEffect(() => {
     api("plans")
@@ -56,7 +55,7 @@ export default function Landing() {
   const start = "/kayit?rol=business&sonra=%2Fkurulum",
     signed = !!data?.profile;
   return (
-    <div className="neta-home">
+    <div className="neta-home neta-home-premium">
       <header className="neta-header">
         <div className="neta-container neta-nav">
           <Brand />
@@ -98,22 +97,20 @@ export default function Landing() {
         </div>
       </header>
       <main>
-        <section className="neta-container neta-hero">
+        <section className="neta-container neta-hero neta-hero-premium">
           <div className="neta-hero-copy">
             <span className="neta-eyebrow">
               <span />
               İŞİNİZİN YENİ RİTMİ
             </span>
             <h1>
-              Her boş saati
+              Takvim dolsun.
               <br />
-              dolu bir <em>randevuya</em>
-              <br />
-              çevirin.
+              İşletmeniz <em>aksın.</em>
             </h1>
             <p>
-              Takviminizi düzenleyin, ekibinizi yönetin, kaçırdığınız talebi
-              fark edin. İşletmenize özel randevu sistemi, tek bir bağlantıda.
+              Randevu, ekip, müşteri ve talep yönetimini tek yerde toplayın.
+              Neta boş saatleri fırsata, yoğunluğu düzene çevirir.
             </p>
             <div className="neta-hero-actions">
               <a className="button primary" href={start}>
@@ -124,82 +121,19 @@ export default function Landing() {
                 Canlı demoyu incele
               </a>
             </div>
-            <div className="neta-trust">
-              <span>
-                <Check size={15} />
-                Kurulumda kart gerekmez
-              </span>
-              <span>
-                <Check size={15} />
-                Size özel randevu linki
-              </span>
+            <div className="neta-trust neta-trust-premium">
+              <span><Check size={15} /> Kurulumda kart gerekmez</span>
+              <span><Check size={15} /> Size özel randevu linki</span>
+              <span><Check size={15} /> WhatsApp'tan randevu</span>
+            </div>
+            <div className="neta-proof-row" aria-label="Neta ürün özeti">
+              <div><strong>Randevu</strong><small>Online & WhatsApp</small></div>
+              <div><strong>Ekip</strong><small>Personel yönetimi</small></div>
+              <div><strong>Müşteri</strong><small>Geçmiş & notlar</small></div>
+              <div><strong>Talep</strong><small>Tek yerden yönetim</small></div>
             </div>
           </div>
-          <div className="neta-hero-visual">
-            <div className="neta-orbit-caption">
-              <span className="neta-mini-logo">
-                <img src="/neta-logo.png" alt="" />
-              </span>
-              Atölye Studio <span>Örnek görünüm</span>
-            </div>
-            <div className="neta-booking-example">
-              <div className="neta-example-head">
-                <span>
-                  <CalendarDays size={18} />
-                  Cumartesi, 26 Eylül
-                </span>
-                <span>3 uygun saat</span>
-              </div>
-              <div className="neta-example-service">
-                <span>
-                  <Scissors size={23} />
-                </span>
-                <div>
-                  <strong>Saç kesimi</strong>
-                  <small>45 dakika · Ahmet Yılmaz</small>
-                </div>
-                <b>₺650</b>
-              </div>
-              <div className="neta-example-times">
-                {["09:30", "10:15", "11:00", "11:45", "13:30", "15:00"].map(
-                  (s, i) => (
-                    <button
-                      key={s}
-                      disabled={[0, 1, 3].includes(i)}
-                      onClick={() => setSlot(s)}
-                      aria-pressed={slot === s}
-                      className={slot === s ? "selected" : ""}
-                    >
-                      {s}
-                      {[0, 1, 3].includes(i) && <small>Dolu</small>}
-                    </button>
-                  ),
-                )}
-              </div>
-              <a href="/atolye-studio" className="button primary full">
-                {slot} için örnek akışı aç <ArrowRight size={16} />
-              </a>
-              <p>
-                <ShieldCheck size={13} />
-                Bu kart gerçek rezervasyon oluşturmaz.
-              </p>
-            </div>
-            <div className="neta-demand-float">
-              <span>
-                <Radar size={22} />
-              </span>
-              <div>
-                <small>TALEP FIRSATI · ÖRNEK</small>
-                <strong>Cumartesi akşamına talep var.</strong>
-                <p>Kapalı saatlerdeki aramaları keşfedin.</p>
-              </div>
-              <ArrowUpRight size={18} />
-            </div>
-            <div className="neta-visual-note">
-              <span />
-              Planlı günler. Daha az telefon trafiği.
-            </div>
-          </div>
+          <LandingDashboardPreview />
         </section>
         <section className="neta-sectors">
           <div className="neta-container">
