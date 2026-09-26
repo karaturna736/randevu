@@ -6,17 +6,37 @@
   display: grid;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px), (pointer: coarse) {
   .desktopOnly {
     display: none !important;
   }
 
   .mobileCarousel {
     position: relative;
-    display: block;
-    margin: 0 -16px;
-    padding: 2px 0 28px;
+    display: block !important;
+    margin: 4px -16px 8px;
+    padding: 12px 0 34px;
     overflow: hidden;
+    border-top: 1px solid rgba(126, 108, 255, .16);
+    border-bottom: 1px solid rgba(126, 108, 255, .12);
+    background:
+      radial-gradient(circle at 50% 10%, rgba(105, 85, 255, .13), transparent 50%),
+      linear-gradient(180deg, rgba(17, 23, 45, .48), rgba(11, 16, 33, .18));
+  }
+
+  .mobileCarousel::before {
+    content: "Kaydır veya okları kullan";
+    display: block;
+    width: fit-content;
+    margin: 0 auto 8px;
+    padding: 5px 10px;
+    border: 1px solid rgba(129, 114, 255, .22);
+    border-radius: 999px;
+    color: #aeb8db;
+    background: rgba(18, 24, 48, .72);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
   }
 
   .viewport {
@@ -27,6 +47,7 @@
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
+    touch-action: pan-x;
   }
 
   .viewport::-webkit-scrollbar {
@@ -35,21 +56,21 @@
 
   .track {
     display: flex;
-    gap: 12px;
+    gap: 14px;
     width: max-content;
     min-width: 100%;
-    padding: 8px 10vw 18px;
+    padding: 10px 11vw 20px;
   }
 
   .slide {
-    width: min(78vw, 328px);
-    flex: 0 0 min(78vw, 328px);
+    width: min(78vw, 340px);
+    flex: 0 0 min(78vw, 340px);
     scroll-snap-align: center;
     scroll-snap-stop: always;
-    opacity: .46;
-    transform: scale(.91);
-    filter: saturate(.72) brightness(.86);
-    transition: transform .24s ease, opacity .24s ease, filter .24s ease;
+    opacity: .42;
+    transform: scale(.88);
+    filter: saturate(.68) brightness(.78) blur(.15px);
+    transition: transform .26s ease, opacity .26s ease, filter .26s ease;
   }
 
   .slideActive {
@@ -61,7 +82,7 @@
   .carouselCard {
     appearance: none;
     width: 100%;
-    min-height: 315px;
+    min-height: 330px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -70,16 +91,20 @@
     text-align: left;
     text-decoration: none;
     color: inherit;
-    border: 1px solid rgba(112, 126, 183, .32);
-    border-radius: 24px;
-    background: linear-gradient(180deg, rgba(22, 30, 57, .98), rgba(13, 20, 40, .98));
-    box-shadow: 0 24px 54px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255,255,255,.03);
+    border: 1px solid rgba(112, 126, 183, .34);
+    border-radius: 26px;
+    background: linear-gradient(180deg, rgba(22, 30, 57, .99), rgba(13, 20, 40, .99));
+    box-shadow: 0 24px 54px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255,255,255,.035);
     cursor: pointer;
   }
 
   .slideActive .carouselCard {
-    border-color: rgba(128, 111, 255, .72);
-    box-shadow: 0 26px 64px rgba(34, 23, 94, .34), 0 0 0 1px rgba(124, 108, 255, .1), inset 0 1px 0 rgba(255,255,255,.035);
+    border-color: rgba(128, 111, 255, .88);
+    box-shadow:
+      0 30px 72px rgba(34, 23, 94, .4),
+      0 0 0 2px rgba(124, 108, 255, .12),
+      0 0 42px rgba(105, 83, 255, .18),
+      inset 0 1px 0 rgba(255,255,255,.04);
   }
 
   .carouselCard:active {
@@ -89,13 +114,13 @@
   .cover {
     position: relative;
     width: 100%;
-    height: 160px;
-    flex: 0 0 160px;
+    height: 170px;
+    flex: 0 0 170px;
     display: grid;
     place-items: center;
     overflow: hidden;
     background:
-      radial-gradient(circle at 28% 20%, rgba(111, 93, 255, .34), transparent 42%),
+      radial-gradient(circle at 28% 20%, rgba(111, 93, 255, .38), transparent 42%),
       linear-gradient(145deg, #1a2448, #11182f 70%);
   }
 
@@ -115,7 +140,7 @@
   .coverShade {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 45%, rgba(8, 13, 28, .78) 100%);
+    background: linear-gradient(180deg, transparent 42%, rgba(8, 13, 28, .82) 100%);
     pointer-events: none;
   }
 
@@ -124,7 +149,7 @@
     flex: 1;
     flex-direction: column;
     align-items: flex-start;
-    padding: 16px 17px 17px;
+    padding: 17px 18px 18px;
   }
 
   .kicker {
@@ -140,7 +165,7 @@
     display: block;
     margin-top: 6px;
     color: #f7f8ff;
-    font-size: 21px;
+    font-size: 22px;
     line-height: 1.08;
     letter-spacing: -.025em;
   }
@@ -177,18 +202,18 @@
 
   .navButton {
     position: absolute;
-    top: 142px;
-    z-index: 5;
-    width: 40px;
-    height: 40px;
+    top: 170px;
+    z-index: 6;
+    width: 46px;
+    height: 46px;
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 1px solid rgba(136, 122, 255, .44);
-    color: #f3f4ff;
-    background: rgba(17, 23, 47, .9);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, .26), 0 0 24px rgba(99, 78, 255, .12);
-    backdrop-filter: blur(12px);
+    border: 1px solid rgba(145, 130, 255, .68);
+    color: #fff;
+    background: rgba(24, 30, 61, .96);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .34), 0 0 30px rgba(99, 78, 255, .2);
+    backdrop-filter: blur(14px);
   }
 
   .navButton:disabled {
@@ -196,38 +221,38 @@
   }
 
   .navLeft {
-    left: 8px;
+    left: 10px;
   }
 
   .navRight {
-    right: 8px;
+    right: 10px;
   }
 
   .dots {
     position: absolute;
     left: 50%;
-    bottom: 4px;
-    z-index: 5;
+    bottom: 8px;
+    z-index: 6;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 7px;
     transform: translateX(-50%);
   }
 
   .dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     padding: 0;
     border: 0;
     border-radius: 999px;
-    background: rgba(129, 141, 181, .38);
+    background: rgba(129, 141, 181, .4);
     transition: width .18s ease, background .18s ease, box-shadow .18s ease;
   }
 
   .dotActive {
-    width: 20px;
+    width: 24px;
     background: linear-gradient(90deg, #776cff, #9b70ff);
-    box-shadow: 0 0 14px rgba(119, 108, 255, .44);
+    box-shadow: 0 0 16px rgba(119, 108, 255, .5);
   }
 }
