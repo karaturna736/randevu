@@ -6,6 +6,10 @@ on:
   merge_group:
     branches: [main]
 
+concurrency:
+  group: osv-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   actions: read
   contents: read

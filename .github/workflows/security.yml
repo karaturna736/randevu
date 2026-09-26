@@ -3,11 +3,13 @@ name: Security gates
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
   schedule:
     - cron: "17 3 * * 1"
   workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -16,7 +18,7 @@ jobs:
   quality:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,10 +33,30 @@ jobs:
         with:
           node-version: 22.23.3
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec tsc --noEmit
-      - run: pnpm test
-      - run: pnpm build:vps
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript check
+        run: pnpm exec tsc --noEmit
+      - name: Automated tests
+        run: pnpm test
+      - name: Production VPS build
+        run: pnpm build:vps
+      - name: Package validated release
+        run: |
+          set -euo pipefail
+          bash scripts/package-vps.sh /tmp/neta-vps-release.tar.gz
+          rm -rf /tmp/neta-release-artifact
+          mkdir -p /tmp/neta-release-artifact
+          cp /tmp/neta-vps-release.tar.gz /tmp/neta-release-artifact/neta-vps-release.tar.gz
+          cp deploy/nginx-netarandevu.conf /tmp/neta-release-artifact/neta-nginx.conf
+      - name: Upload validated release artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: neta-vps-release-${{ github.event.pull_request.number || github.run_id }}
+          path: /tmp/neta-release-artifact
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
 
   gitleaks:
     if: ${{ github.event_name != 'schedule' }}
