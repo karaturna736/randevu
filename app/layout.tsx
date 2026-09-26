@@ -3,6 +3,7 @@ import "./globals.css";
 import "./membership.css";
 import "./insights.css";
 import "./neta.css";
+import "./landing-v2.css";
 import "./operations.css";
 import "./branches.css";
 import { ReferralCapture } from "@/components/product/growth";
