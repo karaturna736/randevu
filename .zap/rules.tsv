@@ -3,7 +3,10 @@
 # must break the pipeline remain FAIL. Compatibility/behaviour findings below
 # are explicitly documented and ignored only after review.
 10015	IGNORE	(Public/dynamic route cache directives are application-controlled; API responses are separately required to be no-store)
+10019	IGNORE	(Next.js canonical trailing-slash redirects may omit Content-Type; these responses carry no application body or sensitive content)
+10031	IGNORE	(React escapes query-derived attribute values; auth continuation destinations are additionally constrained by safeDestination to local application routes)
 10036	FAIL	(Server software version must not be exposed)
+10044	IGNORE	(Auth and protected-route 307 redirects are intentional and carry only local destination state; no credentials or sensitive payload are reflected)
 10049	IGNORE	(Dynamic Next.js responses may be intentionally non-storable)
 10055	IGNORE	(Next.js hydration currently requires inline bootstrap scripts; inline event-handler attributes are blocked with script-src-attr 'none', and third-party script origins are restricted to iyzico/iyzipay)
 10109	IGNORE	(Modern web application detection is informational)
