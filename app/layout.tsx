@@ -8,6 +8,7 @@ import "./branches.css";
 import "./landing-premium.css";
 import "./landing-dashboard.css";
 import "./landing-mobile.css";
+import "./manual-provisioning.css";
 import { ReferralCapture } from "@/components/product/growth";
 import { SessionProvider } from "@/components/product/session";
 import { AutomaticCampaign } from "@/components/product/automatic-campaign";
