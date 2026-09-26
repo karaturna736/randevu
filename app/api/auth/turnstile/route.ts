@@ -3,11 +3,15 @@ import { issueTurnstileGate, verifyTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
+type TurnstileBody = {
+  token?: unknown;
+};
+
 export async function POST(req: Request) {
   try {
     await limit(req, "turnstile-auth", 30);
-    const body = await req.json();
-    const token = typeof body?.token === "string" ? body.token : "";
+    const body = (await req.json()) as TurnstileBody;
+    const token = typeof body.token === "string" ? body.token : "";
     await verifyTurnstile(req, token, "auth");
     const gate = await issueTurnstileGate();
     return new Response(JSON.stringify({ ok: true }), {
