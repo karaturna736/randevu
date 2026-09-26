@@ -82,7 +82,7 @@ jobs:
           SCP_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
           timeout 8m scp $SCP_OPTS /tmp/neta-vps-release.tar.gz "$VPS_USER@$VPS_HOST:/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
           timeout 2m scp $SCP_OPTS deploy/nginx-netarandevu.conf "$VPS_USER@$VPS_HOST:/tmp/neta-nginx-${GITHUB_SHA}.conf"
-      - name: Deploy with rollback
+      - name: Deploy with rollback and verify sensitive paths
         env:
           VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
           VPS_USER: ${{ secrets.VPS_USER || 'root' }}
@@ -90,21 +90,20 @@ jobs:
         run: |
           set -euo pipefail
           SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
-          timeout 18m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "set -e; sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz; test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl '$LETSENCRYPT_EMAIL'; sudo install -o root -g root -m 0644 /tmp/neta-nginx-${GITHUB_SHA}.conf /etc/nginx/sites-available/netarandevu; sudo nginx -t; sudo systemctl reload nginx; rm -f /tmp/neta-nginx-${GITHUB_SHA}.conf"
-      - name: Verify sensitive paths on VPS
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
-          VPS_USER: ${{ secrets.VPS_USER || 'root' }}
-        run: |
+          timeout 18m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" 'bash -s' <<REMOTE
           set -euo pipefail
-          SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
-          timeout 2m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
-          set -euo pipefail
+          sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz
+          test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl '${LETSENCRYPT_EMAIL}'
+          sudo install -o root -g root -m 0644 /tmp/neta-nginx-${GITHUB_SHA}.conf /etc/nginx/sites-available/netarandevu
+          sudo nginx -t
+          sudo systemctl reload nginx
+          rm -f /tmp/neta-nginx-${GITHUB_SHA}.conf
+
           for path in '/.git/config' '/.env' '/package.json' '/pnpm-lock.yaml' '/server.js' '/neta.sqlite' '/backup.sql'; do
-            status="$(curl --connect-timeout 3 --max-time 8 --silent --output /dev/null --write-out '%{http_code}' --resolve netarandevu.com:443:127.0.0.1 "https://netarandevu.com${path}")"
-            case "$status" in
+            status="\$(curl --connect-timeout 3 --max-time 8 --silent --output /dev/null --write-out '%{http_code}' --resolve netarandevu.com:443:127.0.0.1 "https://netarandevu.com\${path}")"
+            case "\$status" in
               403|404) ;;
-              *) echo "Sensitive path ${path} returned HTTP ${status}" >&2; exit 1 ;;
+              *) echo "Sensitive path \${path} returned HTTP \${status}" >&2; exit 1 ;;
             esac
           done
           REMOTE
