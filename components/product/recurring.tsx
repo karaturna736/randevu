@@ -88,6 +88,9 @@ const cards = [
       "AI / randevu asistanı · günde 200 kullanım",
       "Çift yönlü WhatsApp · ayda 5.000 işlem",
       "Kurulum merkezi, veri taşıma ve eğitim talebi",
+      "Özelleştirilebilir işletme web sitesi ve SEO",
+      "Güvenli Yönetim API'si ve iptal edilebilir API anahtarları",
+      "Şubeler arası otomatik müsaitlik yönlendirmesi",
     ],
   },
 ];

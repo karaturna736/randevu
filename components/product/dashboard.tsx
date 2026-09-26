@@ -92,6 +92,7 @@ import { Receivables, Journeys } from "./customer-operations";
 import { BookingLink, Growth, WhatsAppPanel, HelpCenter } from "./growth";
 import { RecoveryEngine, SetupCenter } from "./recovery-setup";
 import { BranchProfitability } from "./branches";
+import { PlusTools } from "./plus-tools";
 
 const NAV = [
   { id: "overview", title: "Genel bakış", icon: LayoutDashboard },
@@ -109,6 +110,7 @@ const NAV = [
   { id: "service-report", title: "İşlem analizi", icon: BarChart3 },
   { id: "reports", title: "Gelir raporu", icon: ChartNoAxesCombined },
   { id: "branches", title: "Şube kârlılığı", icon: Building2 },
+  { id: "plus-tools", title: "Plus araçları", icon: Plug },
   { id: "whatsapp", title: "WhatsApp", icon: MessageSquare },
   { id: "setup-center", title: "Kurulum Merkezi", icon: Store },
   { id: "help", title: "Yardım merkezi", icon: LifeBuoy },
@@ -124,6 +126,7 @@ const VIEW_MODULES: Record<string, string> = {
   "service-report": "serviceReport",
   reports: "revenueReport",
   branches: "branchProfit",
+  "plus-tools": "managementApi",
   whatsapp: "whatsapp",
   integrations: "whatsapp",
   "setup-center": "setupCenter",
@@ -155,6 +158,10 @@ const TITLES: Record<string, [string, string]> = {
   recovery: [
     "Boş saatleri gelire çevirin.",
     "Bekleme listesini, sıralı teklifleri ve kurtarılan cironuzu görün.",
+  ],
+  "plus-tools": [
+    "Plus altyapınız tek merkezde.",
+    "İşletme web sitesi, Yönetim API'si ve şubeler arası otomasyonu yönetin.",
   ],
   "setup-center": [
     "İşletmenizi birlikte hazırlayalım.",
@@ -623,6 +630,9 @@ export default function Dashboard({
           {activeView === "reports" && <Reports w={w} />}{" "}
           {activeView === "branches" && (
             <BranchProfitability key={w.business.id} w={w} />
+          )}{" "}
+          {activeView === "plus-tools" && (
+            <PlusTools key={w.business.id} w={w} />
           )}{" "}
           {activeView === "receivables" && (
             <Receivables key={w.business.id} w={w} requireReal={requireReal} />

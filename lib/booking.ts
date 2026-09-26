@@ -202,7 +202,7 @@ export async function book(
     throw new ApiError("Bu saat dolu. Başka bir saat seçin.", 409);
   const id = uid(),
     token = secret(),
-    channel = z.enum(["web", "panel", "whatsapp", "recovery"]).parse(source),
+    channel = z.enum(["web", "panel", "whatsapp", "recovery", "api"]).parse(source),
     meetingUrl =
       b.online_enabled && service.delivery_mode !== "in_person"
         ? service.meeting_url
