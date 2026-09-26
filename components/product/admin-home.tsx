@@ -129,6 +129,13 @@ export default function AdminHome() {
       meta: "Arama · düzeltme · sağlık kontrolü · işlem geçmişi",
     },
     {
+      href: "/admin/musteri-uyelikleri",
+      icon: Users,
+      title: "Müşteri işletme üyelikleri",
+      description: "Tek Neta hesabının farklı işletmelerdeki üyeliklerini ayrı dallar halinde görün; Spa, kuaför veya diğer sektörlerin müşteri kartlarını birbirine karıştırmayın.",
+      meta: "Neta hesabı → işletme üyeliği → yerel müşteri kartı",
+    },
+    {
       href: "/admin/kayitlar",
       icon: Building2,
       title: "İşletmeler ve kullanıcılar",
