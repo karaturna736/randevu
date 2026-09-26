@@ -48,7 +48,8 @@ function showAutomaticNotice(input: HTMLInputElement, campaign: any) {
     const wrapper = document.createElement("span");
     const title = document.createElement("strong");
     const detail = document.createElement("small");
-    wrapper.append(title, detail);
+    wrapper.appendChild(title);
+    wrapper.appendChild(detail);
     notice.appendChild(wrapper);
     const row = input.parentElement;
     row?.insertAdjacentElement("beforebegin", notice);
@@ -90,8 +91,8 @@ export function AutomaticCampaign() {
           cache: "no-store",
         });
         if (!response.ok) return;
-        const payload = await response.json();
-        const campaign = payload?.campaign;
+        const payload = (await response.json()) as { campaign?: any };
+        const campaign = payload.campaign;
         if (!campaign?.code) return;
 
         const key = `${campaign.code}:${params.get("plan")}:${tenantId || "new"}`;
