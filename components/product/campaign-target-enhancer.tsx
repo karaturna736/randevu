@@ -14,13 +14,13 @@ function directFieldLabel(field: Element) {
 }
 
 function findField(form: HTMLFormElement, label: string) {
-  return Array.from(form.querySelectorAll<HTMLElement>(".field")).find(
+  return Array.from(form.querySelectorAll(".field") as NodeListOf<HTMLElement>).find(
     (field) => directFieldLabel(field) === label,
   );
 }
 
 function checkboxChecked(row: HTMLElement) {
-  const control = row.querySelector<HTMLElement>("[role='checkbox'], button");
+  const control = row.querySelector("[role='checkbox'], button") as HTMLElement | null;
   return (
     control?.getAttribute("aria-checked") === "true" ||
     control?.getAttribute("data-state") === "checked"
@@ -30,12 +30,12 @@ function checkboxChecked(row: HTMLElement) {
 export default function CampaignTargetEnhancer() {
   useEffect(() => {
     const enhance = () => {
-      const form = document.querySelector<HTMLFormElement>(".campaign-form");
+      const form = document.querySelector(".campaign-form") as HTMLFormElement | null;
       if (!form || form.dataset.targetEnhancer === "ready") return;
       form.dataset.targetEnhancer = "ready";
 
       const targetField = findField(form, FIELD_TEXT.target);
-      const targetSelect = targetField?.querySelector<HTMLSelectElement>("select");
+      const targetSelect = targetField?.querySelector("select") as HTMLSelectElement | null;
       const plansField = findField(form, FIELD_TEXT.plans);
       if (!targetField || !targetSelect || !plansField) return;
 
@@ -45,7 +45,7 @@ export default function CampaignTargetEnhancer() {
       targetField.insertAdjacentElement("afterend", helper);
 
       const planRows = () =>
-        Array.from(plansField.querySelectorAll<HTMLElement>("label.check-row"));
+        Array.from(plansField.querySelectorAll("label.check-row") as NodeListOf<HTMLElement>);
 
       const render = () => {
         helper.replaceChildren();
@@ -80,7 +80,7 @@ export default function CampaignTargetEnhancer() {
           const picker = document.createElement("div");
           picker.className = "campaign-checks";
           for (const row of planRows()) {
-            const original = row.querySelector<HTMLElement>("[role='checkbox'], button");
+            const original = row.querySelector("[role='checkbox'], button") as HTMLElement | null;
             const label = row.textContent?.trim() || "Paket";
             const button = document.createElement("button");
             button.type = "button";
@@ -108,7 +108,7 @@ export default function CampaignTargetEnhancer() {
 
       const submitGuard = (event: Event) => {
         const codeField = findField(form, FIELD_TEXT.code);
-        const codeInput = codeField?.querySelector<HTMLInputElement>("input");
+        const codeInput = codeField?.querySelector("input") as HTMLInputElement | null;
         const code = codeInput?.value.trim() || "";
         if (code.length < 3) {
           event.preventDefault();
