@@ -1,11 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Building2, MapPin, Search, Store } from "lucide-react";
+import {
+  Apple,
+  ArrowLeft,
+  ArrowRight,
+  Brain,
+  BriefcaseBusiness,
+  Building2,
+  Car,
+  Check,
+  Dumbbell,
+  GraduationCap,
+  Grid2X2,
+  HeartPulse,
+  MapPin,
+  Scissors,
+  Search,
+  Sparkles,
+  Stethoscope,
+  Store,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { money } from "@/lib/types";
-import { api, Blank, Busy, Pick } from "./common";
+import { api, Busy, Pick } from "./common";
 import { PublicShell } from "./public";
+import styles from "./discover-marketplace.module.css";
 
 type BusinessRow = {
   id: string;
@@ -50,18 +70,78 @@ const TURKEY_CITIES = [
   "Şanlıurfa", "Şırnak", "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak",
 ];
 
-const cardStyle = {
-  width: "100%",
-  cursor: "pointer",
-  textAlign: "left" as const,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 14,
-};
-
 function normalizedCity(b: BusinessRow) {
   return (b.city || "").trim() || "Konum belirtilmemiş";
+}
+
+function categoryVisual(category: string) {
+  switch (category) {
+    case "Kuaför & Berber":
+      return { Icon: Scissors, tone: styles.violet };
+    case "Güzellik Salonu":
+      return { Icon: Sparkles, tone: styles.pink };
+    case "Spa & Masaj":
+      return { Icon: HeartPulse, tone: styles.emerald };
+    case "Klinik":
+      return { Icon: Stethoscope, tone: styles.cyan };
+    case "Diyetisyen":
+      return { Icon: Apple, tone: styles.green };
+    case "Psikolog":
+      return { Icon: Brain, tone: styles.purple };
+    case "Spor & Fitness":
+      return { Icon: Dumbbell, tone: styles.amber };
+    case "Özel Ders":
+      return { Icon: GraduationCap, tone: styles.blue };
+    case "Danışmanlık":
+      return { Icon: BriefcaseBusiness, tone: styles.indigo };
+    case "Oto Servis":
+      return { Icon: Car, tone: styles.rose };
+    default:
+      return { Icon: Grid2X2, tone: styles.slate };
+  }
+}
+
+function Stepper({ category, city, business }: { category: string; city: string; business: BusinessRow | null }) {
+  const active = !category ? 1 : !city ? 2 : !business ? 3 : 4;
+  const steps = [
+    { n: 1, title: "Kategori", detail: category || "İhtiyacını seç", Icon: Grid2X2 },
+    { n: 2, title: "Şehir", detail: city || "Şehrini belirle", Icon: MapPin },
+    { n: 3, title: "İşletme", detail: business?.name || "İşletmeni seç", Icon: Building2 },
+    { n: 4, title: "Şube", detail: "Şubeni seç", Icon: Store },
+  ];
+
+  return (
+    <div className={styles.stepper} aria-label="Keşfet adımları">
+      {steps.map((step, index) => {
+        const complete = step.n < active;
+        const current = step.n === active;
+        return (
+          <div className={styles.stepFragment} key={step.n}>
+            <div className={`${styles.step} ${current ? styles.stepActive : ""} ${complete ? styles.stepComplete : ""}`}>
+              <span className={styles.stepIcon}>{complete ? <Check size={18} /> : <step.Icon size={18} />}</span>
+              <span className={styles.stepCopy}>
+                <strong>{step.n}. {step.title}</strong>
+                <small>{step.detail}</small>
+              </span>
+            </div>
+            {index < steps.length - 1 ? <span className={`${styles.connector} ${complete ? styles.connectorDone : ""}`} /> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className={styles.emptyState}>
+      <span className={styles.emptyIcon}><Sparkles size={20} /></span>
+      <div>
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+    </div>
+  );
 }
 
 export function DiscoverMarketplace() {
@@ -144,149 +224,186 @@ export function DiscoverMarketplace() {
 
   return (
     <PublicShell>
-      <main className="discover-page">
-        <div className="discover-hero">
-          <span className="eyebrow">NETA KEŞFET</span>
-          <h1>İhtiyacını seç, şehrini belirle, işletmeni bul.</h1>
-          <p>Güzellik salonu, spa, kuaför ve diğer hizmet kategorilerinden seçim yapın; ardından şehir, işletme ve şubeyi seçerek randevunuzu oluşturun.</p>
+      <main className={styles.premiumDiscover}>
+        <div className={styles.ambient} aria-hidden="true">
+          <span className={styles.ambientOne} />
+          <span className={styles.ambientTwo} />
+          <span className={styles.ambientThree} />
         </div>
 
-        <div className="panel" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-          <strong>1. {category || "Kategori"}</strong><ArrowRight size={15} />
-          <strong>2. {city || "Şehir"}</strong><ArrowRight size={15} />
-          <strong>3. {business?.name || "İşletme"}</strong><ArrowRight size={15} />
-          <strong>4. Şube</strong>
-        </div>
+        <div className={styles.pageInner}>
+          <header className={styles.hero}>
+            <div className={styles.kicker}><span /> NETA KEŞFET <span /></div>
+            <h1>İhtiyacını seç, şehrini belirle, <em>işletmeni bul.</em></h1>
+            <p>Güzellik salonu, spa, kuaför ve diğer hizmet kategorilerinden seçim yapın; ardından şehir, işletme ve şubeyi seçerek randevunuzu oluşturun.</p>
+          </header>
 
-        {loading ? (
-          <div className="loading-row"><Busy /> İşletmeler yükleniyor…</div>
-        ) : error && !business ? (
-          <p className="error-message">{error}</p>
-        ) : !category ? (
-          <section>
-            <div className="section-heading">
-              <div><span className="eyebrow">1. ADIM</span><h2>Hangi hizmeti arıyorsunuz?</h2></div>
-              <span className="muted">Kategori seçin</span>
-            </div>
-            <div className="business-cards">
-              {categories.map((item) => {
-                const count = rows.filter((b) => b.category === item).length;
-                return (
-                  <button key={item} type="button" className="panel business-card" style={cardStyle} onClick={() => chooseCategory(item)}>
-                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                      <span className="service-icon"><Store /></span>
-                      <div>
-                        <span className="eyebrow">KATEGORİ</span>
-                        <h2>{item}</h2>
-                        <p className="muted">{count ? `${count} işletme` : "Yeni işletmeler yakında"}</p>
-                      </div>
-                    </div>
-                    <ArrowRight size={20} />
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : !city ? (
-          <section>
-            <button className="text-button" type="button" onClick={() => chooseCategory("")}><ArrowLeft size={16} /> Kategorilere dön</button>
-            <div className="section-heading">
-              <div><span className="eyebrow">2. ADIM · {category}</span><h2>Hangi şehir?</h2></div>
-              <span className="muted">81 il arasından seçin</span>
-            </div>
-            <div className="panel" style={{ marginBottom: 20 }}>
-              <Pick
-                label="Şehir seçin"
-                value={city}
-                onChange={chooseCity}
-                options={cityOptions.map((item) => ({ value: item, label: item }))}
-              />
-            </div>
-            {availableCities.length ? (
-              <>
-                <div className="section-heading"><h3>Bu kategoride işletme bulunan şehirler</h3><span className="muted">{availableCities.length} şehir</span></div>
-                <div className="business-cards">
-                  {availableCities.map((item) => {
-                    const count = rows.filter((b) => b.category === category && normalizedCity(b) === item).length;
-                    return (
-                      <button key={item} type="button" className="panel business-card" style={cardStyle} onClick={() => chooseCity(item)}>
-                        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                          <span className="service-icon"><MapPin /></span>
-                          <div><span className="eyebrow">ŞEHİR</span><h2>{item}</h2><p className="muted">{count} işletme</p></div>
-                        </div>
-                        <ArrowRight size={20} />
-                      </button>
-                    );
-                  })}
+          <Stepper category={category} city={city} business={business} />
+
+          {loading ? (
+            <div className={styles.loading}><Busy /> İşletmeler hazırlanıyor…</div>
+          ) : error && !business ? (
+            <div className={styles.error}>{error}</div>
+          ) : !category ? (
+            <section className={styles.contentPanel}>
+              <div className={styles.sectionHeading}>
+                <div>
+                  <span className={styles.stepLabel}>1. ADIM</span>
+                  <h2>Hangi hizmeti arıyorsunuz?</h2>
                 </div>
-              </>
-            ) : (
-              <Blank title="Bu kategoride henüz işletme yok" description="Yukarıdaki şehir seçicisinden istediğiniz ili seçebilirsiniz. Yeni işletmeler eklendikçe burada görünecek." />
-            )}
-          </section>
-        ) : !business ? (
-          <section>
-            <button className="text-button" type="button" onClick={() => chooseCity("")}><ArrowLeft size={16} /> Şehir seçimine dön</button>
-            <div className="section-heading">
-              <div><span className="eyebrow">3. ADIM · {category} · {city}</span><h2>İşletmeni seç</h2></div>
-              <span className="muted">{businesses.length} işletme</span>
-            </div>
-            <div className="discover-search">
-              <div className="search-input"><Search size={19} /><Input aria-label="İşletme ara" placeholder="İşletme adı ara…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-            </div>
-            {businesses.length ? (
-              <div className="business-cards">
-                {businesses.map((b) => (
-                  <button key={b.id} type="button" className="panel business-card" style={cardStyle} onClick={() => chooseBusiness(b)}>
-                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                      <span className="service-icon"><Building2 /></span>
-                      <div>
-                        <span className="eyebrow">{b.category}</span><h2>{b.name}</h2>
-                        <p className="muted"><MapPin size={14} /> {b.city || "Konum belirtilmedi"}</p>
-                        <small>{b.min_price != null ? `${money(b.min_price)}’den başlayan` : "Hizmetleri ve şubeleri gör"}</small>
+                <span className={styles.helper}><Grid2X2 size={16} /> Kategori seçin</span>
+              </div>
+
+              <div className={styles.categoryGrid}>
+                {categories.map((item) => {
+                  const count = rows.filter((b) => b.category === item).length;
+                  const { Icon, tone } = categoryVisual(item);
+                  return (
+                    <button key={item} type="button" className={styles.categoryCard} onClick={() => chooseCategory(item)}>
+                      <span className={`${styles.categoryIcon} ${tone}`}><Icon size={23} /></span>
+                      <span className={styles.cardCopy}>
+                        <strong>{item}</strong>
+                        <small>{count ? `${count} işletme` : "Yeni işletmeler yakında"}</small>
+                      </span>
+                      <span className={styles.cardArrow}><ArrowRight size={18} /></span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : !city ? (
+            <section className={styles.contentPanel}>
+              <button className={styles.backButton} type="button" onClick={() => chooseCategory("")}><ArrowLeft size={17} /> Kategorilere dön</button>
+              <div className={styles.sectionHeading}>
+                <div>
+                  <span className={styles.stepLabel}>2. ADIM · {category}</span>
+                  <h2>Hangi şehir?</h2>
+                </div>
+                <span className={styles.helper}>81 il arasından seçin</span>
+              </div>
+
+              <div className={styles.selectShell}>
+                <span className={styles.selectIcon}><MapPin size={20} /></span>
+                <div className={styles.selectControl}>
+                  <Pick
+                    label="Şehir seçin"
+                    value={city}
+                    onChange={chooseCity}
+                    options={cityOptions.map((item) => ({ value: item, label: item }))}
+                  />
+                </div>
+              </div>
+
+              {availableCities.length ? (
+                <div className={styles.citySection}>
+                  <div className={styles.subHeading}>
+                    <h3>Bu kategoride işletme bulunan şehirler</h3>
+                    <span>{availableCities.length} şehir</span>
+                  </div>
+                  <div className={styles.cityGrid}>
+                    {availableCities.map((item) => {
+                      const count = rows.filter((b) => b.category === category && normalizedCity(b) === item).length;
+                      return (
+                        <button key={item} type="button" className={styles.cityCard} onClick={() => chooseCity(item)}>
+                          <span className={`${styles.categoryIcon} ${styles.violet}`}><MapPin size={23} /></span>
+                          <span className={styles.cardCopy}>
+                            <span className={styles.microLabel}>ŞEHİR</span>
+                            <strong>{item}</strong>
+                            <small>{count} işletme</small>
+                          </span>
+                          <span className={styles.cardArrow}><ArrowRight size={18} /></span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <EmptyState title="Bu kategoride henüz işletme yok" description="Yukarıdan istediğiniz şehri seçebilirsiniz. Yeni işletmeler eklendikçe burada öne çıkacak." />
+              )}
+            </section>
+          ) : !business ? (
+            <section className={styles.contentPanel}>
+              <button className={styles.backButton} type="button" onClick={() => chooseCity("")}><ArrowLeft size={17} /> Şehir seçimine dön</button>
+              <div className={styles.sectionHeading}>
+                <div>
+                  <span className={styles.stepLabel}>3. ADIM · {category} · {city}</span>
+                  <h2>İşletmeni seç</h2>
+                </div>
+                <span className={styles.helper}>{businesses.length} işletme</span>
+              </div>
+
+              <div className={styles.searchShell}>
+                <Search size={19} />
+                <Input aria-label="İşletme ara" placeholder="İşletme adı veya hizmet ara…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+
+              {businesses.length ? (
+                <div className={styles.businessGrid}>
+                  {businesses.map((b) => (
+                    <button key={b.id} type="button" className={styles.businessCard} onClick={() => chooseBusiness(b)}>
+                      <div className={styles.businessTop}>
+                        <span className={`${styles.categoryIcon} ${styles.indigo}`}><Building2 size={23} /></span>
+                        <span className={styles.cardArrow}><ArrowRight size={18} /></span>
                       </div>
-                    </div>
-                    <ArrowRight size={20} />
-                  </button>
-                ))}
+                      <span className={styles.microLabel}>{b.category}</span>
+                      <h3>{b.name}</h3>
+                      <p><MapPin size={14} /> {b.city || "Konum belirtilmedi"}</p>
+                      <small>{b.min_price != null ? `${money(b.min_price)}’den başlayan` : "Hizmetleri ve şubeleri gör"}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title={`${city} · ${category} için henüz işletme yok`} description="Başka bir şehir veya kategori seçebilirsiniz. Yeni işletmeler eklendiğinde burada listelenecek." />
+              )}
+
+              <div className={styles.partnerCard}>
+                <div>
+                  <span className={styles.microLabel}>İŞLETMELER İÇİN</span>
+                  <h3>Neta Keşfet’te daha görünür olun.</h3>
+                  <p>Neta kullanan işletmeler organik olarak listelenir. Öne çıkan alanlar reklam ürünü olarak sunulabilir.</p>
+                </div>
+                <a href="/kayit">İşletmemi Neta’ya ekle <ArrowRight size={16} /></a>
               </div>
-            ) : (
-              <Blank title={`${city} · ${category} için henüz işletme yok`} description="Bu şehir ve kategoride yeni işletmeler eklendiğinde burada listelenecek. Başka bir şehir veya kategori seçebilirsiniz." />
-            )}
-            <div className="panel" style={{ marginTop: 20 }}>
-              <span className="eyebrow">İŞLETMELER İÇİN</span><h3>Neta Keşfet’te görünür olun.</h3>
-              <p className="muted">Neta kullanan işletmeler organik olarak listelenir. Öne çıkan işletme alanları daha sonra ayrı reklam ürünü olarak kullanılabilir.</p>
-              <a className="button" href="/kayit">İşletmemi Neta’ya ekle <ArrowRight size={16} /></a>
-            </div>
-          </section>
-        ) : (
-          <section>
-            <button className="text-button" type="button" onClick={() => { setBusiness(null); setBusinessData(null); setError(""); }}><ArrowLeft size={16} /> İşletmelere dön</button>
-            <div className="section-heading">
-              <div><span className="eyebrow">4. ADIM · {business.name}</span><h2>Şubeyi seç</h2></div>
-              <span className="muted">{branches.length} aktif şube</span>
-            </div>
-            {branchLoading ? (
-              <div className="loading-row"><Busy /> Şubeler yükleniyor…</div>
-            ) : error ? (
-              <p className="error-message">{error}</p>
-            ) : branches.length ? (
-              <div className="business-cards">
-                {branches.map((branch) => (
-                  <a key={branch.id} className="panel business-card" style={cardStyle} href={`/randevu/${encodeURIComponent(business.slug)}?branch=${encodeURIComponent(branch.id)}`}>
-                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                      <span className="service-icon"><MapPin /></span>
-                      <div><span className="eyebrow">ŞUBE</span><h2>{branch.name}</h2><p className="muted">{[branch.city, branch.address].filter(Boolean).join(" · ") || "Adres bilgisi işletmeden alınacak"}</p><strong>Bu şubeden randevu al</strong></div>
-                    </div>
-                    <ArrowRight size={20} />
-                  </a>
-                ))}
+            </section>
+          ) : (
+            <section className={styles.contentPanel}>
+              <button className={styles.backButton} type="button" onClick={() => { setBusiness(null); setBusinessData(null); setError(""); }}><ArrowLeft size={17} /> İşletmelere dön</button>
+              <div className={styles.sectionHeading}>
+                <div>
+                  <span className={styles.stepLabel}>4. ADIM · {business.name}</span>
+                  <h2>Şubeyi seç</h2>
+                </div>
+                <span className={styles.helper}>{branches.length} aktif şube</span>
               </div>
-            ) : (
-              <div className="panel"><h3>Şube kaydı bulunamadı</h3><p className="muted">İşletmenin genel randevu sayfasından devam edebilirsiniz.</p><a className="button primary" href={`/${business.slug}`}>Randevu sayfasına git <ArrowRight size={16} /></a></div>
-            )}
-          </section>
-        )}
+
+              {branchLoading ? (
+                <div className={styles.loading}><Busy /> Şubeler hazırlanıyor…</div>
+              ) : error ? (
+                <div className={styles.error}>{error}</div>
+              ) : branches.length ? (
+                <div className={styles.branchGrid}>
+                  {branches.map((branch) => (
+                    <a key={branch.id} className={styles.branchCard} href={`/randevu/${encodeURIComponent(business.slug)}?branch=${encodeURIComponent(branch.id)}`}>
+                      <span className={`${styles.categoryIcon} ${styles.violet}`}><MapPin size={23} /></span>
+                      <span className={styles.cardCopy}>
+                        <span className={styles.microLabel}>ŞUBE</span>
+                        <strong>{branch.name}</strong>
+                        <small>{[branch.city, branch.address].filter(Boolean).join(" · ") || "Adres bilgisi işletmeden alınacak"}</small>
+                      </span>
+                      <span className={styles.cardArrow}><ArrowRight size={18} /></span>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="Şube kaydı bulunamadı" description="İşletmenin genel randevu sayfasından devam edebilirsiniz." />
+              )}
+
+              {!branchLoading && !error && !branches.length ? (
+                <a className={styles.primaryAction} href={`/${business.slug}`}>Randevu sayfasına git <ArrowRight size={16} /></a>
+              ) : null}
+            </section>
+          )}
+        </div>
       </main>
     </PublicShell>
   );
