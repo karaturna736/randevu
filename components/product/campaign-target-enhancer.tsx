@@ -29,6 +29,40 @@ function checkboxChecked(row: HTMLElement) {
 
 export default function CampaignTargetEnhancer() {
   useEffect(() => {
+    const originalFetch = window.fetch.bind(window);
+    const patchedFetch: typeof window.fetch = async (input, init) => {
+      try {
+        const requestUrl =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        const method = (
+          init?.method || (input instanceof Request ? input.method : "GET")
+        ).toUpperCase();
+
+        if (
+          requestUrl.includes("/api/v1/campaigns") &&
+          method === "POST" &&
+          typeof init?.body === "string"
+        ) {
+          const payload = JSON.parse(init.body) as Record<string, unknown>;
+          if (payload.action === "create" && payload.id === "") {
+            const { id: _emptyId, ...cleanPayload } = payload;
+            return originalFetch(input, {
+              ...init,
+              body: JSON.stringify(cleanPayload),
+            });
+          }
+        }
+      } catch {
+        // API isteği normal akışında devam etsin.
+      }
+      return originalFetch(input, init);
+    };
+    window.fetch = patchedFetch;
+
     const enhance = () => {
       const form = document.querySelector(".campaign-form") as HTMLFormElement | null;
       if (!form || form.dataset.targetEnhancer === "ready") return;
@@ -131,7 +165,10 @@ export default function CampaignTargetEnhancer() {
     enhance();
     const observer = new MutationObserver(() => enhance());
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.fetch = originalFetch;
+    };
   }, []);
 
   return null;
