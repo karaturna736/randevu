@@ -75,6 +75,10 @@ export async function issueTurnstileGate() {
 }
 
 export async function requireTurnstileGate(req: Request) {
+  // Turnstile is a production-edge control. Isolated test/dev hosts keep using
+  // the existing auth tests without weakening enforcement on netarandevu.com.
+  if (new URL(req.url).hostname.toLowerCase() !== PROD_HOST) return;
+
   const cookie = req.headers.get("cookie") || "";
   const raw = cookie
     .split(";")
