@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   publisher: "Neta",
   category: "business software",
   referrer: "no-referrer",
+  verification: {
+    google: "1hnJ476D3u8p2fGOXouJHeqrGjkkR7TO1qa-Bb7OmF8",
+  },
   openGraph: {
     siteName: "Neta",
     locale: "tr_TR",
