@@ -132,6 +132,21 @@ function CardArrow() {
   return <span className={styles.arrow}><ArrowRight size={18} /></span>;
 }
 
+function BusinessVisual({ business }: { business: BusinessRow }) {
+  return (
+    <span className={styles.businessVisual} aria-hidden="true">
+      <span className={styles.businessFallback}><Building2 size={24} /></span>
+      <img
+        className={styles.businessImage}
+        src={`/api/v1/business-image/${encodeURIComponent(business.id)}`}
+        alt=""
+        loading="lazy"
+        onError={(event) => { event.currentTarget.style.display = "none"; }}
+      />
+    </span>
+  );
+}
+
 export function DiscoverMarketplace() {
   const [rows, setRows] = useState<BusinessRow[]>([]);
   const [category, setCategory] = useState("");
@@ -259,9 +274,7 @@ export function DiscoverMarketplace() {
               </div>
               <div className={styles.citySelectWrap}>
                 <span className={styles.cityIcon}><MapPin size={21} /></span>
-                <div className={styles.citySelect}>
-                  <Pick label="Şehir seçin" value={city} onChange={chooseCity} options={cityOptions.map((item) => ({ value: item, label: item }))} />
-                </div>
+                <div className={styles.citySelect}><Pick label="Şehir seçin" value={city} onChange={chooseCity} options={cityOptions.map((item) => ({ value: item, label: item }))} /></div>
               </div>
               {availableCities.length ? (
                 <>
@@ -297,9 +310,9 @@ export function DiscoverMarketplace() {
               {businesses.length ? (
                 <div className={styles.businessGrid}>
                   {businesses.map((b) => (
-                    <button key={b.id} type="button" className={styles.card} onClick={() => chooseBusiness(b)}>
+                    <button key={b.id} type="button" className={`${styles.card} ${styles.businessCard}`} onClick={() => chooseBusiness(b)}>
                       <span className={styles.cardMain}>
-                        <span className={`${styles.iconChip} ${styles.toneBlue}`}><Building2 size={23} /></span>
+                        <BusinessVisual business={b} />
                         <span className={styles.cardCopy}><strong>{b.name}</strong><span>{b.city || "Konum belirtilmedi"}</span><span>{b.min_price != null ? `${money(b.min_price)}’den başlayan` : "Hizmetleri ve şubeleri gör"}</span></span>
                       </span>
                       <CardArrow />
