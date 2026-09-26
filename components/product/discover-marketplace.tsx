@@ -62,7 +62,7 @@ const DISCOVERY_CATEGORIES = [
 const CATEGORY_ALIASES: Record<string, string> = {
   "Kuaför / Berber": "Kuaför & Berber",
   "Kuaför-Berber": "Kuaför & Berber",
-  "Kuaför ve Berber": "Kuaför & Berber",
+  "Berber & Kuaför": "Kuaför & Berber",
 };
 
 const TURKEY_CITIES = [
@@ -90,26 +90,22 @@ const CATEGORY_META: Record<string, { icon: any; tone?: string }> = {
   Diğer: { icon: Grid3X3, tone: styles.toneCyan },
 };
 
+function canonicalCategory(value: string) {
+  const category = (value || "").trim();
+  return CATEGORY_ALIASES[category] || category;
+}
+
 function normalizedCity(b: BusinessRow) {
   return (b.city || "").trim() || "Konum belirtilmemiş";
-}
-
-function canonicalCategory(value: string) {
-  const clean = (value || "").trim();
-  return CATEGORY_ALIASES[clean] || clean;
-}
-
-function matchesCategory(row: BusinessRow, selected: string) {
-  return canonicalCategory(row.category) === selected;
 }
 
 function Progress({ category, city, business }: { category: string; city: string; business: BusinessRow | null }) {
   const active = business ? 4 : city ? 3 : category ? 2 : 1;
   const steps = [
-    { n: 1, title: category || "Kategori", subtitle: category ? "Seçildi" : "İhtiyacını seç", icon: Grid3X3 },
-    { n: 2, title: city || "Şehir", subtitle: city ? "Seçildi" : "Şehrini belirle", icon: MapPin },
-    { n: 3, title: business?.name || "İşletme", subtitle: business ? "Seçildi" : "İşletmeni seç", icon: Building2 },
-    { n: 4, title: "Şube", subtitle: "Şubeni seç", icon: Store },
+    { n: 1, short: "Kategori", title: category || "Kategori", subtitle: category ? "Seçildi" : "İhtiyacını seç", icon: Grid3X3 },
+    { n: 2, short: "Şehir", title: city || "Şehir", subtitle: city ? "Seçildi" : "Şehrini belirle", icon: MapPin },
+    { n: 3, short: "İşletme", title: business?.name || "İşletme", subtitle: business ? "Seçildi" : "İşletmeni seç", icon: Building2 },
+    { n: 4, short: "Şube", title: "Şube", subtitle: "Şubeni seç", icon: Store },
   ];
   return (
     <div className={styles.stepper} aria-label="Keşfet adımları">
@@ -124,6 +120,7 @@ function Progress({ category, city, business }: { category: string; city: string
               <strong>{step.n}. {step.title}</strong>
               <span>{step.subtitle}</span>
             </span>
+            <span className={styles.stepShort}>{step.n}. {step.short}</span>
           </div>
         );
       })}
@@ -148,7 +145,7 @@ export function DiscoverMarketplace() {
 
   useEffect(() => {
     api("businesses")
-      .then((r) => setRows(r.businesses || []))
+      .then((r) => setRows((r.businesses || []).map((item: BusinessRow) => ({ ...item, category: canonicalCategory(item.category) }))))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -162,7 +159,7 @@ export function DiscoverMarketplace() {
 
   const availableCities = useMemo(() => {
     if (!category) return [];
-    return Array.from(new Set(rows.filter((b) => matchesCategory(b, category)).map(normalizedCity)))
+    return Array.from(new Set(rows.filter((b) => canonicalCategory(b.category) === category).map(normalizedCity)))
       .filter((item) => item !== "Konum belirtilmemiş")
       .sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows, category]);
@@ -175,13 +172,13 @@ export function DiscoverMarketplace() {
   const businesses = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((b) => {
-      if (!matchesCategory(b, category) || normalizedCity(b) !== city) return false;
+      if (canonicalCategory(b.category) !== category || normalizedCity(b) !== city) return false;
       return !q || `${b.name} ${b.address || ""} ${b.description || ""}`.toLocaleLowerCase("tr-TR").includes(q);
     });
   }, [rows, category, city, search]);
 
   function chooseCategory(value: string) {
-    setCategory(value);
+    setCategory(canonicalCategory(value));
     setCity("");
     setBusiness(null);
     setBusinessData(null);
@@ -234,10 +231,11 @@ export function DiscoverMarketplace() {
               <div className={styles.sectionHead}>
                 <div><span className={styles.eyebrow}>1. ADIM</span><h2>Hangi hizmeti arıyorsunuz?</h2></div>
                 <span className={styles.sectionMeta}>Kategori seçin</span>
+                <span className={styles.mobileSwipeHint}>Yana kaydır <ArrowRight size={14} /></span>
               </div>
               <div className={styles.categoryGrid}>
                 {categories.map((item, index) => {
-                  const count = rows.filter((b) => matchesCategory(b, item)).length;
+                  const count = rows.filter((b) => canonicalCategory(b.category) === item).length;
                   const meta = CATEGORY_META[item] || { icon: Store, tone: styles.toneCyan };
                   const Icon = meta.icon;
                   return (
@@ -267,10 +265,10 @@ export function DiscoverMarketplace() {
               </div>
               {availableCities.length ? (
                 <>
-                  <div className={styles.sectionHead}><h3>Bu kategoride işletme bulunan şehirler</h3><span className={styles.sectionMeta}>{availableCities.length} şehir</span></div>
+                  <div className={styles.sectionHead}><h3>Bu kategoride işletme bulunan şehirler</h3><span className={styles.sectionMeta}>{availableCities.length} şehir</span><span className={styles.mobileSwipeHint}>Yana kaydır <ArrowRight size={14} /></span></div>
                   <div className={styles.cityGrid}>
                     {availableCities.map((item) => {
-                      const count = rows.filter((b) => matchesCategory(b, category) && normalizedCity(b) === item).length;
+                      const count = rows.filter((b) => canonicalCategory(b.category) === category && normalizedCity(b) === item).length;
                       return (
                         <button key={item} type="button" className={`${styles.card} ${styles.cardActive}`} onClick={() => chooseCity(item)}>
                           <span className={styles.cardMain}>
@@ -293,6 +291,7 @@ export function DiscoverMarketplace() {
               <div className={styles.sectionHead}>
                 <div><span className={styles.eyebrow}>3. ADIM · {category} · {city}</span><h2>İşletmeni seç</h2></div>
                 <span className={styles.sectionMeta}>{businesses.length} işletme</span>
+                {businesses.length > 1 ? <span className={styles.mobileSwipeHint}>Yana kaydır <ArrowRight size={14} /></span> : null}
               </div>
               <div className={styles.searchBox}><Search size={18} /><Input aria-label="İşletme ara" placeholder="İşletme adı ara…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
               {businesses.length ? (
@@ -322,6 +321,7 @@ export function DiscoverMarketplace() {
               <div className={styles.sectionHead}>
                 <div><span className={styles.eyebrow}>4. ADIM · {business.name}</span><h2>Şubeyi seç</h2></div>
                 <span className={styles.sectionMeta}>{branches.length} aktif şube</span>
+                {branches.length > 1 ? <span className={styles.mobileSwipeHint}>Yana kaydır <ArrowRight size={14} /></span> : null}
               </div>
               {branchLoading ? (
                 <div className="loading-row"><Busy /> Şubeler yükleniyor…</div>
