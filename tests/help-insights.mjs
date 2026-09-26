@@ -39,7 +39,7 @@ try{
   const after=await call('platform-help-insights','admin-test');
   check(after.data.rows[0].status==='planned','Updated insight status persists');
 
-  const pii=await call('help','a',{tenant_id:tenant,message:'E-arşiv özelliği var mı? 0555 123 45 67 ahmet@example.com'});
+  const pii=await call('help','a',{tenant_id:tenant,message:'E-arşiv faturası kesmek 0555 123 45 67 ahmet@example.com'});
   check(pii.status===200&&pii.data.matched===false,'Another unknown question is collected safely');
   const piiRows=(await call('platform-help-insights','admin-test')).data.rows;
   const piiRow=piiRows.find(r=>String(r.sample_question).includes('E-arşiv'));
