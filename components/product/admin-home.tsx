@@ -17,6 +17,7 @@ import {
   Sparkles,
   Users,
   WalletCards,
+  Wrench,
 } from "lucide-react";
 import { PublicShell } from "./public";
 import { api, Blank, Busy } from "./common";
@@ -120,6 +121,13 @@ export default function AdminHome() {
   const openHelpAsks = Number(data.helpInsights?.totals?.open_asks || 0);
 
   const modules = [
+    {
+      href: "/admin/sistem",
+      icon: Wrench,
+      title: "Sistem kontrol merkezi",
+      description: "Sorun olduğunda işletme, kullanıcı, müşteri ve randevu kayıtlarını tek yerden bulun; güvenli düzeltmeleri yapın ve veri bütünlüğünü kontrol edin.",
+      meta: "Arama · düzeltme · sağlık kontrolü · işlem geçmişi",
+    },
     {
       href: "/admin/kayitlar",
       icon: Building2,
