@@ -30,6 +30,8 @@ export const PLAN_LIMITS: Record<
       | "accounting"
       | "referral"
       | "website"
+      | "managementApi"
+      | "branchAutomation"
       | "setupCenter",
       boolean
     >;
@@ -55,6 +57,8 @@ export const PLAN_LIMITS: Record<
       accounting: false,
       referral: false,
       website: false,
+      managementApi: false,
+      branchAutomation: false,
       setupCenter: false,
     },
   },
@@ -78,6 +82,8 @@ export const PLAN_LIMITS: Record<
       accounting: false,
       referral: false,
       website: false,
+      managementApi: false,
+      branchAutomation: false,
       setupCenter: false,
     },
   },
@@ -100,8 +106,9 @@ export const PLAN_LIMITS: Record<
       whatsapp: true,
       accounting: true,
       referral: true,
-      // Özel işletme web sitesi henüz ürünleştirilmedi; satış kapsamına açılmaz.
-      website: false,
+      website: true,
+      managementApi: true,
+      branchAutomation: true,
       setupCenter: true,
     },
   },
@@ -120,6 +127,8 @@ export type PlanModule =
   | "accounting"
   | "referral"
   | "website"
+  | "managementApi"
+  | "branchAutomation"
   | "setupCenter";
 
 /** Sunucu tarafı modül kilidi: paketin izin vermediği özellik 402 döner. */
@@ -152,6 +161,8 @@ export const MODULE_LABELS: Record<PlanModule, string> = {
   accounting: "Muhasebe gider kataloğu",
   referral: "Neta ortaklık programı",
   website: "İşletme web sitesi",
+  managementApi: "Yönetim API'si",
+  branchAutomation: "Şubeler arası otomasyon",
   setupCenter: "Kurulum merkezi, veri taşıma ve eğitim",
 };
 
