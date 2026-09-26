@@ -45,11 +45,23 @@ function showAutomaticNotice(input: HTMLInputElement, campaign: any) {
     notice = document.createElement("div");
     notice.className = "notice success";
     notice.dataset.automaticCampaignNotice = "true";
+    const wrapper = document.createElement("span");
+    const title = document.createElement("strong");
+    const detail = document.createElement("small");
+    wrapper.append(title, detail);
+    notice.appendChild(wrapper);
     const row = input.parentElement;
     row?.insertAdjacentElement("beforebegin", notice);
   }
-  const reason = String(campaign.description || campaign.campaign_name || "Kampanya").trim();
-  notice.innerHTML = `<span><strong>${reason}</strong><small>Bu kampanya hesabınıza otomatik tanımlandı. Kampanya kodu girmenize gerek yok.</small></span>`;
+  const title = notice.querySelector("strong");
+  const detail = notice.querySelector("small");
+  if (title)
+    title.textContent = String(
+      campaign.description || campaign.campaign_name || "Kampanya",
+    ).trim();
+  if (detail)
+    detail.textContent =
+      "Bu kampanya hesabınıza otomatik tanımlandı. Kampanya kodu girmenize gerek yok.";
 }
 
 export function AutomaticCampaign() {
@@ -100,7 +112,11 @@ export function AutomaticCampaign() {
 
     schedule();
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
     document.addEventListener("click", schedule, true);
     window.addEventListener("popstate", schedule);
 
