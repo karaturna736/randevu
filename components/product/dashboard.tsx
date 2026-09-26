@@ -92,6 +92,7 @@ import { Receivables, Journeys } from "./customer-operations";
 import { BookingLink, Growth, WhatsAppPanel, HelpCenter } from "./growth";
 import { RecoveryEngine, SetupCenter } from "./recovery-setup";
 import { BranchProfitability } from "./branches";
+import { PlusBusinessTools } from "./plus-tools";
 
 const NAV = [
   { id: "overview", title: "Genel bakış", icon: LayoutDashboard },
@@ -110,6 +111,7 @@ const NAV = [
   { id: "reports", title: "Gelir raporu", icon: ChartNoAxesCombined },
   { id: "branches", title: "Şube kârlılığı", icon: Building2 },
   { id: "whatsapp", title: "WhatsApp", icon: MessageSquare },
+  { id: "plus-tools", title: "Plus işletme araçları", icon: Plug },
   { id: "setup-center", title: "Kurulum Merkezi", icon: Store },
   { id: "help", title: "Yardım merkezi", icon: LifeBuoy },
   { id: "settings", title: "Ayarlar", icon: SettingsIcon },
@@ -126,6 +128,7 @@ const VIEW_MODULES: Record<string, string> = {
   branches: "branchProfit",
   whatsapp: "whatsapp",
   integrations: "whatsapp",
+  "plus-tools": "website",
   "setup-center": "setupCenter",
 };
 function planAllowsView(w: any, id: string) {
@@ -155,6 +158,10 @@ const TITLES: Record<string, [string, string]> = {
   recovery: [
     "Boş saatleri gelire çevirin.",
     "Bekleme listesini, sıralı teklifleri ve kurtarılan cironuzu görün.",
+  ],
+  "plus-tools": [
+    "Plus ile işletmenizi dışarı açın.",
+    "Özel web vitrini, güvenli yönetim API'si ve şubeler arası otomasyon tek yerde.",
   ],
   "setup-center": [
     "İşletmenizi birlikte hazırlayalım.",
@@ -641,6 +648,7 @@ export default function Dashboard({
           {activeView === "help" && (
             <HelpCenter key={w.business.id} w={w} onNavigate={setView} />
           )}{" "}
+          {activeView === "plus-tools" && <PlusBusinessTools key={w.business.id} w={w} />}{" "}
           {activeView === "setup-center" && <SetupCenter key={w.business.id} w={w} />}{" "}
           {activeView === "settings" && (
             <Settings

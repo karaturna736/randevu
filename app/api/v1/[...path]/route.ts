@@ -1,4 +1,5 @@
 import { waSnapshot } from "@/lib/whatsapp";
+import { plusToolsSnapshot, plusToolsAction, publicWebsite, branchOverflowAlternatives } from "@/lib/plus-business-tools";
 import { consumePlanQuota } from "@/lib/entitlements";
 import {
   campaignOperation,
@@ -141,6 +142,7 @@ export async function GET(req: Request) {
         ),
       );
     }
+    if (p[0] === "plus-tools") return ok(await plusToolsSnapshot(id));
     if (p[0] === "setup-center") return ok(await setupSnapshot(id));
     if (p[0] === "branches")
       return ok(
@@ -215,19 +217,17 @@ export async function GET(req: Request) {
       return ok({ businessTypes: getBusinessConfigCatalog() });
     if (p[0] === "availability") {
       const b = id
-        ? await tenant(id)
-        : await publicBusiness(u.searchParams.get("slug") || "");
-      return ok({
-        slots: await available(
-          b,
-          u.searchParams.get("service") || "",
-          date.parse(u.searchParams.get("date")),
-          u.searchParams.get("staff") || "any",
-          "",
-          undefined,
-          u.searchParams.get("branch") || undefined,
-        ),
-      });
+          ? await tenant(id)
+          : await publicBusiness(u.searchParams.get("slug") || ""),
+        serviceId = u.searchParams.get("service") || "",
+        appointmentDate = date.parse(u.searchParams.get("date")),
+        staffId = u.searchParams.get("staff") || "any",
+        branchId = u.searchParams.get("branch") || undefined,
+        slots = await available(b, serviceId, appointmentDate, staffId, "", undefined, branchId),
+        alternatives = !slots.length && branchId
+          ? await branchOverflowAlternatives(b, serviceId, appointmentDate, branchId)
+          : [];
+      return ok({ slots, alternatives });
     }
     if (p[0] === "businesses")
       return ok({
@@ -241,6 +241,7 @@ export async function GET(req: Request) {
         business: b,
         configuration: getBusinessConfig(b.category),
         presentation: await publicStyle(b.id),
+        website: await publicWebsite(b.id),
         services: await all(
           "SELECT id,name,description,duration,price,color,active FROM services WHERE tenant_id=? AND active=1",
           b.id,
@@ -250,7 +251,7 @@ export async function GET(req: Request) {
           b.id,
         ),
         branches: await all(
-          "SELECT id,name,city,address FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC,name",
+          "SELECT id,name,city,address,phone,is_primary FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC,name",
           b.id,
         ),
         reviews: await all(
@@ -330,6 +331,7 @@ export async function POST(req: Request) {
         201,
       );
     }
+    if (p[0] === "plus-tools") return ok(await plusToolsAction(id, x));
     if (p[0] === "setup-import") {
       await limit(req, "setup-import", 60);
       return ok(await importSetup(id, x));

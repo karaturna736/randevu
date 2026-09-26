@@ -19,6 +19,7 @@ import {
   Heart,
   Link2,
   Video,
+  ExternalLink,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -125,6 +126,17 @@ export function BusinessBooking({ slug }: any) {
   const b = data.business;
   return (
     <PublicShell business={b} presentation={data.presentation}>
+      {data.website && (
+        <section className="discover-hero" style={data.website.cover_url ? { backgroundImage: `linear-gradient(rgba(255,255,255,.88),rgba(255,255,255,.96)),url(${data.website.cover_url})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+          <span className="eyebrow">{b.category}</span>
+          <h1>{data.website.headline || b.name}</h1>
+          {data.website.intro && <p>{data.website.intro}</p>}
+          <div className="button-group">
+            {data.website.contact_phone && <a className="button primary" href={`tel:${data.website.contact_phone}`}><Phone size={16}/>Ara</a>}
+            {data.website.instagram_url && <a className="button" href={data.website.instagram_url} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Instagram</a>}
+          </div>
+        </section>
+      )}
       <BookingTheme
         data={data}
         onAssistant={() => setAssistant(true)}

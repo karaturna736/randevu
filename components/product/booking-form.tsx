@@ -34,7 +34,8 @@ export default function BookingForm({
   const { data: session } = useSession();
   const business = data.business,
     services = data.services.filter((s: any) => s.active !== 0),
-    staff = data.staff.filter((p: any) => p.active !== 0);
+    staff = data.staff.filter((p: any) => p.active !== 0),
+    branches = data.branches || [];
   const [demand, setDemand] = useState<any>(null),
     [early, setEarly] = useState(false),
     [earlyTime, setEarlyTime] = useState("17:00"),
@@ -45,6 +46,8 @@ export default function BookingForm({
     [person, setPerson] = useState(initial?.slot?.staff_id || "any"),
     [date, setDate] = useState(initial?.date || today()),
     [slots, setSlots] = useState<any[]>([]),
+    [branch, setBranch] = useState(initial?.branch_id || branches.find((b: any) => b.is_primary)?.id || branches[0]?.id || ""),
+    [branchAlternatives, setBranchAlternatives] = useState<any[]>([]),
     [selected, setSelected] = useState<any>(initial?.slot || null),
     [loading, setLoading] = useState(false),
     [busy, setBusy] = useState(false),
@@ -86,6 +89,7 @@ export default function BookingForm({
     let stopped = false;
     setSelected(null);
     setDemand(null);
+    setBranchAlternatives([]);
     setLoading(true);
     setError("");
     if (demo) {
@@ -102,15 +106,15 @@ export default function BookingForm({
       return;
     }
     api(
-      `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&date=${date}&staff=${person}`,
+      `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&date=${date}&staff=${person}${branch ? "&branch=" + encodeURIComponent(branch) : ""}`,
     )
-      .then((r) => !stopped && setSlots(r.slots))
+      .then((r) => { if (!stopped) { setSlots(r.slots); setBranchAlternatives(r.alternatives || []); } })
       .catch((e) => !stopped && setError(e.message))
       .finally(() => !stopped && setLoading(false));
     return () => {
       stopped = true;
     };
-  }, [step, service, person, date]);
+  }, [step, service, person, date, branch]);
   async function submit(e: any) {
     e.preventDefault();
     if (!selected) return;
@@ -136,6 +140,7 @@ export default function BookingForm({
               : null,
             ...(tenantId ? { tenant_id: tenantId } : { slug: business.slug }),
             service_id: service,
+            branch_id: selected.branch_id || branch || undefined,
             staff_id: selected.staff_id,
             date,
             minute: selected.minute,
@@ -314,7 +319,12 @@ export default function BookingForm({
                 </button>
               ))}
           </div>
-          {staff.length > 1 && (
+          {branches.length > 1 && (
+            <Field label="Şube tercihiniz">
+              <Pick label="Şube" value={branch} onChange={(v: string) => { setBranch(v); setPerson("any"); setSelected(null); }} options={branches.map((b: any) => ({ value: b.id, label: b.name }))} />
+            </Field>
+          )}
+          {staff.filter((p: any) => !branch || p.branch_id === branch).length > 1 && (
             <Field label="Personel tercihiniz">
               <Pick
                 label="Personel"
@@ -323,7 +333,7 @@ export default function BookingForm({
                 options={[
                   { value: "any", label: "Fark etmez · İlk uygun uzman" },
                   ...staff
-                    .filter((p: any) => p.active !== 0)
+                    .filter((p: any) => p.active !== 0 && (!branch || p.branch_id === branch))
                     .map((p: any) => ({ value: p.id, label: p.name })),
                 ]}
               />
@@ -399,10 +409,11 @@ export default function BookingForm({
                     setSlots(
                       (
                         await api(
-                          `availability?slug=${business.slug}&service=${service}&date=${date}&staff=${person}`,
+                          `availability?slug=${business.slug}&service=${service}&date=${date}&staff=${person}${branch ? "&branch=" + encodeURIComponent(branch) : ""}`,
                         )
                       ).slots,
                     );
+                  setBranchAlternatives([]);
                 } catch (e: any) {
                   setError(e.message);
                 } finally {
@@ -457,6 +468,19 @@ export default function BookingForm({
                 />
               )}
             </>
+          )}
+          {branchAlternatives.length > 0 && (
+            <div className="demand-alternatives">
+              <strong>Diğer şubelerde uygun saatler</strong>
+              <p className="helper">Seçtiğiniz şube dolu. Plus şube otomasyonu alternatifleri buldu.</p>
+              <div className="slot-grid">
+                {branchAlternatives.map((v: any) => (
+                  <button key={v.branch_id + v.staff_id + v.minute} className={selected?.minute === v.minute && selected?.branch_id === v.branch_id ? "selected" : ""} onClick={() => setSelected(v)} title={v.branch_name}>
+                    {v.time} · {v.branch_name}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           {demand?.alternatives?.length > 0 && (
             <div className="demand-alternatives">
