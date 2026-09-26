@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import styles from "./turnstile-gate.module.css";
 
 const SITE_KEY = "0x4AAAAAAFEvYrCvGUGdg-xb";
 
@@ -56,18 +57,18 @@ export default function TurnstileGate() {
   if (verified) return null;
 
   return (
-    <div className="turnstile-gate" role="dialog" aria-modal="true" aria-label="Güvenlik doğrulaması">
+    <div className={styles.gate} role="dialog" aria-modal="true" aria-label="Güvenlik doğrulaması">
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         strategy="afterInteractive"
         onLoad={() => setReady(true)}
       />
-      <div className="turnstile-gate-card">
-        <span className="turnstile-gate-icon"><ShieldCheck size={24} /></span>
+      <div className={styles.card}>
+        <span className={styles.icon}><ShieldCheck size={24} /></span>
         <h2>Güvenlik kontrolü</h2>
         <p>Girişe devam etmek için kısa bot kontrolünü tamamlayın.</p>
-        <div ref={host} className="turnstile-widget" />
-        {error && <p className="error-message" role="alert">{error}</p>}
+        <div ref={host} className={styles.widget} />
+        {error && <p className={styles.error} role="alert">{error}</p>}
       </div>
     </div>
   );
