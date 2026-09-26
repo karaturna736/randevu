@@ -13,7 +13,7 @@ on:
 
 concurrency:
   group: neta-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -79,7 +79,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER || 'root' }}
         run: |
           set -euo pipefail
-          SCP_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          SCP_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
           scp $SCP_OPTS /tmp/neta-vps-release.tar.gz "$VPS_USER@$VPS_HOST:/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
           scp $SCP_OPTS deploy/nginx-netarandevu.conf "$VPS_USER@$VPS_HOST:/tmp/neta-nginx-${GITHUB_SHA}.conf"
       - name: Deploy with rollback
@@ -89,10 +89,10 @@ jobs:
           LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         run: |
           set -euo pipefail
-          SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
-          ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
-          ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl '$LETSENCRYPT_EMAIL'"
-          ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "set -e; sudo install -o root -g root -m 0644 /tmp/neta-nginx-${GITHUB_SHA}.conf /etc/nginx/sites-available/netarandevu; sudo nginx -t; sudo systemctl reload nginx; rm -f /tmp/neta-nginx-${GITHUB_SHA}.conf"
+          SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
+          timeout 12m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
+          timeout 3m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl '$LETSENCRYPT_EMAIL'"
+          timeout 2m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "set -e; sudo install -o root -g root -m 0644 /tmp/neta-nginx-${GITHUB_SHA}.conf /etc/nginx/sites-available/netarandevu; sudo nginx -t; sudo systemctl reload nginx; rm -f /tmp/neta-nginx-${GITHUB_SHA}.conf"
       - name: Verify production and security headers
         run: |
           set -euo pipefail
@@ -137,4 +137,4 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER || 'root' }}
         run: |
           set -euo pipefail
-          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "set -a; source /etc/neta/neta.env; set +a; LOAD_TEST_USERS=250 bash /opt/neta/current/scripts/run-isolated-load-test.sh"
+          timeout 15m ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 "$VPS_USER@$VPS_HOST" "set -a; source /etc/neta/neta.env; set +a; LOAD_TEST_USERS=250 bash /opt/neta/current/scripts/run-isolated-load-test.sh"
