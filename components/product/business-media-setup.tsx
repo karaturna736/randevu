@@ -68,7 +68,7 @@ async function prepareImage(file: File) {
 
 async function readError(response: Response) {
   try {
-    const data = await response.json();
+    const data: any = await response.json();
     return data?.error || "Görsel yüklenemedi.";
   } catch {
     return "Görsel yüklenemedi.";
@@ -88,7 +88,7 @@ export default function BusinessMediaSetup() {
     fetch("/api/v1/business-image/pending", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return;
-        const result = await response.json();
+        const result: any = await response.json();
         setSaved(!!result.has_image);
       })
       .finally(() => setChecking(false));
