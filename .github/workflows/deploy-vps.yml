@@ -91,6 +91,23 @@ jobs:
           set -euo pipefail
           SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
           timeout 18m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "set -e; sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz; test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl '$LETSENCRYPT_EMAIL'; sudo install -o root -g root -m 0644 /tmp/neta-nginx-${GITHUB_SHA}.conf /etc/nginx/sites-available/netarandevu; sudo nginx -t; sudo systemctl reload nginx; rm -f /tmp/neta-nginx-${GITHUB_SHA}.conf"
+      - name: Verify sensitive paths on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
+          VPS_USER: ${{ secrets.VPS_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
+          timeout 2m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          for path in '/.git/config' '/.env' '/package.json' '/pnpm-lock.yaml' '/server.js' '/neta.sqlite' '/backup.sql'; do
+            status="$(curl --connect-timeout 3 --max-time 8 --silent --output /dev/null --write-out '%{http_code}' --resolve netarandevu.com:443:127.0.0.1 "https://netarandevu.com${path}")"
+            case "$status" in
+              403|404) ;;
+              *) echo "Sensitive path ${path} returned HTTP ${status}" >&2; exit 1 ;;
+            esac
+          done
+          REMOTE
       - name: Verify production and security headers
         run: |
           set -euo pipefail
@@ -122,16 +139,6 @@ jobs:
           fi
           api_headers="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" --head https://netarandevu.com/api/health)"
           grep -qi '^cache-control:.*no-store' <<< "$api_headers" || { echo "::error::API responses must be non-cacheable at the edge"; exit 1; }
-          for path in '/.git/config' '/.env' '/package.json' '/pnpm-lock.yaml' '/server.js' '/neta.sqlite' '/backup.sql'; do
-            if ! status="$(curl --connect-timeout 5 --max-time 15 --silent --output /dev/null --write-out '%{http_code}' "https://netarandevu.com${path}")"; then
-              echo "::error::Sensitive path ${path} request failed or timed out"
-              exit 1
-            fi
-            case "$status" in
-              403|404) ;;
-              *) echo "::error::Sensitive path ${path} returned HTTP ${status}"; exit 1 ;;
-            esac
-          done
           auth_status="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" https://netarandevu.com/api/v1/auth-status)"
           AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
       - name: Run isolated 250-user heavy synchronization test
