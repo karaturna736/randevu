@@ -7,6 +7,7 @@ import "./operations.css";
 import "./branches.css";
 import { ReferralCapture } from "@/components/product/growth";
 import { SessionProvider } from "@/components/product/session";
+import { AutomaticCampaign } from "@/components/product/automatic-campaign";
 
 const SITE_URL = "https://netarandevu.com";
 
@@ -76,6 +77,7 @@ export default function RootLayout({
       <body className="antialiased">
         <SessionProvider>
           <ReferralCapture />
+          <AutomaticCampaign />
           {children}
         </SessionProvider>
       </body>
