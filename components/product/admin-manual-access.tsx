@@ -20,7 +20,7 @@ export default function AdminManualAccess() {
     try {
       setError("");
       const r = await fetch("/api/admin/manual-access", { cache: "no-store" });
-      const body = await r.json();
+      const body: any = await r.json();
       if (!r.ok) throw new Error(body?.error || "Kayıtlar yüklenemedi.");
       setData(body);
     } catch (e: any) {
@@ -51,7 +51,7 @@ export default function AdminManualAccess() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "grant", user_id: user.user_id, plan }),
       });
-      const body = await r.json();
+      const body: any = await r.json();
       if (!r.ok) throw new Error(body?.error || "Panel erişimi verilemedi.");
       toast.success(`${user.name || user.email} için ${planLabels[plan]} paneli açıldı.`);
       await load();
@@ -70,7 +70,7 @@ export default function AdminManualAccess() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "revoke", user_id: user.user_id }),
       });
-      const body = await r.json();
+      const body: any = await r.json();
       if (!r.ok) throw new Error(body?.error || "Panel erişimi kapatılamadı.");
       toast.success("Panel erişimi kapatıldı.");
       await load();
