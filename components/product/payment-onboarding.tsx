@@ -620,6 +620,17 @@ function PaymentWizard() {
                 ? "Test tutarı 0 TL'dir. Kart bilgisi istenmez, kaydedilmez ve gerçek tahsilat yapılmaz."
                 : "Tutar sunucudaki paketten alınır. Tarayıcıdan fiyat veya ödeme durumu kabul edilmez."}
             </div>
+            {campaign && (
+              <div className="notice success" role="status">
+                <Check size={18} />
+                <span>
+                  <strong>{String(campaign.description || "").trim() || campaign.campaign_name}</strong>
+                  <small>
+                    {money(campaign.discount_amount)} kampanya avantajı uygulandı · {money(campaign.final_amount)} ile satın alıyorsunuz.
+                  </small>
+                </span>
+              </div>
+            )}
           </>
         )}
         {error && (
