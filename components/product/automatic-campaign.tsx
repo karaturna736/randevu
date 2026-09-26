@@ -93,6 +93,7 @@ export function AutomaticCampaign() {
 
       const params = new URLSearchParams();
       params.set("plan", currentPlan());
+      params.set("scope", path === "/abonelik" ? "business" : "onboarding");
       const tenantId = new URLSearchParams(location.search).get("tenant");
       if (tenantId) params.set("tenant", tenantId);
 
@@ -108,7 +109,7 @@ export function AutomaticCampaign() {
         const campaign = payload.campaign;
         if (!campaign?.code) return;
 
-        const key = `${campaign.code}:${params.get("plan")}:${tenantId || "new"}`;
+        const key = `${campaign.code}:${params.get("scope")}:${params.get("plan")}:${tenantId || "auto"}`;
         if (input.dataset.automaticCampaign === key) return;
         input.dataset.automaticCampaign = key;
 
