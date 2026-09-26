@@ -1,11 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Building2, MapPin, Search, Store } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BriefcaseBusiness,
+  Building2,
+  CarFront,
+  Check,
+  Dumbbell,
+  GraduationCap,
+  Grid3X3,
+  HeartPulse,
+  Leaf,
+  MapPin,
+  Scissors,
+  Search,
+  Sparkles,
+  Stethoscope,
+  Store,
+  UserRound,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { money } from "@/lib/types";
 import { api, Blank, Busy, Pick } from "./common";
 import { PublicShell } from "./public";
+import styles from "./discover-marketplace.module.css";
 
 type BusinessRow = {
   id: string;
@@ -50,18 +70,54 @@ const TURKEY_CITIES = [
   "Şanlıurfa", "Şırnak", "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak",
 ];
 
-const cardStyle = {
-  width: "100%",
-  cursor: "pointer",
-  textAlign: "left" as const,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 14,
+const CATEGORY_META: Record<string, { icon: any; tone?: string }> = {
+  "Kuaför & Berber": { icon: Scissors },
+  "Güzellik Salonu": { icon: Sparkles, tone: styles.tonePink },
+  "Spa & Masaj": { icon: Leaf, tone: styles.toneGreen },
+  Klinik: { icon: Stethoscope, tone: styles.toneBlue },
+  Diyetisyen: { icon: HeartPulse, tone: styles.toneGreen },
+  Psikolog: { icon: UserRound, tone: styles.toneOrange },
+  "Spor & Fitness": { icon: Dumbbell, tone: styles.toneGold },
+  "Özel Ders": { icon: GraduationCap, tone: styles.toneBlue },
+  Danışmanlık: { icon: BriefcaseBusiness, tone: styles.toneOrange },
+  "Oto Servis": { icon: CarFront, tone: styles.toneBlue },
+  Diğer: { icon: Grid3X3, tone: styles.toneCyan },
 };
 
 function normalizedCity(b: BusinessRow) {
   return (b.city || "").trim() || "Konum belirtilmemiş";
+}
+
+function Progress({ category, city, business }: { category: string; city: string; business: BusinessRow | null }) {
+  const active = business ? 4 : city ? 3 : category ? 2 : 1;
+  const steps = [
+    { n: 1, title: category || "Kategori", subtitle: category ? "Seçildi" : "İhtiyacını seç", icon: Grid3X3 },
+    { n: 2, title: city || "Şehir", subtitle: city ? "Seçildi" : "Şehrini belirle", icon: MapPin },
+    { n: 3, title: business?.name || "İşletme", subtitle: business ? "Seçildi" : "İşletmeni seç", icon: Building2 },
+    { n: 4, title: "Şube", subtitle: "Şubeni seç", icon: Store },
+  ];
+  return (
+    <div className={styles.stepper} aria-label="Keşfet adımları">
+      {steps.map((step) => {
+        const Icon = step.icon;
+        const done = step.n < active;
+        const isActive = step.n === active;
+        return (
+          <div key={step.n} className={`${styles.step} ${done ? styles.stepDone : isActive ? styles.stepActive : styles.stepInactive}`}>
+            <span className={styles.stepIcon}>{done ? <Check size={20} /> : <Icon size={20} />}</span>
+            <span className={styles.stepText}>
+              <strong>{step.n}. {step.title}</strong>
+              <span>{step.subtitle}</span>
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CardArrow() {
+  return <span className={styles.arrow}><ArrowRight size={18} /></span>;
 }
 
 export function DiscoverMarketplace() {
@@ -144,149 +200,136 @@ export function DiscoverMarketplace() {
 
   return (
     <PublicShell>
-      <main className="discover-page">
-        <div className="discover-hero">
-          <span className="eyebrow">NETA KEŞFET</span>
-          <h1>İhtiyacını seç, şehrini belirle, işletmeni bul.</h1>
+      <main className={styles.page}>
+        <div className={styles.hero}>
+          <span className={styles.kicker}>NETA KEŞFET</span>
+          <h1>İhtiyacını seç, şehrini belirle, <span>işletmeni bul.</span></h1>
           <p>Güzellik salonu, spa, kuaför ve diğer hizmet kategorilerinden seçim yapın; ardından şehir, işletme ve şubeyi seçerek randevunuzu oluşturun.</p>
         </div>
 
-        <div className="panel" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-          <strong>1. {category || "Kategori"}</strong><ArrowRight size={15} />
-          <strong>2. {city || "Şehir"}</strong><ArrowRight size={15} />
-          <strong>3. {business?.name || "İşletme"}</strong><ArrowRight size={15} />
-          <strong>4. Şube</strong>
-        </div>
+        <Progress category={category} city={city} business={business} />
 
-        {loading ? (
-          <div className="loading-row"><Busy /> İşletmeler yükleniyor…</div>
-        ) : error && !business ? (
-          <p className="error-message">{error}</p>
-        ) : !category ? (
-          <section>
-            <div className="section-heading">
-              <div><span className="eyebrow">1. ADIM</span><h2>Hangi hizmeti arıyorsunuz?</h2></div>
-              <span className="muted">Kategori seçin</span>
-            </div>
-            <div className="business-cards">
-              {categories.map((item) => {
-                const count = rows.filter((b) => b.category === item).length;
-                return (
-                  <button key={item} type="button" className="panel business-card" style={cardStyle} onClick={() => chooseCategory(item)}>
-                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                      <span className="service-icon"><Store /></span>
-                      <div>
-                        <span className="eyebrow">KATEGORİ</span>
-                        <h2>{item}</h2>
-                        <p className="muted">{count ? `${count} işletme` : "Yeni işletmeler yakında"}</p>
-                      </div>
-                    </div>
-                    <ArrowRight size={20} />
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : !city ? (
-          <section>
-            <button className="text-button" type="button" onClick={() => chooseCategory("")}><ArrowLeft size={16} /> Kategorilere dön</button>
-            <div className="section-heading">
-              <div><span className="eyebrow">2. ADIM · {category}</span><h2>Hangi şehir?</h2></div>
-              <span className="muted">81 il arasından seçin</span>
-            </div>
-            <div className="panel" style={{ marginBottom: 20 }}>
-              <Pick
-                label="Şehir seçin"
-                value={city}
-                onChange={chooseCity}
-                options={cityOptions.map((item) => ({ value: item, label: item }))}
-              />
-            </div>
-            {availableCities.length ? (
-              <>
-                <div className="section-heading"><h3>Bu kategoride işletme bulunan şehirler</h3><span className="muted">{availableCities.length} şehir</span></div>
-                <div className="business-cards">
-                  {availableCities.map((item) => {
-                    const count = rows.filter((b) => b.category === category && normalizedCity(b) === item).length;
-                    return (
-                      <button key={item} type="button" className="panel business-card" style={cardStyle} onClick={() => chooseCity(item)}>
-                        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                          <span className="service-icon"><MapPin /></span>
-                          <div><span className="eyebrow">ŞEHİR</span><h2>{item}</h2><p className="muted">{count} işletme</p></div>
-                        </div>
-                        <ArrowRight size={20} />
-                      </button>
-                    );
-                  })}
+        <div className={styles.shell}>
+          {loading ? (
+            <div className="loading-row"><Busy /> İşletmeler yükleniyor…</div>
+          ) : error && !business ? (
+            <p className="error-message">{error}</p>
+          ) : !category ? (
+            <section>
+              <div className={styles.sectionHead}>
+                <div><span className={styles.eyebrow}>1. ADIM</span><h2>Hangi hizmeti arıyorsunuz?</h2></div>
+                <span className={styles.sectionMeta}>Kategori seçin</span>
+              </div>
+              <div className={styles.categoryGrid}>
+                {categories.map((item, index) => {
+                  const count = rows.filter((b) => b.category === item).length;
+                  const meta = CATEGORY_META[item] || { icon: Store, tone: styles.toneCyan };
+                  const Icon = meta.icon;
+                  return (
+                    <button key={item} type="button" className={`${styles.card} ${index === 0 && count ? styles.cardActive : ""}`} onClick={() => chooseCategory(item)}>
+                      <span className={styles.cardMain}>
+                        <span className={`${styles.iconChip} ${meta.tone || ""}`}><Icon size={23} /></span>
+                        <span className={styles.cardCopy}><strong>{item}</strong><span>{count ? `${count} işletme` : "Yeni işletmeler yakında"}</span></span>
+                      </span>
+                      <CardArrow />
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : !city ? (
+            <section>
+              <button className={styles.backButton} type="button" onClick={() => chooseCategory("")}><ArrowLeft size={17} /> Kategorilere dön</button>
+              <div className={styles.sectionHead}>
+                <div><span className={styles.eyebrow}>2. ADIM · {category}</span><h2>Hangi şehir?</h2></div>
+                <span className={styles.sectionMeta}>81 il arasından seçin</span>
+              </div>
+              <div className={styles.citySelectWrap}>
+                <span className={styles.cityIcon}><MapPin size={21} /></span>
+                <div className={styles.citySelect}>
+                  <Pick label="Şehir seçin" value={city} onChange={chooseCity} options={cityOptions.map((item) => ({ value: item, label: item }))} />
                 </div>
-              </>
-            ) : (
-              <Blank title="Bu kategoride henüz işletme yok" description="Yukarıdaki şehir seçicisinden istediğiniz ili seçebilirsiniz. Yeni işletmeler eklendikçe burada görünecek." />
-            )}
-          </section>
-        ) : !business ? (
-          <section>
-            <button className="text-button" type="button" onClick={() => chooseCity("")}><ArrowLeft size={16} /> Şehir seçimine dön</button>
-            <div className="section-heading">
-              <div><span className="eyebrow">3. ADIM · {category} · {city}</span><h2>İşletmeni seç</h2></div>
-              <span className="muted">{businesses.length} işletme</span>
-            </div>
-            <div className="discover-search">
-              <div className="search-input"><Search size={19} /><Input aria-label="İşletme ara" placeholder="İşletme adı ara…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-            </div>
-            {businesses.length ? (
-              <div className="business-cards">
-                {businesses.map((b) => (
-                  <button key={b.id} type="button" className="panel business-card" style={cardStyle} onClick={() => chooseBusiness(b)}>
-                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                      <span className="service-icon"><Building2 /></span>
-                      <div>
-                        <span className="eyebrow">{b.category}</span><h2>{b.name}</h2>
-                        <p className="muted"><MapPin size={14} /> {b.city || "Konum belirtilmedi"}</p>
-                        <small>{b.min_price != null ? `${money(b.min_price)}’den başlayan` : "Hizmetleri ve şubeleri gör"}</small>
-                      </div>
-                    </div>
-                    <ArrowRight size={20} />
-                  </button>
-                ))}
               </div>
-            ) : (
-              <Blank title={`${city} · ${category} için henüz işletme yok`} description="Bu şehir ve kategoride yeni işletmeler eklendiğinde burada listelenecek. Başka bir şehir veya kategori seçebilirsiniz." />
-            )}
-            <div className="panel" style={{ marginTop: 20 }}>
-              <span className="eyebrow">İŞLETMELER İÇİN</span><h3>Neta Keşfet’te görünür olun.</h3>
-              <p className="muted">Neta kullanan işletmeler organik olarak listelenir. Öne çıkan işletme alanları daha sonra ayrı reklam ürünü olarak kullanılabilir.</p>
-              <a className="button" href="/kayit">İşletmemi Neta’ya ekle <ArrowRight size={16} /></a>
-            </div>
-          </section>
-        ) : (
-          <section>
-            <button className="text-button" type="button" onClick={() => { setBusiness(null); setBusinessData(null); setError(""); }}><ArrowLeft size={16} /> İşletmelere dön</button>
-            <div className="section-heading">
-              <div><span className="eyebrow">4. ADIM · {business.name}</span><h2>Şubeyi seç</h2></div>
-              <span className="muted">{branches.length} aktif şube</span>
-            </div>
-            {branchLoading ? (
-              <div className="loading-row"><Busy /> Şubeler yükleniyor…</div>
-            ) : error ? (
-              <p className="error-message">{error}</p>
-            ) : branches.length ? (
-              <div className="business-cards">
-                {branches.map((branch) => (
-                  <a key={branch.id} className="panel business-card" style={cardStyle} href={`/randevu/${encodeURIComponent(business.slug)}?branch=${encodeURIComponent(branch.id)}`}>
-                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                      <span className="service-icon"><MapPin /></span>
-                      <div><span className="eyebrow">ŞUBE</span><h2>{branch.name}</h2><p className="muted">{[branch.city, branch.address].filter(Boolean).join(" · ") || "Adres bilgisi işletmeden alınacak"}</p><strong>Bu şubeden randevu al</strong></div>
-                    </div>
-                    <ArrowRight size={20} />
-                  </a>
-                ))}
+              {availableCities.length ? (
+                <>
+                  <div className={styles.sectionHead}><h3>Bu kategoride işletme bulunan şehirler</h3><span className={styles.sectionMeta}>{availableCities.length} şehir</span></div>
+                  <div className={styles.cityGrid}>
+                    {availableCities.map((item) => {
+                      const count = rows.filter((b) => b.category === category && normalizedCity(b) === item).length;
+                      return (
+                        <button key={item} type="button" className={`${styles.card} ${styles.cardActive}`} onClick={() => chooseCity(item)}>
+                          <span className={styles.cardMain}>
+                            <span className={styles.iconChip}><MapPin size={23} /></span>
+                            <span className={styles.cardCopy}><span className={styles.eyebrow}>ŞEHİR</span><strong>{item}</strong><span>{count} işletme</span></span>
+                          </span>
+                          <CardArrow />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <Blank title="Bu kategoride henüz işletme yok" description="Yukarıdaki şehir seçicisinden istediğiniz ili seçebilirsiniz. Yeni işletmeler eklendikçe burada görünecek." />
+              )}
+            </section>
+          ) : !business ? (
+            <section>
+              <button className={styles.backButton} type="button" onClick={() => chooseCity("")}><ArrowLeft size={17} /> Şehir seçimine dön</button>
+              <div className={styles.sectionHead}>
+                <div><span className={styles.eyebrow}>3. ADIM · {category} · {city}</span><h2>İşletmeni seç</h2></div>
+                <span className={styles.sectionMeta}>{businesses.length} işletme</span>
               </div>
-            ) : (
-              <div className="panel"><h3>Şube kaydı bulunamadı</h3><p className="muted">İşletmenin genel randevu sayfasından devam edebilirsiniz.</p><a className="button primary" href={`/${business.slug}`}>Randevu sayfasına git <ArrowRight size={16} /></a></div>
-            )}
-          </section>
-        )}
+              <div className={styles.searchBox}><Search size={18} /><Input aria-label="İşletme ara" placeholder="İşletme adı ara…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+              {businesses.length ? (
+                <div className={styles.businessGrid}>
+                  {businesses.map((b) => (
+                    <button key={b.id} type="button" className={styles.card} onClick={() => chooseBusiness(b)}>
+                      <span className={styles.cardMain}>
+                        <span className={`${styles.iconChip} ${styles.toneBlue}`}><Building2 size={23} /></span>
+                        <span className={styles.cardCopy}><strong>{b.name}</strong><span>{b.city || "Konum belirtilmedi"}</span><span>{b.min_price != null ? `${money(b.min_price)}’den başlayan` : "Hizmetleri ve şubeleri gör"}</span></span>
+                      </span>
+                      <CardArrow />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <Blank title={`${city} · ${category} için henüz işletme yok`} description="Bu şehir ve kategoride yeni işletmeler eklendiğinde burada listelenecek. Başka bir şehir veya kategori seçebilirsiniz." />
+              )}
+              <div className={styles.promo}>
+                <span className={styles.eyebrow}>İŞLETMELER İÇİN</span><h3>Neta Keşfet’te görünür olun.</h3>
+                <p>Neta kullanan işletmeler organik olarak listelenir. Öne çıkan işletme alanları daha sonra ayrı reklam ürünü olarak kullanılabilir.</p>
+                <a className="button" href="/kayit">İşletmemi Neta’ya ekle <ArrowRight size={16} /></a>
+              </div>
+            </section>
+          ) : (
+            <section>
+              <button className={styles.backButton} type="button" onClick={() => { setBusiness(null); setBusinessData(null); setError(""); }}><ArrowLeft size={17} /> İşletmelere dön</button>
+              <div className={styles.sectionHead}>
+                <div><span className={styles.eyebrow}>4. ADIM · {business.name}</span><h2>Şubeyi seç</h2></div>
+                <span className={styles.sectionMeta}>{branches.length} aktif şube</span>
+              </div>
+              {branchLoading ? (
+                <div className="loading-row"><Busy /> Şubeler yükleniyor…</div>
+              ) : error ? (
+                <p className="error-message">{error}</p>
+              ) : branches.length ? (
+                <div className={styles.branchGrid}>
+                  {branches.map((branch) => (
+                    <a key={branch.id} className={styles.card} href={`/randevu/${encodeURIComponent(business.slug)}?branch=${encodeURIComponent(branch.id)}`}>
+                      <span className={styles.cardMain}>
+                        <span className={`${styles.iconChip} ${styles.toneGreen}`}><MapPin size={23} /></span>
+                        <span className={styles.cardCopy}><strong>{branch.name}</strong><span>{[branch.city, branch.address].filter(Boolean).join(" · ") || "Adres bilgisi işletmeden alınacak"}</span><span>Bu şubeden randevu al</span></span>
+                      </span>
+                      <CardArrow />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.promo}><h3>Şube kaydı bulunamadı</h3><p>İşletmenin genel randevu sayfasından devam edebilirsiniz.</p><a className="button primary" href={`/${business.slug}`}>Randevu sayfasına git <ArrowRight size={16} /></a></div>
+              )}
+            </section>
+          )}
+        </div>
       </main>
     </PublicShell>
   );
