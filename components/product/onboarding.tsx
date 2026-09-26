@@ -76,6 +76,7 @@ const plans = [
       "Sınırsız şube ve personel",
       "Muhasebe gider kataloğu ve gelişmiş şube analizi",
       "Neta ortaklık programı",
+      "İşletme web sitesi · Yönetim API'si · şube otomasyonu",
       "WhatsApp · ayda 5.000, AI · günde 200",
     ],
   },

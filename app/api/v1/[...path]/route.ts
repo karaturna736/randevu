@@ -1,6 +1,15 @@
 import { waSnapshot } from "@/lib/whatsapp";
 import { consumePlanQuota } from "@/lib/entitlements";
 import {
+  plusToolsSnapshot,
+  saveWebsite,
+  publicWebsite,
+  createManagementApiKey,
+  revokeManagementApiKey,
+  saveBranchAutomation,
+  crossBranchAlternatives,
+} from "@/lib/plus-platform";
+import {
   campaignOperation,
   campaignPreview,
   platformCampaigns,
@@ -146,6 +155,7 @@ export async function GET(req: Request) {
       return ok(
         await branchSnapshot(id, u.searchParams.get("month") || undefined),
       );
+    if (p[0] === "plus-tools") return ok(await plusToolsSnapshot(id));
     if (p[0] === "help-status") return ok(helpStatus());
     if (p[0] === "recurring") return ok(await recurringSnapshot(id));
     if (p[0] === "platform-recurring") return ok(await platformRecurring());
@@ -217,17 +227,15 @@ export async function GET(req: Request) {
       const b = id
         ? await tenant(id)
         : await publicBusiness(u.searchParams.get("slug") || "");
-      return ok({
-        slots: await available(
-          b,
-          u.searchParams.get("service") || "",
-          date.parse(u.searchParams.get("date")),
-          u.searchParams.get("staff") || "any",
-          "",
-          undefined,
-          u.searchParams.get("branch") || undefined,
-        ),
-      });
+      const serviceId = u.searchParams.get("service") || "",
+        requestedDate = date.parse(u.searchParams.get("date")),
+        person = u.searchParams.get("staff") || "any",
+        branchId = u.searchParams.get("branch") || undefined;
+      const slots = await available(b, serviceId, requestedDate, person, "", undefined, branchId);
+      const alternatives = !id && branchId && !slots.length
+        ? await crossBranchAlternatives(b, serviceId, requestedDate, "any", branchId)
+        : [];
+      return ok({ slots, alternatives });
     }
     if (p[0] === "businesses")
       return ok({
@@ -241,6 +249,7 @@ export async function GET(req: Request) {
         business: b,
         configuration: getBusinessConfig(b.category),
         presentation: await publicStyle(b.id),
+        website: await publicWebsite(b.id),
         services: await all(
           "SELECT id,name,description,duration,price,color,active FROM services WHERE tenant_id=? AND active=1",
           b.id,
@@ -343,6 +352,14 @@ export async function POST(req: Request) {
     if (p[0] === "branch-expenses") return ok(await saveBranchExpense(id, x));
     if (p[0] === "expense-catalog")
       return ok(await saveExpenseCatalogItem(id, x));
+    if (p[0] === "plus-tools") {
+      await limit(req, "plus-tools", 60);
+      if (x.action === "website") return ok(await saveWebsite(id, x));
+      if (x.action === "create-api-key") return ok(await createManagementApiKey(id, x), 201);
+      if (x.action === "revoke-api-key") return ok(await revokeManagementApiKey(id, x));
+      if (x.action === "branch-automation") return ok(await saveBranchAutomation(id, x));
+      throw new ApiError("Geçersiz Plus aracı işlemi.", 400);
+    }
     if (p[0] === "recurring") {
       await limit(req, "recurring", 10);
       return ok(
