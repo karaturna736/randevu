@@ -25,7 +25,9 @@ import { Input } from "@/components/ui/input";
 import { money } from "@/lib/types";
 import { api, Blank, Busy, Pick } from "./common";
 import { PublicShell } from "./public";
+import { MobileBranchCarousel, MobileBusinessCarousel } from "./discover-center-carousel";
 import styles from "./discover-marketplace.module.css";
+import carouselStyles from "./discover-center-carousel.module.css";
 
 type BusinessRow = {
   id: string;
@@ -272,28 +274,42 @@ export function DiscoverMarketplace() {
           ) : !business ? (
             <section>
               <button className={styles.backButton} type="button" onClick={() => chooseCity("")}><ArrowLeft size={17} /> Şehir seçimine dön</button>
-              <div className={styles.sectionHead}><div><span className={styles.eyebrow}>3. ADIM · {category} · {city}</span><h2>İşletmeni seç</h2></div><span className={styles.sectionMeta}>{businesses.length} işletme</span>{businesses.length > 1 ? <span className={styles.mobileSwipeHint}>Yana kaydır <ArrowRight size={14} /></span> : null}</div>
+              <div className={styles.sectionHead}><div><span className={styles.eyebrow}>3. ADIM · {category} · {city}</span><h2>İşletmeni seç</h2></div><span className={styles.sectionMeta}>{businesses.length} işletme</span>{businesses.length > 1 ? <span className={styles.mobileSwipeHint}>Oklarla veya kaydırarak gez</span> : null}</div>
               <div className={styles.searchBox}><Search size={18} /><Input aria-label="İşletme ara" placeholder="İşletme adı ara…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
               {businesses.length ? (
-                <div className={styles.businessGrid}>
-                  {businesses.map((b) => (
-                    <button key={b.id} type="button" className={styles.card} onClick={() => chooseBusiness(b)}>
-                      <span className={styles.cardMain}><BusinessVisual business={b} /><span className={styles.cardCopy}><strong>{b.name}</strong><span>{b.city || "Konum belirtilmedi"}</span><span>{b.min_price != null ? `${money(b.min_price)}’den başlayan` : "Hizmetleri ve şubeleri gör"}</span></span></span>
-                      <CardArrow />
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className={`${styles.businessGrid} ${carouselStyles.desktopOnly}`}>
+                    {businesses.map((b) => (
+                      <button key={b.id} type="button" className={styles.card} onClick={() => chooseBusiness(b)}>
+                        <span className={styles.cardMain}><BusinessVisual business={b} /><span className={styles.cardCopy}><strong>{b.name}</strong><span>{b.city || "Konum belirtilmedi"}</span><span>{b.min_price != null ? `${money(b.min_price)}’den başlayan` : "Hizmetleri ve şubeleri gör"}</span></span></span>
+                        <CardArrow />
+                      </button>
+                    ))}
+                  </div>
+                  <MobileBusinessCarousel
+                    businesses={businesses}
+                    onSelect={chooseBusiness}
+                    resetKey={`${category}|${city}|${search}`}
+                  />
+                </>
               ) : <Blank title={`${city} · ${category} için henüz işletme yok`} description="Bu şehir ve kategoride yeni işletmeler eklendiğinde burada listelenecek. Başka bir şehir veya kategori seçebilirsiniz." />}
               <div className={styles.promo}><span className={styles.eyebrow}>İŞLETMELER İÇİN</span><h3>Neta Keşfet’te görünür olun.</h3><p>Neta kullanan işletmeler organik olarak listelenir. Öne çıkan işletme alanları daha sonra ayrı reklam ürünü olarak kullanılabilir.</p><a className="button" href="/kayit">İşletmemi Neta’ya ekle <ArrowRight size={16} /></a></div>
             </section>
           ) : (
             <section>
               <button className={styles.backButton} type="button" onClick={() => { setBusiness(null); setBusinessData(null); setError(""); }}><ArrowLeft size={17} /> İşletmelere dön</button>
-              <div className={styles.sectionHead}><div><span className={styles.eyebrow}>4. ADIM · {business.name}</span><h2>Şubeyi seç</h2></div><span className={styles.sectionMeta}>{branches.length} aktif şube</span>{branches.length > 1 ? <span className={styles.mobileSwipeHint}>Yana kaydır <ArrowRight size={14} /></span> : null}</div>
+              <div className={styles.sectionHead}><div><span className={styles.eyebrow}>4. ADIM · {business.name}</span><h2>Şubeyi seç</h2></div><span className={styles.sectionMeta}>{branches.length} aktif şube</span>{branches.length > 1 ? <span className={styles.mobileSwipeHint}>Oklarla veya kaydırarak gez</span> : null}</div>
               {branchLoading ? <div className="loading-row"><Busy /> Şubeler yükleniyor…</div> : error ? <p className="error-message">{error}</p> : branches.length ? (
-                <div className={styles.branchGrid}>
-                  {branches.map((branch) => <a key={branch.id} className={styles.card} href={`/randevu/${encodeURIComponent(business.slug)}?branch=${encodeURIComponent(branch.id)}`}><span className={styles.cardMain}><span className={`${styles.iconChip} ${styles.toneGreen}`}><MapPin size={23} /></span><span className={styles.cardCopy}><strong>{branch.name}</strong><span>{[branch.city, branch.address].filter(Boolean).join(" · ") || "Adres bilgisi işletmeden alınacak"}</span><span>Bu şubeden randevu al</span></span></span><CardArrow /></a>)}
-                </div>
+                <>
+                  <div className={`${styles.branchGrid} ${carouselStyles.desktopOnly}`}>
+                    {branches.map((branch) => <a key={branch.id} className={styles.card} href={`/randevu/${encodeURIComponent(business.slug)}?branch=${encodeURIComponent(branch.id)}`}><span className={styles.cardMain}><span className={`${styles.iconChip} ${styles.toneGreen}`}><MapPin size={23} /></span><span className={styles.cardCopy}><strong>{branch.name}</strong><span>{[branch.city, branch.address].filter(Boolean).join(" · ") || "Adres bilgisi işletmeden alınacak"}</span><span>Bu şubeden randevu al</span></span></span><CardArrow /></a>)}
+                  </div>
+                  <MobileBranchCarousel
+                    branches={branches}
+                    business={business}
+                    resetKey={`${business.id}|${branches.map((branch) => branch.id).join(",")}`}
+                  />
+                </>
               ) : <div className={styles.promo}><h3>Şube kaydı bulunamadı</h3><p>İşletmenin genel randevu sayfasından devam edebilirsiniz.</p><a className="button primary" href={`/${business.slug}`}>Randevu sayfasına git <ArrowRight size={16} /></a></div>}
             </section>
           )}

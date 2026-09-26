@@ -1,0 +1,233 @@
+.mobileCarousel {
+  display: none;
+}
+
+.desktopOnly {
+  display: grid;
+}
+
+@media (max-width: 680px) {
+  .desktopOnly {
+    display: none !important;
+  }
+
+  .mobileCarousel {
+    position: relative;
+    display: block;
+    margin: 0 -16px;
+    padding: 2px 0 28px;
+    overflow: hidden;
+  }
+
+  .viewport {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  .viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .track {
+    display: flex;
+    gap: 12px;
+    width: max-content;
+    min-width: 100%;
+    padding: 8px 10vw 18px;
+  }
+
+  .slide {
+    width: min(78vw, 328px);
+    flex: 0 0 min(78vw, 328px);
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    opacity: .46;
+    transform: scale(.91);
+    filter: saturate(.72) brightness(.86);
+    transition: transform .24s ease, opacity .24s ease, filter .24s ease;
+  }
+
+  .slideActive {
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+
+  .carouselCard {
+    appearance: none;
+    width: 100%;
+    min-height: 315px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+    padding: 0;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid rgba(112, 126, 183, .32);
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(22, 30, 57, .98), rgba(13, 20, 40, .98));
+    box-shadow: 0 24px 54px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255,255,255,.03);
+    cursor: pointer;
+  }
+
+  .slideActive .carouselCard {
+    border-color: rgba(128, 111, 255, .72);
+    box-shadow: 0 26px 64px rgba(34, 23, 94, .34), 0 0 0 1px rgba(124, 108, 255, .1), inset 0 1px 0 rgba(255,255,255,.035);
+  }
+
+  .carouselCard:active {
+    transform: scale(.99);
+  }
+
+  .cover {
+    position: relative;
+    width: 100%;
+    height: 160px;
+    flex: 0 0 160px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 28% 20%, rgba(111, 93, 255, .34), transparent 42%),
+      linear-gradient(145deg, #1a2448, #11182f 70%);
+  }
+
+  .coverFallback {
+    color: #aeb8ee;
+    opacity: .9;
+  }
+
+  .cover img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .coverShade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 45%, rgba(8, 13, 28, .78) 100%);
+    pointer-events: none;
+  }
+
+  .cardBody {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 17px 17px;
+  }
+
+  .kicker {
+    display: block;
+    color: #8f9bc4;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  .title {
+    display: block;
+    margin-top: 6px;
+    color: #f7f8ff;
+    font-size: 21px;
+    line-height: 1.08;
+    letter-spacing: -.025em;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    margin-top: 9px;
+    color: #a5afcf;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .subline {
+    display: block;
+    margin-top: 8px;
+    color: #7f8aac;
+    font-size: 12px;
+  }
+
+  .cta {
+    width: 100%;
+    margin-top: auto;
+    padding-top: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #e8e9ff;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .navButton {
+    position: absolute;
+    top: 142px;
+    z-index: 5;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(136, 122, 255, .44);
+    color: #f3f4ff;
+    background: rgba(17, 23, 47, .9);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .26), 0 0 24px rgba(99, 78, 255, .12);
+    backdrop-filter: blur(12px);
+  }
+
+  .navButton:disabled {
+    opacity: .28;
+  }
+
+  .navLeft {
+    left: 8px;
+  }
+
+  .navRight {
+    right: 8px;
+  }
+
+  .dots {
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transform: translateX(-50%);
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(129, 141, 181, .38);
+    transition: width .18s ease, background .18s ease, box-shadow .18s ease;
+  }
+
+  .dotActive {
+    width: 20px;
+    background: linear-gradient(90deg, #776cff, #9b70ff);
+    box-shadow: 0 0 14px rgba(119, 108, 255, .44);
+  }
+}
