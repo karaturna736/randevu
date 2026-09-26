@@ -1,0 +1,146 @@
+/* Premium landing hero — original Neta brand assets are intentionally untouched. */
+.neta-home{overflow:hidden}
+.neta-home .neta-header{background:rgba(8,11,22,.82);backdrop-filter:blur(20px);border-bottom:1px solid rgba(127,112,255,.08)}
+.neta-home .neta-nav{min-height:78px}
+.neta-home .neta-header .brand{transform:none!important}
+
+.neta-home .neta-hero{
+  position:relative;
+  min-height:760px;
+  display:grid;
+  grid-template-columns:minmax(0,.82fr) minmax(620px,1.3fr);
+  gap:54px;
+  align-items:center;
+  padding-top:82px;
+  padding-bottom:86px;
+  isolation:isolate;
+}
+.neta-home .neta-hero::before{
+  content:"";
+  position:absolute;
+  inset:-120px -16vw -80px -16vw;
+  z-index:-3;
+  background:
+    radial-gradient(ellipse at 76% 34%,rgba(104,82,255,.22),transparent 35%),
+    radial-gradient(ellipse at 9% 62%,rgba(70,54,180,.14),transparent 32%),
+    linear-gradient(180deg,#090d19 0%,#090d18 78%,#0b1020 100%);
+}
+.neta-home .neta-hero::after{
+  content:"";
+  position:absolute;
+  inset:-30px -10vw 0;
+  z-index:-2;
+  opacity:.18;
+  pointer-events:none;
+  background-image:linear-gradient(rgba(133,119,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(133,119,255,.16) 1px,transparent 1px);
+  background-size:72px 72px;
+  mask-image:linear-gradient(to bottom,transparent 0,#000 24%,#000 72%,transparent 100%);
+}
+.neta-home .neta-hero-copy{position:relative;z-index:3;max-width:610px;padding-top:6px}
+.neta-home .neta-eyebrow{display:inline-flex;align-items:center;gap:11px;color:#9d8fff;font-size:12px;letter-spacing:.19em;font-weight:800}
+.neta-home .neta-eyebrow>span{width:7px;height:7px;border-radius:50%;background:#8b72ff;box-shadow:0 0 18px rgba(139,114,255,.85)}
+.neta-home .neta-hero-copy h1{font-size:clamp(52px,5.15vw,78px);line-height:1.01;letter-spacing:-.058em;margin:26px 0 22px;font-weight:760;max-width:650px}
+.neta-home .neta-hero-copy h1 em{font-style:normal;background:linear-gradient(100deg,#9b8bff 0%,#745fff 50%,#9d74ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 44px rgba(116,95,255,.12)}
+.neta-home .neta-hero-copy>p{max-width:575px;color:#a7b0cc;font-size:17px;line-height:1.75}
+.neta-home .neta-hero-actions{display:flex;align-items:center;gap:14px;margin-top:34px}
+.neta-home .neta-hero-actions .button{height:54px;padding:0 24px;border-radius:13px;font-size:14px;font-weight:700}
+.neta-home .neta-hero-actions .button.primary{background:linear-gradient(135deg,#7864ff,#6853f4);box-shadow:0 16px 42px rgba(89,65,238,.34),inset 0 1px 0 rgba(255,255,255,.18)}
+.neta-home .neta-hero-actions .neta-outline{background:rgba(12,16,31,.64);border-color:rgba(142,122,255,.52);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.neta-home .neta-trust{display:flex;flex-wrap:wrap;gap:20px 28px;margin-top:27px;color:#9ba5c2;font-size:12px}
+.neta-home .neta-trust span{display:flex;align-items:center;gap:8px}
+.neta-home .neta-trust svg{color:#82dbc1;stroke-width:2.2}
+.neta-home .neta-hero-proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:50px;padding-top:24px;border-top:1px solid rgba(128,141,180,.17);max-width:585px}
+.neta-home .neta-hero-proof>div{padding:0 20px;border-left:1px solid rgba(128,141,180,.16)}
+.neta-home .neta-hero-proof>div:first-child{padding-left:0;border-left:0}
+.neta-home .neta-hero-proof strong{display:block;color:#f2f4ff;font-size:15px;letter-spacing:-.01em}
+.neta-home .neta-hero-proof span{display:block;margin-top:5px;color:#7783a4;font-size:11px;line-height:1.5}
+
+.neta-home .neta-hero-visual{position:relative;z-index:2;min-width:0;perspective:1600px}
+.neta-home .neta-hero-visual::before{content:"";position:absolute;width:780px;height:560px;left:4%;top:5%;border-radius:50%;background:radial-gradient(circle,rgba(89,67,255,.22),transparent 65%);filter:blur(18px);z-index:-1}
+.neta-home .neta-live-badge{position:absolute;z-index:7;right:7%;top:-28px;display:flex;align-items:center;gap:9px;padding:10px 15px;border:1px solid rgba(120,225,178,.42);border-radius:999px;background:rgba(15,22,39,.92);box-shadow:0 12px 38px rgba(0,0,0,.26);font-size:11px;color:#dfe8f8}
+.neta-home .neta-live-badge i{width:8px;height:8px;border-radius:50%;background:#52dda0;box-shadow:0 0 14px rgba(82,221,160,.75)}
+
+.neta-home .neta-workspace{position:relative;display:grid;grid-template-columns:146px minmax(0,1fr);min-height:560px;border:1px solid rgba(115,100,255,.42);border-radius:25px;overflow:hidden;background:linear-gradient(155deg,rgba(16,21,39,.98),rgba(8,12,25,.98));box-shadow:0 36px 110px rgba(0,0,0,.46),0 0 0 1px rgba(132,111,255,.08),0 0 80px rgba(89,63,238,.12);transform:rotateY(-3deg) rotateX(1deg);transform-origin:center}
+.neta-home .neta-workspace::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,rgba(255,255,255,.025),transparent 28%,transparent 75%,rgba(112,89,255,.045))}
+.neta-home .neta-ws-sidebar{position:relative;z-index:1;padding:20px 12px;border-right:1px solid rgba(120,132,176,.14);background:rgba(8,12,25,.6)}
+.neta-home .neta-ws-brand{display:flex;align-items:center;gap:8px;padding:2px 8px 18px;font-size:14px;font-weight:800;color:#f3f5ff}
+.neta-home .neta-ws-brand img{width:23px;height:23px;object-fit:contain}
+.neta-home .neta-ws-nav{display:grid;gap:5px}
+.neta-home .neta-ws-nav span{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;color:#8290b2;font-size:10px}
+.neta-home .neta-ws-nav span.active{color:#d9d3ff;background:linear-gradient(90deg,rgba(111,89,255,.24),rgba(96,77,218,.1));border:1px solid rgba(120,99,255,.16)}
+.neta-home .neta-ws-side-note{position:absolute;left:12px;right:12px;bottom:14px;padding:11px;border:1px solid rgba(91,221,169,.18);border-radius:11px;background:rgba(25,89,71,.10);color:#92a2bd;font-size:9px;line-height:1.5}
+.neta-home .neta-ws-side-note svg{color:#4bd59a;margin-bottom:6px}
+.neta-home .neta-ws-side-note strong{display:block;color:#d9e4f3;font-size:10px}
+
+.neta-home .neta-ws-main{position:relative;z-index:1;padding:17px 17px 14px;min-width:0}
+.neta-home .neta-ws-top{display:grid;grid-template-columns:minmax(170px,1fr) auto auto;gap:12px;align-items:center;padding-bottom:14px;border-bottom:1px solid rgba(117,129,171,.13)}
+.neta-home .neta-ws-search{display:flex;align-items:center;gap:8px;height:35px;padding:0 10px;border:1px solid rgba(120,132,176,.18);border-radius:9px;background:rgba(16,22,42,.66);color:#65718f;font-size:9px}
+.neta-home .neta-ws-owner{display:flex;align-items:center;gap:8px;color:#cfd5e7;font-size:9px;white-space:nowrap}
+.neta-home .neta-ws-owner b{width:27px;height:27px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,#8b77ff,#6552d9);color:white;font-size:9px}
+.neta-home .neta-ws-top>svg{color:#8490ad}
+.neta-home .neta-ws-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:13px 0}
+.neta-home .neta-ws-stat{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid rgba(118,130,175,.15);border-radius:11px;background:linear-gradient(180deg,rgba(19,26,49,.76),rgba(14,20,39,.72));min-width:0}
+.neta-home .neta-ws-stat>span{width:31px;height:31px;display:grid;place-items:center;border-radius:9px;color:#bdb5ff;background:rgba(108,87,255,.18);flex:0 0 auto}
+.neta-home .neta-ws-stat small{display:block;color:#74809f;font-size:8px}
+.neta-home .neta-ws-stat strong{display:block;margin-top:2px;color:#f0f3ff;font-size:12px}
+
+.neta-home .neta-ws-body{display:grid;grid-template-columns:minmax(0,1fr) 175px;gap:12px}
+.neta-home .neta-schedule{border:1px solid rgba(117,129,173,.14);border-radius:13px;background:rgba(11,16,31,.58);overflow:hidden}
+.neta-home .neta-schedule-head{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-bottom:1px solid rgba(117,129,173,.12);font-size:9px;color:#8d98b4}
+.neta-home .neta-schedule-head strong{color:#e9edf9;font-size:10px}
+.neta-home .neta-team-head{display:grid;grid-template-columns:43px repeat(3,1fr);border-bottom:1px solid rgba(117,129,173,.12)}
+.neta-home .neta-team-head>span{padding:8px 5px;text-align:center;border-left:1px solid rgba(117,129,173,.09);color:#8a96b3;font-size:8px}
+.neta-home .neta-team-head>span:first-child{border-left:0}
+.neta-home .neta-team-head b{display:block;width:25px;height:25px;margin:0 auto 4px;border-radius:50%;line-height:25px;background:rgba(102,83,232,.24);color:#c9c2ff;font-size:8px}
+.neta-home .neta-calendar-grid{position:relative;display:grid;grid-template-columns:43px repeat(3,1fr);grid-template-rows:repeat(7,40px)}
+.neta-home .neta-calendar-grid::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(113,125,167,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(113,125,167,.09) 1px,transparent 1px);background-size:100% 40px,calc((100% - 43px)/3) 100%;background-position:0 0,43px 0;pointer-events:none}
+.neta-home .neta-hour{display:flex;align-items:flex-start;justify-content:center;padding-top:7px;color:#6e7a99;font-size:8px;z-index:1}
+.neta-home .neta-event{z-index:2;margin:3px 5px;padding:7px 6px;border-radius:7px;font-size:8px;line-height:1.25;color:#11162a;box-shadow:0 6px 16px rgba(0,0,0,.18);align-self:stretch}
+.neta-home .neta-event strong{display:block;font-size:8px;color:inherit}.neta-home .neta-event span{display:block;margin-top:2px;opacity:.72;font-size:7px}
+.neta-home .neta-event.purple{background:linear-gradient(135deg,#b7a7ff,#8875ff)}
+.neta-home .neta-event.blue{background:linear-gradient(135deg,#94c8ff,#72aaf4)}
+.neta-home .neta-event.green{background:linear-gradient(135deg,#9be9c7,#6bcba2)}
+.neta-home .neta-event.rose{background:linear-gradient(135deg,#ffb0bd,#ed7e94)}
+.neta-home .neta-gap-slot{z-index:3;margin:3px 5px;border:1px dashed rgba(145,119,255,.72);border-radius:7px;background:rgba(91,70,220,.08);display:grid;place-items:center;color:#b9adff;font-size:16px}
+.neta-home .neta-ws-side{display:grid;gap:10px;align-content:start}
+.neta-home .neta-insight-card,.neta-home .neta-request-card{padding:12px;border:1px solid rgba(117,130,174,.16);border-radius:12px;background:linear-gradient(180deg,rgba(20,27,49,.78),rgba(13,19,37,.76))}
+.neta-home .neta-insight-card>span{display:inline-flex;width:27px;height:27px;align-items:center;justify-content:center;border-radius:8px;color:#ffaf68;background:rgba(225,126,57,.12)}
+.neta-home .neta-insight-card strong{display:block;margin:9px 0 5px;color:#f1f3fb;font-size:10px;line-height:1.4}
+.neta-home .neta-insight-card p{color:#7985a5;font-size:8px;line-height:1.55}
+.neta-home .neta-request-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}.neta-home .neta-request-head>span{width:27px;height:27px;display:grid;place-items:center;border-radius:8px;background:rgba(34,182,121,.12);color:#4ed99b}.neta-home .neta-request-head strong{display:block;color:#edf2fb;font-size:9px}.neta-home .neta-request-head small{display:block;color:#71809d;font-size:7px;margin-top:2px}
+.neta-home .neta-request-card .button{height:29px;min-height:29px;font-size:8px;border-radius:7px}
+.neta-home .neta-example-label{margin-top:10px;text-align:right;color:#65718f;font-size:8px}
+
+.neta-home .neta-feature-ribbon{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;margin-top:20px;border:1px solid rgba(116,128,169,.12);border-radius:14px;overflow:hidden;background:rgba(116,128,169,.08)}
+.neta-home .neta-feature-ribbon>div{display:flex;align-items:center;gap:9px;padding:12px 13px;background:#0b1020;min-width:0}
+.neta-home .neta-feature-ribbon svg{color:#8d7bff}.neta-home .neta-feature-ribbon strong{display:block;color:#dde2f2;font-size:9px}.neta-home .neta-feature-ribbon span{display:block;color:#697593;font-size:8px;margin-top:2px}
+
+@media(max-width:1180px){
+  .neta-home .neta-hero{grid-template-columns:1fr;gap:70px;padding-top:68px;min-height:auto}
+  .neta-home .neta-hero-copy{max-width:760px;margin:0 auto;text-align:center}
+  .neta-home .neta-hero-copy>p{margin-left:auto;margin-right:auto}
+  .neta-home .neta-hero-actions,.neta-home .neta-trust{justify-content:center}
+  .neta-home .neta-hero-proof{margin-left:auto;margin-right:auto;text-align:left}
+  .neta-home .neta-hero-visual{max-width:850px;margin:0 auto;width:100%}
+}
+@media(max-width:760px){
+  .neta-home .neta-hero{padding-top:46px;padding-bottom:56px;gap:48px}
+  .neta-home .neta-hero-copy h1{font-size:clamp(43px,13vw,60px)}
+  .neta-home .neta-hero-copy>p{font-size:15px}
+  .neta-home .neta-hero-actions{flex-direction:column;align-items:stretch}.neta-home .neta-hero-actions .button{width:100%}
+  .neta-home .neta-trust{gap:12px;justify-content:flex-start}.neta-home .neta-trust span{width:100%}
+  .neta-home .neta-hero-proof{grid-template-columns:1fr;gap:14px;text-align:left}.neta-home .neta-hero-proof>div{border-left:0;padding:0}
+  .neta-home .neta-workspace{grid-template-columns:1fr;transform:none;min-height:auto}
+  .neta-home .neta-ws-sidebar{display:none}.neta-home .neta-ws-main{padding:12px}
+  .neta-home .neta-ws-top{grid-template-columns:1fr auto}.neta-home .neta-ws-owner{display:none}
+  .neta-home .neta-ws-stats{grid-template-columns:repeat(3,1fr);gap:6px}.neta-home .neta-ws-stat{padding:8px;gap:5px}.neta-home .neta-ws-stat>span{display:none}
+  .neta-home .neta-ws-body{grid-template-columns:1fr}.neta-home .neta-ws-side{grid-template-columns:1fr 1fr}.neta-home .neta-calendar-grid{grid-template-rows:repeat(7,34px)}.neta-home .neta-calendar-grid::before{background-size:100% 34px,calc((100% - 43px)/3) 100%}
+  .neta-home .neta-feature-ribbon{grid-template-columns:1fr 1fr}.neta-home .neta-feature-ribbon>div:last-child{grid-column:1/-1}
+  .neta-home .neta-live-badge{right:10px;top:-24px}
+}
+@media(max-width:470px){
+  .neta-home .neta-ws-stats{grid-template-columns:1fr}.neta-home .neta-ws-stat{display:none}.neta-home .neta-ws-stat:first-child{display:flex}
+  .neta-home .neta-ws-side{grid-template-columns:1fr}.neta-home .neta-team-head,.neta-home .neta-calendar-grid{grid-template-columns:36px repeat(3,1fr)}
+  .neta-home .neta-feature-ribbon{grid-template-columns:1fr}
+  .neta-home .neta-feature-ribbon>div:last-child{grid-column:auto}
+}
