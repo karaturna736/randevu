@@ -30,6 +30,15 @@ try{
  check(types.length===10&&types.some(x=>x.category==='Psikolog'&&x.config.businessProfile.customerLabel==='Danışan'),'Business type catalog exposes sector-specific terminology');
  check((await call('workspace?tenant='+A,{user:'qa-a'})).data.configuration.businessType==='hair_salon','Workspace includes its resolved business configuration');
  check((await call('workspace?tenant='+B,{user:'qa-a'})).status===403,'Business A cannot read business B');
+ const sseRes1 = await mf.dispatchFetch('https://randevu.test/api/v1/events?tenant='+A, {headers: {'oai-authenticated-user-id':'qa-a','oai-authenticated-user-email':'qa-a@example.test'}});
+ check(sseRes1.status===200 && sseRes1.headers.get('content-type')?.includes('text/event-stream'),'Authorized user can connect to SSE endpoint');
+ sseRes1.body?.cancel();
+ const sseRes2 = await mf.dispatchFetch('https://randevu.test/api/v1/events?tenant='+B, {headers: {'oai-authenticated-user-id':'qa-a','oai-authenticated-user-email':'qa-a@example.test'}});
+ check(sseRes2.status===403,'Business A cannot connect to Business B SSE stream');
+ sseRes2.body?.cancel();
+ const sseRes3 = await mf.dispatchFetch('https://randevu.test/api/v1/events', {headers: {'oai-authenticated-user-id':'qa-a','oai-authenticated-user-email':'qa-a@example.test'}});
+ check(sseRes3.status===400,'SSE connection requires tenant ID');
+ sseRes3.body?.cancel();
  check((await call('services',{user:'qa-a',body:{tenant_id:B,name:'Foreign Service',duration:30,price:10000}})).status===403,'Business A cannot write services into business B');
  check((await call('public/test-a')).status===404,'Unapproved business is not publicly bookable');
  check((await call('admin',{user:'qa-a'})).status===403,'Business owner has no platform administrator privileges');

@@ -1,4 +1,5 @@
 import { assertBookingPlan } from "./billing";
+import { broadcaster } from "./events";
 import { z } from "zod";
 import {
   q,
@@ -15,7 +16,7 @@ import {
   date as dateSchema,
 } from "./server";
 import { today, addDays, time } from "./types";
-export const SELECT_APPOINTMENTS = `SELECT a.id,a.tenant_id,a.customer_id,a.service_id,a.staff_id,a.date,a.minute,a.duration,a.price,a.status,a.source,a.meeting_url,a.deposit_amount,a.payment_status,a.version,a.early_from,a.customer_note,a.service_description_snapshot service_description,c.name customer_name,c.phone customer_phone,COALESCE(NULLIF(a.service_name_snapshot,''),s.name) service_name,p.name staff_name,p.color staff_color FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id JOIN services s ON s.tenant_id=a.tenant_id AND s.id=a.service_id JOIN staff p ON p.tenant_id=a.tenant_id AND p.id=a.staff_id`;
+export const SELECT_APPOINTMENTS = `SELECT a.id,a.tenant_id,a.branch_id,a.customer_id,a.service_id,a.staff_id,a.date,a.minute,a.duration,a.price,a.status,a.source,a.meeting_url,a.deposit_amount,a.payment_status,a.version,a.early_from,a.customer_note,a.service_description_snapshot service_description,c.name customer_name,c.phone customer_phone,COALESCE(NULLIF(a.service_name_snapshot,''),s.name) service_name,p.name staff_name,p.color staff_color FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id JOIN services s ON s.tenant_id=a.tenant_id AND s.id=a.service_id JOIN staff p ON p.tenant_id=a.tenant_id AND p.id=a.staff_id`;
 export async function publicBusiness(slug: string) {
   const b = await one(
     "SELECT * FROM businesses WHERE slug=? AND status='approved' AND demo=0",
@@ -181,10 +182,10 @@ export async function book(
   );
   if (!staff) throw new ApiError("Uzman bulunamadı.", 404);
   const branch = x.branch_id
-    ? await one("SELECT id FROM branches WHERE tenant_id=? AND id=? AND active=1", b.id, x.branch_id)
+    ? await one("SELECT id, name FROM branches WHERE tenant_id=? AND id=? AND active=1", b.id, x.branch_id)
     : staff.branch_id
-      ? { id: staff.branch_id }
-      : await one("SELECT id FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC LIMIT 1", b.id);
+      ? await one("SELECT id, name FROM branches WHERE tenant_id=? AND id=? AND active=1", b.id, staff.branch_id)
+      : await one("SELECT id, name FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC LIMIT 1", b.id);
   if (!branch || (staff.branch_id && staff.branch_id !== branch.id))
     throw new ApiError("Uzman bu şubede çalışmıyor.", 404);
   if (x.early_from != null && x.early_from >= x.minute)
@@ -271,6 +272,30 @@ export async function book(
     ops.push(event(b.id, id, "reminder", reminder.toISOString()));
   if (extra) ops.push(...(await extra(id, token)));
   await db().batch(ops);
+  try {
+    broadcaster.emit({
+      id: uid(),
+      type: "appointment.created",
+      appointmentId: id,
+      tenantId: b.id,
+      branchId: branch?.id || null,
+      timestamp: now(),
+      data: {
+        customer_name: x.name,
+        customer_phone: x.phone,
+        service_name: service.name,
+        staff_name: staff.name,
+        branch_name: branch?.name || undefined,
+        date: x.date,
+        minute: x.minute,
+        time: time(x.minute),
+        status: "confirmed",
+        price: service.price,
+      },
+    });
+  } catch (e) {
+    console.error("Failed to emit SSE created event:", e);
+  }
   return {
     id,
     token,
@@ -347,6 +372,29 @@ export async function change(
     if (+reminder > Date.now())
       ops.push(event(b.id, a.id, "reminder", reminder.toISOString()));
     await db().batch([...ops, ...extraOps]);
+    try {
+      broadcaster.emit({
+        id: uid(),
+        type: "appointment.updated",
+        appointmentId: a.id,
+        tenantId: b.id,
+        branchId: a.branch_id || null,
+        timestamp: now(),
+        data: {
+          customer_name: a.customer_name,
+          customer_phone: a.customer_phone,
+          service_name: a.service_name,
+          staff_name: a.staff_name,
+          date: d,
+          minute: m,
+          time: time(m),
+          status: "confirmed",
+          price: a.price,
+        },
+      });
+    } catch (e) {
+      console.error("Failed to emit SSE updated event:", e);
+    }
     return { ok: true };
   }
   const status = z.enum(["cancelled", "completed", "no_show"]).parse(x.status);
@@ -383,6 +431,30 @@ export async function change(
       event(b.id, a.id, "cancelled"),
     );
   await db().batch([...ops, ...extraOps]);
+  try {
+    const eventType = status === "cancelled" ? "appointment.cancelled" : "appointment.updated";
+    broadcaster.emit({
+      id: uid(),
+      type: eventType,
+      appointmentId: a.id,
+      tenantId: b.id,
+      branchId: a.branch_id || null,
+      timestamp: now(),
+      data: {
+        customer_name: a.customer_name,
+        customer_phone: a.customer_phone,
+        service_name: a.service_name,
+        staff_name: a.staff_name,
+        date: a.date,
+        minute: a.minute,
+        time: time(a.minute),
+        status,
+        price: a.price,
+      },
+    });
+  } catch (e) {
+    console.error("Failed to emit SSE event:", e);
+  }
   return { ok: true };
 }
 export async function assistant(b: any, message: string) {
