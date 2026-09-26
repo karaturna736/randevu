@@ -35,7 +35,19 @@ function applyButton(input: HTMLInputElement) {
   ) as HTMLButtonElement | undefined;
 }
 
-function showAutomaticNotice(input: HTMLInputElement, campaign: any) {
+function tl(value: unknown) {
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0) / 100);
+}
+
+function showAutomaticNotice(
+  input: HTMLInputElement,
+  campaign: any,
+  realCheckoutDiscount: boolean,
+) {
   const card = input.closest(".panel") || input.parentElement?.parentElement;
   if (!card) return;
   let notice = card.querySelector(
@@ -58,11 +70,12 @@ function showAutomaticNotice(input: HTMLInputElement, campaign: any) {
   const detail = notice.querySelector("small");
   if (title)
     title.textContent = String(
-      campaign.description || campaign.campaign_name || "Kampanya",
+      campaign.description || campaign.campaign_name || "Size özel kampanya",
     ).trim();
   if (detail)
-    detail.textContent =
-      "Bu kampanya hesabınıza otomatik tanımlandı. Kampanya kodu girmenize gerek yok.";
+    detail.textContent = realCheckoutDiscount
+      ? `${tl(campaign.discount_amount)} avantaj hesabınıza otomatik uygulandı. Ödenecek tutar ${tl(campaign.final_amount)}.`
+      : `${tl(campaign.discount_amount)} kampanya avantajı hesabınıza tanımlı. İlk abonelik tahsilatı mevcut iyzico planında sabit fiyatlı olduğu için bu ekranda tutar otomatik düşürülmez.`;
 }
 
 export function AutomaticCampaign() {
@@ -98,8 +111,12 @@ export function AutomaticCampaign() {
         const key = `${campaign.code}:${params.get("plan")}:${tenantId || "new"}`;
         if (input.dataset.automaticCampaign === key) return;
         input.dataset.automaticCampaign = key;
+
+        const canApplyToCheckout = path === "/abonelik" && campaign.checkout_supported === true;
+        showAutomaticNotice(input, campaign, canApplyToCheckout);
+        if (!canApplyToCheckout) return;
+
         setReactInput(input, campaign.code);
-        showAutomaticNotice(input, campaign);
         window.setTimeout(() => applyButton(input)?.click(), 40);
       } finally {
         running = false;
