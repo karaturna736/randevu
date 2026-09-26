@@ -78,6 +78,26 @@ export default function HakkimizdaPage() {
             görünür hale getirmek, randevu sürecini kolaylaştırmak ve işletme
             sahibine gerçek talep verileri sunmaktır.
           </p>
+          <h2>Neta çözümlerini inceleyin</h2>
+          <ul>
+            <li>
+              <a href="/online-randevu-sistemi">Online randevu sistemi</a>
+            </li>
+            <li>
+              <a href="/whatsapp-randevu-sistemi">WhatsApp randevu sistemi</a>
+            </li>
+            <li>
+              <a href="/kuafor-randevu-sistemi">Kuaför randevu sistemi</a>
+            </li>
+            <li>
+              <a href="/berber-randevu-sistemi">Berber randevu sistemi</a>
+            </li>
+            <li>
+              <a href="/guzellik-salonu-randevu-sistemi">
+                Güzellik salonu randevu sistemi
+              </a>
+            </li>
+          </ul>
           <div className="neta-hero-actions">
             <a className="button primary" href="/">
               Neta'yı incele
