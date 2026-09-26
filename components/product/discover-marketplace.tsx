@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Building2, MapPin, Search, Store } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CATEGORIES, money } from "@/lib/types";
-import { api, Blank, Busy } from "./common";
+import { api, Blank, Busy, Pick } from "./common";
 import { PublicShell } from "./public";
 
 type BusinessRow = {
@@ -24,6 +24,17 @@ type BranchRow = {
   city?: string;
   address?: string;
 };
+
+const TURKEY_CITIES = [
+  "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Ankara", "Antalya", "Ardahan", "Artvin",
+  "Aydın", "Balıkesir", "Bartın", "Batman", "Bayburt", "Bilecik", "Bingöl", "Bitlis", "Bolu", "Burdur",
+  "Bursa", "Çanakkale", "Çankırı", "Çorum", "Denizli", "Diyarbakır", "Düzce", "Edirne", "Elazığ", "Erzincan",
+  "Erzurum", "Eskişehir", "Gaziantep", "Giresun", "Gümüşhane", "Hakkari", "Hatay", "Iğdır", "Isparta", "İstanbul",
+  "İzmir", "Kahramanmaraş", "Karabük", "Karaman", "Kars", "Kastamonu", "Kayseri", "Kilis", "Kırıkkale", "Kırklareli",
+  "Kırşehir", "Kocaeli", "Konya", "Kütahya", "Malatya", "Manisa", "Mardin", "Mersin", "Muğla", "Muş",
+  "Nevşehir", "Niğde", "Ordu", "Osmaniye", "Rize", "Sakarya", "Samsun", "Siirt", "Sinop", "Sivas",
+  "Şanlıurfa", "Şırnak", "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak",
+];
 
 const cardStyle = {
   width: "100%",
@@ -58,16 +69,25 @@ export function DiscoverMarketplace() {
   }, []);
 
   const categories = useMemo(() => {
-    const seen = new Set(rows.map((b) => b.category).filter(Boolean));
-    return [...CATEGORIES.filter((x) => seen.has(x)), ...Array.from(seen).filter((x) => !CATEGORIES.includes(x))];
+    const extras = Array.from(new Set(rows.map((b) => b.category).filter(Boolean))).filter(
+      (item) => !CATEGORIES.includes(item),
+    );
+    return [...CATEGORIES, ...extras];
   }, [rows]);
 
-  const cities = useMemo(() => {
+  const availableCities = useMemo(() => {
     if (!category) return [];
     return Array.from(
       new Set(rows.filter((b) => b.category === category).map(normalizedCity)),
-    ).sort((a, b) => a.localeCompare(b, "tr-TR"));
+    )
+      .filter((item) => item !== "Konum belirtilmemiş")
+      .sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows, category]);
+
+  const cityOptions = useMemo(() => {
+    const extras = availableCities.filter((item) => !TURKEY_CITIES.includes(item));
+    return [...TURKEY_CITIES, ...extras];
+  }, [availableCities]);
 
   const businesses = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
@@ -80,7 +100,7 @@ export function DiscoverMarketplace() {
     });
   }, [rows, category, city, search]);
 
-  function resetFrom(level: "category" | "city" | "business") {
+  function resetFrom(level: "category" | "city") {
     setError("");
     setBusinessData(null);
     setBusiness(null);
@@ -88,7 +108,7 @@ export function DiscoverMarketplace() {
       setCategory("");
       setCity("");
       setSearch("");
-    } else if (level === "city") {
+    } else {
       setCity("");
       setSearch("");
     }
@@ -115,12 +135,12 @@ export function DiscoverMarketplace() {
       <main className="discover-page">
         <div className="discover-hero">
           <span className="eyebrow">NETA KEŞFET</span>
-          <h1>İhtiyacını seç, yakındaki işletmeyi bul, randevunu al.</h1>
-          <p>İşletme türünden şubeye kadar adım adım ilerleyin. Doğru şubeyi seçtiğinizde randevu formu o şubeyle açılır.</p>
+          <h1>İhtiyacını seç, şehrini belirle, işletmeni bul.</h1>
+          <p>Güzellik salonundan spa ve kuaföre kadar kategorini seçin; ardından şehir, işletme ve şube üzerinden randevunuzu oluşturun.</p>
         </div>
 
         <div className="panel" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-          <strong>1. {category || "İşletme türü"}</strong>
+          <strong>1. {category || "Kategori"}</strong>
           <ArrowRight size={15} />
           <strong>2. {city || "Şehir"}</strong>
           <ArrowRight size={15} />
@@ -138,63 +158,107 @@ export function DiscoverMarketplace() {
             <div className="section-heading">
               <div>
                 <span className="eyebrow">1. ADIM</span>
-                <h2>Ne arıyorsunuz?</h2>
+                <h2>Hangi hizmeti arıyorsunuz?</h2>
               </div>
-              <span className="muted">İşletme türünü seçin</span>
-            </div>
-            {categories.length ? (
-              <div className="business-cards">
-                {categories.map((item) => {
-                  const count = rows.filter((b) => b.category === item).length;
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      className="panel business-card"
-                      style={cardStyle}
-                      onClick={() => { setCategory(item); setCity(""); setBusiness(null); setSearch(""); }}
-                    >
-                      <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                        <span className="service-icon"><Store /></span>
-                        <div>
-                          <span className="eyebrow">KATEGORİ</span>
-                          <h2>{item}</h2>
-                          <p className="muted">{count} işletme</p>
-                        </div>
-                      </div>
-                      <ArrowRight size={20} />
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <Blank title="Henüz keşfedilecek işletme yok" description="Onaylanan işletmeler burada kategori bazında listelenecek." />
-            )}
-          </section>
-        ) : !city ? (
-          <section>
-            <button className="text-button" type="button" onClick={() => resetFrom("category")}><ArrowLeft size={16} /> İşletme türüne dön</button>
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">2. ADIM · {category}</span>
-                <h2>Hangi şehir?</h2>
-              </div>
-              <span className="muted">{cities.length} şehir</span>
+              <span className="muted">Kategori seçin</span>
             </div>
             <div className="business-cards">
-              {cities.map((item) => {
-                const count = rows.filter((b) => b.category === category && normalizedCity(b) === item).length;
+              {categories.map((item) => {
+                const count = rows.filter((b) => b.category === item).length;
                 return (
-                  <button key={item} type="button" className="panel business-card" style={cardStyle} onClick={() => { setCity(item); setBusiness(null); setSearch(""); }}>
+                  <button
+                    key={item}
+                    type="button"
+                    className="panel business-card"
+                    style={cardStyle}
+                    onClick={() => {
+                      setCategory(item);
+                      setCity("");
+                      setBusiness(null);
+                      setBusinessData(null);
+                      setSearch("");
+                    }}
+                  >
                     <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                      <span className="service-icon"><MapPin /></span>
-                      <div><span className="eyebrow">ŞEHİR</span><h2>{item}</h2><p className="muted">{count} işletme</p></div>
+                      <span className="service-icon"><Store /></span>
+                      <div>
+                        <span className="eyebrow">KATEGORİ</span>
+                        <h2>{item}</h2>
+                        <p className="muted">{count ? `${count} işletme` : "Yeni işletmeler yakında"}</p>
+                      </div>
                     </div>
                     <ArrowRight size={20} />
                   </button>
                 );
               })}
             </div>
+          </section>
+        ) : !city ? (
+          <section>
+            <button className="text-button" type="button" onClick={() => resetFrom("category")}><ArrowLeft size={16} /> Kategorilere dön</button>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">2. ADIM · {category}</span>
+                <h2>Hangi şehir?</h2>
+              </div>
+              <span className="muted">81 il arasından seçin</span>
+            </div>
+
+            <div className="panel" style={{ marginBottom: 20 }}>
+              <Pick
+                label="Şehir seçin"
+                value={city}
+                onChange={(value) => {
+                  setCity(value);
+                  setBusiness(null);
+                  setBusinessData(null);
+                  setSearch("");
+                }}
+                options={[
+                  { value: "", label: "Şehir seçin" },
+                  ...cityOptions.map((item) => ({ value: item, label: item })),
+                ]}
+              />
+            </div>
+
+            {availableCities.length ? (
+              <>
+                <div className="section-heading">
+                  <h3>Bu kategoride işletme bulunan şehirler</h3>
+                  <span className="muted">{availableCities.length} şehir</span>
+                </div>
+                <div className="business-cards">
+                  {availableCities.map((item) => {
+                    const count = rows.filter((b) => b.category === category && normalizedCity(b) === item).length;
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        className="panel business-card"
+                        style={cardStyle}
+                        onClick={() => {
+                          setCity(item);
+                          setBusiness(null);
+                          setBusinessData(null);
+                          setSearch("");
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                          <span className="service-icon"><MapPin /></span>
+                          <div><span className="eyebrow">ŞEHİR</span><h2>{item}</h2><p className="muted">{count} işletme</p></div>
+                        </div>
+                        <ArrowRight size={20} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <Blank
+                title="Bu kategoride henüz işletme yok"
+                description="Yine de yukarıdaki şehir seçicisinden istediğiniz ili seçebilirsiniz. Yeni işletmeler eklendikçe burada görünecek."
+              />
+            )}
           </section>
         ) : !business ? (
           <section>
@@ -227,7 +291,10 @@ export function DiscoverMarketplace() {
                 ))}
               </div>
             ) : (
-              <Blank title="Bu seçimde işletme bulunamadı" description="Aramayı temizleyin veya başka bir şehir seçin." />
+              <Blank
+                title={`${city} · ${category} için henüz işletme yok`}
+                description="Bu şehir ve kategoride yeni işletmeler eklendiğinde burada listelenecek. Başka bir şehir veya kategori seçebilirsiniz."
+              />
             )}
             <div className="panel" style={{ marginTop: 20 }}>
               <span className="eyebrow">İŞLETMELER İÇİN</span>
