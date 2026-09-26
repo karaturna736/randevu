@@ -70,13 +70,18 @@ export function Pick({
   options: { value: string; label: string }[];
   label: string;
 }) {
+  const visibleOptions =
+    label === "İşletme değiştir"
+      ? options.filter((option) => option.label !== "Atölye Studio")
+      : options;
+  if (label === "İşletme değiştir" && visibleOptions.length <= 1) return null;
   return (
     <Select value={value || undefined} onValueChange={onChange}>
       <SelectTrigger aria-label={label} className="pick">
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent position="popper">
-        {options.map((o) => (
+        {visibleOptions.map((o) => (
           <SelectItem key={o.value} value={o.value}>
             {o.label}
           </SelectItem>
