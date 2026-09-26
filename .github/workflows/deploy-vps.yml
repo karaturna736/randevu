@@ -30,38 +30,66 @@ jobs:
     timeout-minutes: 30
     environment: production
     steps:
-      - name: Resolve validated release artifact
+      - name: Resolve validated release
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MANUAL_PR: ${{ inputs.release_pr }}
         run: |
           set -euo pipefail
+
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             pr_number="$MANUAL_PR"
-          else
-            pr_number="$(curl --fail --silent --show-error \
+            pr_json="$(curl --fail --silent --show-error \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
-              | jq -r '[.[] | select(.merged_at != null)] | sort_by(.merged_at) | last | .number // empty')"
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$pr_number")"
+            test "$(jq -r '.merged_at != null and .base.ref == "main"' <<< "$pr_json")" = "true" || { echo "::error::PR #$pr_number main'e merge edilmiş bir release PR değil."; exit 1; }
+            pr_head_sha="$(jq -r '.head.sha // empty' <<< "$pr_json")"
+          else
+            prs_json="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls")"
+            pr_number="$(jq -r '[.[] | select(.merged_at != null and .base.ref == "main")] | sort_by(.merged_at) | last | .number // empty' <<< "$prs_json")"
+            pr_head_sha="$(jq -r '[.[] | select(.merged_at != null and .base.ref == "main")] | sort_by(.merged_at) | last | .head.sha // empty' <<< "$prs_json")"
           fi
-          test -n "$pr_number" || { echo "::error::Bu main commitine bağlı merge edilmiş release PR bulunamadı."; exit 1; }
 
-          artifact_name="neta-vps-release-${pr_number}"
-          artifact_json="$(curl --fail --silent --show-error \
+          test -n "$pr_number" || { echo "::error::Bu main commitine bağlı merge edilmiş release PR bulunamadı."; exit 1; }
+          test -n "$pr_head_sha" || { echo "::error::Release PR head SHA çözümlenemedi."; exit 1; }
+
+          commit_json="$(curl --fail --silent --show-error \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$artifact_name&per_page=100")"
-          run_id="$(jq -r '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .workflow_run.id // empty' <<< "$artifact_json")"
-          test -n "$run_id" || { echo "::error::Doğrulanmış release artifact bulunamadı: $artifact_name"; exit 1; }
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA")"
+          main_tree="$(jq -r '.commit.tree.sha // empty' <<< "$commit_json")"
+          test -n "$main_tree" || { echo "::error::Main Git tree SHA çözümlenemedi."; exit 1; }
+
+          security_runs="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/security.yml/runs?event=pull_request&head_sha=$pr_head_sha&per_page=20")"
+          security_run_id="$(RUNS_JSON="$security_runs" HEAD_SHA="$pr_head_sha" python3 -c 'import json,os; d=json.loads(os.environ["RUNS_JSON"]); h=os.environ["HEAD_SHA"]; print(next((str(r["id"]) for r in d.get("workflow_runs",[]) if r.get("head_sha")==h and r.get("event")=="pull_request" and r.get("conclusion")=="success"), ""))')"
+          test -n "$security_run_id" || { echo "::error::PR #$pr_number için başarılı Security gates koşusu bulunamadı."; exit 1; }
+
+          osv_runs="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/osv-pr.yml/runs?event=pull_request&head_sha=$pr_head_sha&per_page=20")"
+          osv_run_id="$(RUNS_JSON="$osv_runs" HEAD_SHA="$pr_head_sha" python3 -c 'import json,os; d=json.loads(os.environ["RUNS_JSON"]); h=os.environ["HEAD_SHA"]; print(next((str(r["id"]) for r in d.get("workflow_runs",[]) if r.get("head_sha")==h and r.get("event")=="pull_request" and r.get("conclusion")=="success"), ""))')"
+          test -n "$osv_run_id" || { echo "::error::PR #$pr_number için başarılı OSV dependency review koşusu bulunamadı."; exit 1; }
 
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
-          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
-          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
-          echo "Validated release PR #$pr_number, workflow run $run_id"
+          echo "pr_head_sha=$pr_head_sha" >> "$GITHUB_OUTPUT"
+          echo "main_tree=$main_tree" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=neta-vps-release-${pr_number}" >> "$GITHUB_OUTPUT"
+          echo "security_run_id=$security_run_id" >> "$GITHUB_OUTPUT"
+          echo "Validated release PR #$pr_number, Security run $security_run_id, OSV run $osv_run_id"
 
       - name: Download validated release artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -70,13 +98,29 @@ jobs:
           path: /tmp/neta-release-artifact
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          run-id: ${{ steps.release.outputs.run_id }}
+          run-id: ${{ steps.release.outputs.security_run_id }}
 
-      - name: Verify release package
+      - name: Verify release identity and package
+        env:
+          EXPECTED_PR: ${{ steps.release.outputs.pr_number }}
+          EXPECTED_HEAD: ${{ steps.release.outputs.pr_head_sha }}
+          EXPECTED_TREE: ${{ steps.release.outputs.main_tree }}
         run: |
           set -euo pipefail
           test -s /tmp/neta-release-artifact/neta-vps-release.tar.gz
           test -s /tmp/neta-release-artifact/neta-nginx.conf
+          test -s /tmp/neta-release-artifact/release-pr.txt
+          test -s /tmp/neta-release-artifact/release-head.txt
+          test -s /tmp/neta-release-artifact/release-tree.txt
+
+          actual_pr="$(tr -d '\r\n' < /tmp/neta-release-artifact/release-pr.txt)"
+          actual_head="$(tr -d '\r\n' < /tmp/neta-release-artifact/release-head.txt)"
+          actual_tree="$(tr -d '\r\n' < /tmp/neta-release-artifact/release-tree.txt)"
+
+          test "$actual_pr" = "$EXPECTED_PR" || { echo "::error::Release PR kimliği uyuşmuyor."; exit 1; }
+          test "$actual_head" = "$EXPECTED_HEAD" || { echo "::error::Release head SHA uyuşmuyor."; exit 1; }
+          test "$actual_tree" = "$EXPECTED_TREE" || { echo "::error::CI'de test edilen Git ağacı ile merge edilen main ağacı aynı değil."; exit 1; }
+          sha256sum /tmp/neta-release-artifact/neta-vps-release.tar.gz
 
       - name: Verify SSH host key
         env:
@@ -113,7 +157,7 @@ jobs:
           timeout 8m scp $SCP_OPTS /tmp/neta-release-artifact/neta-vps-release.tar.gz "$VPS_USER@$VPS_HOST:/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
           timeout 2m scp $SCP_OPTS /tmp/neta-release-artifact/neta-nginx.conf "$VPS_USER@$VPS_HOST:/tmp/neta-nginx-${GITHUB_SHA}.conf"
 
-      - name: Deploy with rollback
+      - name: Deploy with rollback and local verification
         env:
           VPS_HOST: ${{ secrets.VPS_HOST || '94.156.11.79' }}
           VPS_USER: ${{ secrets.VPS_USER || 'root' }}
@@ -121,34 +165,52 @@ jobs:
         run: |
           set -euo pipefail
           SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
-          timeout 18m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "set -e; sudo /usr/local/sbin/neta-release /tmp/neta-vps-release-${GITHUB_SHA}.tar.gz; test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl '$LETSENCRYPT_EMAIL'; sudo install -o root -g root -m 0644 /tmp/neta-nginx-${GITHUB_SHA}.conf /etc/nginx/sites-available/netarandevu; sudo nginx -t; sudo systemctl reload nginx; rm -f /tmp/neta-nginx-${GITHUB_SHA}.conf"
-
-      - name: Verify sensitive paths externally
-        run: |
+          timeout 18m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "bash -s -- '$GITHUB_SHA' '$LETSENCRYPT_EMAIL'" <<'REMOTE'
           set -euo pipefail
+          release_sha="$1"
+          letsencrypt_email="$2"
+
+          sudo /usr/local/sbin/neta-release "/tmp/neta-vps-release-${release_sha}.tar.gz"
+          test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl "$letsencrypt_email"
+          sudo install -o root -g root -m 0644 "/tmp/neta-nginx-${release_sha}.conf" /etc/nginx/sites-available/netarandevu
+          sudo nginx -t
+          sudo systemctl reload nginx
+          rm -f "/tmp/neta-nginx-${release_sha}.conf"
+
+          systemctl is-active --quiet neta
+
+          health=""
+          for attempt in $(seq 1 20); do
+            if health="$(curl --connect-timeout 2 --max-time 5 --silent --show-error --fail http://127.0.0.1:3000/api/health 2>/dev/null)"; then
+              break
+            fi
+            sleep 1
+          done
+          test -n "$health"
+          printf '%s\n' "$health"
+          HEALTH="$health" node -e 'const x=JSON.parse(process.env.HEALTH||"{}"); if(x.status!=="ok"||x.database!=="ok"){console.error("Local production health failed"); process.exit(1)}'
+
+          auth_status="$(curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:3000/api/v1/auth-status)"
+          AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
+
           for path in '/.git/config' '/.env' '/package.json' '/pnpm-lock.yaml' '/server.js' '/neta.sqlite' '/backup.sql'; do
-            status="$(curl --connect-timeout 8 --max-time 25 --silent --show-error --retry 6 --retry-delay 3 --retry-connrefused --retry-all-errors --output /dev/null --write-out '%{http_code}' "https://netarandevu.com${path}")"
+            status="$(curl --connect-timeout 2 --max-time 5 --silent --show-error --output /dev/null --write-out '%{http_code}' --resolve netarandevu.com:443:127.0.0.1 "https://netarandevu.com${path}")"
             case "$status" in
               403|404) ;;
-              *) echo "::error::Sensitive path ${path} returned HTTP ${status}"; exit 1 ;;
+              *) echo "Sensitive path ${path} returned HTTP ${status}" >&2; exit 1 ;;
             esac
           done
 
-      - name: Verify production and security headers
+          api_headers="$(curl --connect-timeout 2 --max-time 5 --fail --silent --show-error --head --resolve netarandevu.com:443:127.0.0.1 https://netarandevu.com/api/health)"
+          grep -qi '^cache-control:.*no-store' <<< "$api_headers" || { echo "API responses must be non-cacheable at the edge" >&2; exit 1; }
+          REMOTE
+
+      - name: Verify public security headers
         run: |
           set -euo pipefail
-          CURL_BASE=(--connect-timeout 8 --max-time 25 --fail --show-error --silent)
-          CURL_RETRY=(--retry 6 --retry-delay 3 --retry-connrefused --retry-all-errors)
-
-          rm -f /tmp/neta-health.headers /tmp/neta-health.body
-          curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" \
-            --dump-header /tmp/neta-health.headers \
-            --output /tmp/neta-health.body \
-            https://netarandevu.com/api/health
-          cat /tmp/neta-health.body
-          grep -qi '^cache-control:.*no-store' /tmp/neta-health.headers || { echo "::error::API responses must be non-cacheable at the edge"; exit 1; }
-
-          headers="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" --head https://netarandevu.com)"
+          headers="$(curl --connect-timeout 8 --max-time 25 --fail --show-error --silent \
+            --retry 3 --retry-delay 2 --retry-connrefused --retry-all-errors \
+            --head https://netarandevu.com)"
           printf '%s\n' "$headers"
           for required in \
             'content-security-policy:' \
@@ -170,9 +232,6 @@ jobs:
             echo "::error::Web server version must not be exposed"
             exit 1
           fi
-
-          auth_status="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" https://netarandevu.com/api/v1/auth-status)"
-          AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
 
       - name: Run isolated 250-user heavy synchronization test
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_load_test }}

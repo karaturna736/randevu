@@ -42,6 +42,7 @@ jobs:
       - name: Production VPS build
         run: pnpm build:vps
       - name: Package validated release
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           set -euo pipefail
           bash scripts/package-vps.sh /tmp/neta-vps-release.tar.gz
@@ -49,10 +50,15 @@ jobs:
           mkdir -p /tmp/neta-release-artifact
           cp /tmp/neta-vps-release.tar.gz /tmp/neta-release-artifact/neta-vps-release.tar.gz
           cp deploy/nginx-netarandevu.conf /tmp/neta-release-artifact/neta-nginx.conf
+          git rev-parse 'HEAD^{tree}' > /tmp/neta-release-artifact/release-tree.txt
+          printf '%s\n' '${{ github.event.pull_request.head.sha }}' > /tmp/neta-release-artifact/release-head.txt
+          printf '%s\n' '${{ github.event.pull_request.number }}' > /tmp/neta-release-artifact/release-pr.txt
+          sha256sum /tmp/neta-release-artifact/neta-vps-release.tar.gz
       - name: Upload validated release artifact
+        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: neta-vps-release-${{ github.event.pull_request.number || github.run_id }}
+          name: neta-vps-release-${{ github.event.pull_request.number }}
           path: /tmp/neta-release-artifact
           if-no-files-found: error
           retention-days: 3
