@@ -94,8 +94,11 @@ jobs:
       - name: Verify production and security headers
         run: |
           set -euo pipefail
-          curl --fail --show-error --silent --retry 12 --retry-delay 5 https://netarandevu.com/api/health
-          headers="$(curl --fail --show-error --silent --retry 12 --retry-delay 5 --head https://netarandevu.com)"
+          CURL_BASE=(--connect-timeout 8 --max-time 25 --fail --show-error --silent)
+          CURL_RETRY=(--retry 6 --retry-delay 3 --retry-connrefused --retry-all-errors)
+
+          curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" https://netarandevu.com/api/health
+          headers="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" --head https://netarandevu.com)"
           printf '%s\n' "$headers"
           for required in \
             'content-security-policy:' \
@@ -117,16 +120,19 @@ jobs:
             echo "::error::Web server version must not be exposed"
             exit 1
           fi
-          api_headers="$(curl --fail --show-error --silent --head https://netarandevu.com/api/health)"
+          api_headers="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" --head https://netarandevu.com/api/health)"
           grep -qi '^cache-control:.*no-store' <<< "$api_headers" || { echo "::error::API responses must be non-cacheable at the edge"; exit 1; }
           for path in '/.git/config' '/.env' '/package.json' '/pnpm-lock.yaml' '/server.js' '/neta.sqlite' '/backup.sql'; do
-            status="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://netarandevu.com${path}")"
+            if ! status="$(curl --connect-timeout 5 --max-time 15 --silent --output /dev/null --write-out '%{http_code}' "https://netarandevu.com${path}")"; then
+              echo "::error::Sensitive path ${path} request failed or timed out"
+              exit 1
+            fi
             case "$status" in
               403|404) ;;
               *) echo "::error::Sensitive path ${path} returned HTTP ${status}"; exit 1 ;;
             esac
           done
-          auth_status="$(curl --fail --show-error --silent --retry 6 --retry-delay 3 https://netarandevu.com/api/v1/auth-status)"
+          auth_status="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" https://netarandevu.com/api/v1/auth-status)"
           AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
       - name: Run isolated 250-user heavy synchronization test
         if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_load_test) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[loadtest]')) }}
