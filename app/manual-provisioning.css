@@ -1,0 +1,8 @@
+/* Geçici manuel aktivasyon döneminde kullanıcıya abonelik/tahsilat menüsü gösterilmez. */
+.app-sidebar a.footer-nav[href^="/abonelik"] {
+  display: none !important;
+}
+
+.manual-access-plan {
+  min-width: 130px;
+}
