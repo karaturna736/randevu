@@ -1,4 +1,8 @@
-import BillingPage from '@/components/product/billing';
-import CampaignAutoApply from '@/components/product/campaign-auto-apply';
-export const dynamic='force-dynamic';
-export default function Page(){return <><BillingPage/><CampaignAutoApply mode="billing"/></>}
+import ManualActivation from "@/components/product/manual-activation";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Panel aktivasyonu · Neta" };
+
+export default function Page() {
+  return <ManualActivation />;
+}
