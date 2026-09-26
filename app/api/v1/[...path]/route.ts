@@ -1,3 +1,4 @@
+import { broadcaster } from "@/lib/events";
 import { waSnapshot } from "@/lib/whatsapp";
 import { consumePlanQuota } from "@/lib/entitlements";
 import {
@@ -139,6 +140,61 @@ export async function GET(req: Request) {
     const u = new URL(req.url),
       p = u.pathname.split("/").filter(Boolean).slice(2),
       id = u.searchParams.get("tenant") || "";
+    if (p[0] === "events") {
+      const tenantId = id || u.searchParams.get("businessId") || "";
+      if (!tenantId) throw new ApiError("İşletme kimliği gerekli.", 400);
+      await tenant(tenantId);
+
+      const stream = new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          const send = (evtType: string, data: any, evtId?: string) => {
+            let msg = "";
+            if (evtId) msg += `id: ${evtId}\n`;
+            if (evtType) msg += `event: ${evtType}\n`;
+            msg += `data: ${JSON.stringify(data)}\n\n`;
+            try {
+              controller.enqueue(encoder.encode(msg));
+            } catch {
+              // Stream closed
+            }
+          };
+
+          send("connected", { connected: true, tenantId, timestamp: new Date().toISOString() });
+
+          const unsubscribe = broadcaster.subscribe(tenantId, (sseEvent) => {
+            send(sseEvent.type, sseEvent, sseEvent.id);
+          });
+
+          const timer = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode(": keepalive\n\n"));
+            } catch {
+              clearInterval(timer);
+            }
+          }, 15000);
+
+          if (req.signal) {
+            req.signal.addEventListener("abort", () => {
+              clearInterval(timer);
+              unsubscribe();
+              try {
+                controller.close();
+              } catch {}
+            });
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
     if (p[0] === "whatsapp") return ok(await waSnapshot(id));
     if (p[0] === "waitlist") return ok(await waitlistSnapshot(id));
     if (p[0] === "recovery") return ok(await recoverySnapshot(id));
