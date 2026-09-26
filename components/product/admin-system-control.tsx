@@ -38,7 +38,7 @@ async function systemApi(body?: any) {
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const data = await r.json().catch(() => ({ error: "Bağlantı kurulamadı." }));
+  const data: any = await r.json().catch(() => ({ error: "Bağlantı kurulamadı." }));
   if (!r.ok) throw new Error(data.error || "İşlem tamamlanamadı.");
   return data;
 }
