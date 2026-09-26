@@ -28,6 +28,13 @@ type CarouselItem = {
   node: ReactNode;
 };
 
+type CategoryCarouselItem = {
+  key: string;
+  label: string;
+  subtitle: string;
+  icon: ReactNode;
+};
+
 function CenterCarousel({ items, resetKey, label }: { items: CarouselItem[]; resetKey: string; label: string }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
@@ -133,6 +140,36 @@ function CenterCarousel({ items, resetKey, label }: { items: CarouselItem[]; res
       ) : null}
     </div>
   );
+}
+
+export function MobileCategoryCarousel({
+  categories,
+  onSelect,
+  resetKey,
+}: {
+  categories: CategoryCarouselItem[];
+  onSelect: (category: string) => void;
+  resetKey: string;
+}) {
+  const items = categories.map((category) => ({
+    key: category.key,
+    node: (
+      <button type="button" className={`${styles.carouselCard} ${styles.categoryCard}`} onClick={() => onSelect(category.key)}>
+        <span className={styles.categoryCover} aria-hidden="true">
+          <span className={styles.categoryIcon}>{category.icon}</span>
+          <span className={styles.categoryGlow} />
+        </span>
+        <span className={styles.cardBody}>
+          <span className={styles.kicker}>HİZMET KATEGORİSİ</span>
+          <strong className={styles.title}>{category.label}</strong>
+          <span className={styles.subline}>{category.subtitle}</span>
+          <span className={styles.cta}>Bu kategoriyi seç <ArrowRight size={16} /></span>
+        </span>
+      </button>
+    ),
+  }));
+
+  return <CenterCarousel items={items} resetKey={resetKey} label="Hizmet kategorileri" />;
 }
 
 function BusinessCover({ business, branch }: { business: BusinessRow; branch?: boolean }) {
