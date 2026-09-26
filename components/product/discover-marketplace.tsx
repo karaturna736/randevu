@@ -59,6 +59,12 @@ const DISCOVERY_CATEGORIES = [
   "Diğer",
 ];
 
+const CATEGORY_ALIASES: Record<string, string> = {
+  "Kuaför / Berber": "Kuaför & Berber",
+  "Kuaför-Berber": "Kuaför & Berber",
+  "Kuaför ve Berber": "Kuaför & Berber",
+};
+
 const TURKEY_CITIES = [
   "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Ankara", "Antalya", "Ardahan", "Artvin",
   "Aydın", "Balıkesir", "Bartın", "Batman", "Bayburt", "Bilecik", "Bingöl", "Bitlis", "Bolu", "Burdur",
@@ -86,6 +92,15 @@ const CATEGORY_META: Record<string, { icon: any; tone?: string }> = {
 
 function normalizedCity(b: BusinessRow) {
   return (b.city || "").trim() || "Konum belirtilmemiş";
+}
+
+function canonicalCategory(value: string) {
+  const clean = (value || "").trim();
+  return CATEGORY_ALIASES[clean] || clean;
+}
+
+function matchesCategory(row: BusinessRow, selected: string) {
+  return canonicalCategory(row.category) === selected;
 }
 
 function Progress({ category, city, business }: { category: string; city: string; business: BusinessRow | null }) {
@@ -139,7 +154,7 @@ export function DiscoverMarketplace() {
   }, []);
 
   const categories = useMemo(() => {
-    const extras = Array.from(new Set(rows.map((b) => b.category).filter(Boolean))).filter(
+    const extras = Array.from(new Set(rows.map((b) => canonicalCategory(b.category)).filter(Boolean))).filter(
       (item) => !DISCOVERY_CATEGORIES.includes(item),
     );
     return [...DISCOVERY_CATEGORIES, ...extras];
@@ -147,7 +162,7 @@ export function DiscoverMarketplace() {
 
   const availableCities = useMemo(() => {
     if (!category) return [];
-    return Array.from(new Set(rows.filter((b) => b.category === category).map(normalizedCity)))
+    return Array.from(new Set(rows.filter((b) => matchesCategory(b, category)).map(normalizedCity)))
       .filter((item) => item !== "Konum belirtilmemiş")
       .sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows, category]);
@@ -160,7 +175,7 @@ export function DiscoverMarketplace() {
   const businesses = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((b) => {
-      if (b.category !== category || normalizedCity(b) !== city) return false;
+      if (!matchesCategory(b, category) || normalizedCity(b) !== city) return false;
       return !q || `${b.name} ${b.address || ""} ${b.description || ""}`.toLocaleLowerCase("tr-TR").includes(q);
     });
   }, [rows, category, city, search]);
@@ -222,7 +237,7 @@ export function DiscoverMarketplace() {
               </div>
               <div className={styles.categoryGrid}>
                 {categories.map((item, index) => {
-                  const count = rows.filter((b) => b.category === item).length;
+                  const count = rows.filter((b) => matchesCategory(b, item)).length;
                   const meta = CATEGORY_META[item] || { icon: Store, tone: styles.toneCyan };
                   const Icon = meta.icon;
                   return (
@@ -255,7 +270,7 @@ export function DiscoverMarketplace() {
                   <div className={styles.sectionHead}><h3>Bu kategoride işletme bulunan şehirler</h3><span className={styles.sectionMeta}>{availableCities.length} şehir</span></div>
                   <div className={styles.cityGrid}>
                     {availableCities.map((item) => {
-                      const count = rows.filter((b) => b.category === category && normalizedCity(b) === item).length;
+                      const count = rows.filter((b) => matchesCategory(b, category) && normalizedCity(b) === item).length;
                       return (
                         <button key={item} type="button" className={`${styles.card} ${styles.cardActive}`} onClick={() => chooseCity(item)}>
                           <span className={styles.cardMain}>
