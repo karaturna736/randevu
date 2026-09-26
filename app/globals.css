@@ -51,3 +51,59 @@
 @media(max-width:1020px){.overview-top,.overview-bottom{grid-template-columns:1fr}.side-cards{display:grid;grid-template-columns:1fr 1fr}.upcoming-list{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.upcoming-item{padding:10px 0;border:0;gap:8px;align-items:flex-start}.upcoming-item>svg{display:none}.upcoming-time strong{font-size:12px}.upcoming-item>div:nth-of-type(2)>strong{font-size:12px}.upcoming-item>div:nth-of-type(2)>span{font-size:12px}.upcoming-item>div:nth-of-type(2)>small{font-size:12px}.timeline-line{min-height:55px}.stats-grid{grid-template-columns:repeat(2,1fr)}.stat-card>small{font-size:12px}.stat-top{font-size:12px}.stat-value{font-size:28px}.settings-grid{grid-template-columns:1fr}.page-heading h1{font-size:24px}.page-heading p{font-size:12px}.topbar-date{display:none}.topbar-right{gap:9px}.hours-row>span{min-width:80px}.hours-row input{width:110px}.booking-page{grid-template-columns:300px minmax(0,1fr);gap:20px}.booking-form-panel{padding:23px}.business-profile-body{padding:23px}.booking-form-panel>h2{font-size:21px}.service-option{gap:8px;padding:11px}.service-option .service-icon{height:35px;width:35px}.booking-steps>div{font-size:12px;gap:5px}}
 @media(max-width:767px){.mobile-menu{display:flex}.topbar{height:62px;padding:0 18px}.breadcrumb{font-size:12px;gap:7px}.breadcrumb>span{display:none}.breadcrumb>svg{display:none}.topbar-right .avatar{width:29px;height:29px}.topbar-divider{display:none}.dashboard-content{padding:23px 18px 0}.page-heading{flex-direction:column;gap:17px;margin-bottom:18px}.page-heading h1{font-size:27px}.page-heading p{font-size:12px;line-height:1.7}.page-heading .greeting{font-size:12px}.page-heading .button-group{width:100%;flex-wrap:nowrap}.page-heading .button-group .primary{flex:1}.assistant-trigger{font-size:12px!important;width:auto;padding:9px 13px;gap:7px}.demo-banner{font-size:12px;align-items:flex-start;flex-wrap:wrap;row-gap:8px;padding:10px 12px;margin-bottom:17px}.demo-dot{margin-top:5px}.demo-banner>span:nth-child(2){flex:1}.demo-banner button{margin-left:13px;font-size:12px}.banner-detail{display:none}.stats-grid{gap:11px;margin-bottom:17px}.stat-card{padding:15px 13px}.stat-top{font-size:12px;gap:3px}.stat-icon{width:27px;height:27px}.stat-value{font-size:26px;margin-top:9px}.stat-card>small{font-size:12px;line-height:1.6}.occupancy-track{left:13px;right:13px}.overview-top,.overview-bottom{gap:17px;margin-bottom:17px}.panel{padding:18px}.today-panel{padding:0}.upcoming-list{grid-template-columns:1fr;gap:0}.upcoming-item{padding:13px 0;border-bottom:1px solid var(--border);align-items:center;gap:13px}.upcoming-time strong{font-size:13px}.upcoming-time small{font-size:12px}.upcoming-item>div:nth-of-type(2)>strong{font-size:13px}.upcoming-item>div:nth-of-type(2)>span{font-size:12px}.upcoming-item>div:nth-of-type(2)>small{font-size:12px}.timeline-line{min-height:52px}.upcoming-item>svg{display:block}.chart-container{height:185px}.side-cards{gap:14px}.booking-link-card{padding:19px}.booking-link-card h2{font-size:17px}.booking-link-card p{font-size:12px}.booking-link-card .eyebrow{font-size:12px;letter-spacing:.6px}.booking-link-card br{display:none}.retention-card{padding:18px}.retention-card h3{font-size:14px;line-height:1.5}.retention-card p{font-size:12px;margin-top:12px}.retention-card .text-button{font-size:12px;margin-top:20px}.retention-icon{margin-bottom:18px}.link-copy{font-size:12px;padding-left:7px}.link-card-icon{margin-bottom:17px}.link-copy .icon-button{width:22px}.light-link{font-size:12px}.today-panel .section-heading{padding:18px}.section-heading h2{font-size:15px}.section-heading .text-button{font-size:12px}.toolbar{flex-wrap:wrap;gap:14px}.toolbar .search-input{max-width:none;width:100%;flex-basis:100%}.toolbar .button-group{gap:7px}.filter-tabs{gap:14px}.filter-tabs [data-slot=tabs-trigger]{font-size:12px}.service-cards{grid-template-columns:1fr 1fr;gap:12px}.service-card h2{font-size:16px;margin-top:18px}.service-card p{font-size:12px}.service-card{padding:18px}.card-edit{top:14px;right:11px}.staff-card-bottom{flex-direction:column;align-items:flex-start;gap:8px}.integration-grid{grid-template-columns:1fr}.integration-card>p{min-height:0}.integration-icon{margin-bottom:22px}.hours-row input{width:95px}.hours-row>span{min-width:61px}.dashboard-footer{font-size:12px;gap:15px;padding-top:10px}.product-dialog[data-slot]{padding:24px 19px;border-radius:13px}.product-dialog [data-slot=dialog-title]{font-size:20px}.booking-flow{gap:18px}.service-option{padding:12px 10px;gap:8px}.service-option strong{font-size:12px}.service-option b{font-size:12px}.service-option .service-icon{width:36px;height:36px}.booking-steps{padding-bottom:16px}.booking-steps>div{font-size:12px;gap:5px}.booking-steps>div>span{height:20px;width:20px;font-size:12px}.date-chips{gap:5px}.date-chips strong{font-size:14px}.slot-grid{gap:7px}.slot-grid button{font-size:12px}.form-grid{gap:12px}.summary-strip{padding:12px;gap:9px}.summary-strip strong{font-size:12px}.summary-strip small{font-size:12px}.summary-strip b{font-size:12px}.assistant-slots{grid-template-columns:repeat(2,minmax(0,1fr))}.calendar-panel{padding:16px 0 0}.calendar-panel .toolbar{padding:0 16px}.calendar-panel .period-pill{font-size:12px}.public-header{padding:18px 20px;gap:12px}.public-header .brand{font-size:23px}.public-header nav{gap:10px}.public-header nav>a:first-child{display:none}.public-header nav .button{font-size:12px;min-height:34px;padding:8px 10px;gap:4px}.public-header nav .button svg{width:12px}.public-header nav>.icon-button{width:25px}.public-footer{padding:25px 20px;flex-wrap:wrap;justify-content:flex-start;gap:18px}.public-footer>span{width:100%;order:3;font-size:12px}.public-footer>a:last-child{margin-left:auto;font-size:12px}.booking-page{padding:25px 18px 40px;grid-template-columns:1fr;gap:22px}.business-art{height:115px}.business-art>svg{width:55px}.business-art>span{font-size:12px;bottom:12px}.business-profile h1{font-size:28px}.business-profile-body{padding:23px}.business-profile-body>p{margin-bottom:18px;font-size:13px}.profile-team{margin:22px 0;padding-top:20px}.team-avatars{gap:22px;margin-top:14px}.team-avatars .avatar{height:42px;width:42px;font-size:13px}.booking-form-panel{padding:23px 18px}.booking-form-panel>h2{font-size:22px}.booking-form-panel>p{font-size:12px}.discover-page{padding:25px 20px 45px}.discover-hero{padding:22px 0 40px}.discover-hero h1{font-size:37px;letter-spacing:-1.5px;line-height:1.15}.discover-hero p{font-size:12px;line-height:1.8}.discover-search{flex-direction:column;padding:8px;margin-top:25px}.discover-search .search-input{width:100%;max-width:none;min-width:0}.discover-search .pick{width:100%}.business-cards{grid-template-columns:1fr;gap:20px}.sample-business{padding:17px;gap:12px}.sample-business strong{font-size:15px}.sample-business small{font-size:12px}.manage-page{padding:30px 18px 45px}.manage-page h1{font-size:31px}.manage-page .button-group .button{font-size:12px;padding:9px 11px}.admin-page{padding:27px 18px 45px}.admin-page .page-heading{gap:12px}.admin-tabs{gap:15px}.moderation-row{align-items:flex-start;flex-direction:column}.moderation-row p{font-size:12px}.detail-sheet [data-slot=sheet-header]{padding:26px 22px 20px}.sheet-body{padding:23px}.public-message{margin:35px 20px}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* SSE Realtime UI styles */
+.connection-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.connection-pill.live {
+  color: #3b82f6;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+.dark .connection-pill.live {
+  color: #60a5fa;
+  border-color: #1e3a8a;
+  background: #1e293b;
+}
+.connection-pill.polling {
+  color: #f59e0b;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+.dark .connection-pill.polling {
+  color: #fbbf24;
+  border-color: #78350f;
+  background: #271e05;
+}
+.pulse {
+  animation: pulse-ring 2s infinite;
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@keyframes highlight-flash {
+  0% { background-color: rgba(98, 84, 237, 0.25); }
+  50% { background-color: rgba(98, 84, 237, 0.15); }
+  100% { background-color: transparent; }
+}
+
+.highlight-row {
+  animation: highlight-flash 3s ease-out;
+}
+
+.highlight-event {
+  animation: highlight-flash 3s ease-out;
+  outline: 2px solid var(--ring);
+}

@@ -93,6 +93,8 @@ import { BookingLink, Growth, WhatsAppPanel, HelpCenter } from "./growth";
 import { RecoveryEngine, SetupCenter } from "./recovery-setup";
 import { BranchProfitability } from "./branches";
 import { PlusTools } from "./plus-tools";
+import { useAppointmentRealtime } from "@/hooks/use-appointment-realtime";
+import { Volume2, VolumeX, Radio } from "lucide-react";
 
 const NAV = [
   { id: "overview", title: "Genel bakış", icon: LayoutDashboard },
@@ -398,7 +400,22 @@ export default function Dashboard({
     [customer, setCustomer] = useState<any>(null),
     [assistant, setAssistant] = useState(false),
     [loading, setLoading] = useState(true),
-    [loadError, setLoadError] = useState("");
+    [loadError, setLoadError] = useState(""),
+    [highlightedId, setHighlightedId] = useState<string | null>(null),
+    [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+      if (typeof window !== "undefined") {
+        return localStorage.getItem("neta_sound_enabled") !== "false";
+      }
+      return true;
+    });
+
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("neta_sound_enabled", next ? "true" : "false");
+    }
+  };
   const refresh = useCallback(async (id?: string, demo = false) => {
     setLoading(true);
     setLoadError("");
@@ -437,6 +454,25 @@ export default function Dashboard({
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [view]);
+
+  const handleHighlight = useCallback((id: string) => {
+    setHighlightedId(id);
+    setTimeout(() => {
+      setHighlightedId((prev) => (prev === id ? null : prev));
+    }, 5000);
+  }, []);
+
+  const tenantId = w.preview || w.business?.demo ? undefined : w.business?.id;
+  const { isSSEConnected } = useAppointmentRealtime({
+    tenantId,
+    enabled: !w.preview && !w.business?.demo,
+    onRefresh: useCallback(() => {
+      if (w.business?.id && !w.preview) {
+        refresh(w.business.id);
+      }
+    }, [w.business?.id, w.preview, refresh]),
+    onHighlight: handleHighlight,
+  });
   const requireReal = () => {
     if (w.preview) {
       location.assign("/kurulum");
@@ -498,6 +534,27 @@ export default function Dashboard({
             <strong>{navTitle}</strong>
           </div>
           <div className="topbar-right">
+            {!w.preview && !w.business?.demo && (
+              <span
+                className={`connection-pill ${isSSEConnected ? "live" : "polling"}`}
+                title={
+                  isSSEConnected
+                    ? "Canlı SSE Bağlantısı Aktif"
+                    : "SSE Bağlantısı Kesildi (30s Fallback Polling Aktif)"
+                }
+              >
+                <Radio size={14} className={isSSEConnected ? "pulse" : ""} />
+                <small>{isSSEConnected ? "Canlı" : "Yedek Mod"}</small>
+              </span>
+            )}
+            <button
+              className="icon-button"
+              aria-label={soundEnabled ? "Bildirim sesini kapat" : "Bildirim sesini aç"}
+              title={soundEnabled ? "Bildirim sesi açık" : "Bildirim sesi kapalı"}
+              onClick={toggleSound}
+            >
+              {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+            </button>
             <span className="topbar-date">
               <CalendarDays size={15} />
               {new Date(today() + "T12:00:00Z").toLocaleDateString("tr-TR", {
@@ -602,13 +659,16 @@ export default function Dashboard({
                 onSelect={setSelected}
                 onNavigate={setView}
                 onNew={openBooking}
+                highlightedId={highlightedId}
               />
             </>
           )}{" "}
           {activeView === "appointments" && (
-            <Appointments w={w} onSelect={setSelected} />
+            <Appointments w={w} onSelect={setSelected} highlightedId={highlightedId} />
           )}{" "}
-          {activeView === "calendar" && <Calendar w={w} onSelect={setSelected} />}{" "}
+          {activeView === "calendar" && (
+            <Calendar w={w} onSelect={setSelected} highlightedId={highlightedId} />
+          )}{" "}
           {(activeView === "customers" || activeView === "retention") && (
             <Customers
               w={w}
@@ -723,7 +783,7 @@ export default function Dashboard({
   );
 }
 
-function Appointments({ w, onSelect }: any) {
+function Appointments({ w, onSelect, highlightedId }: any) {
   const [search, setSearch] = useState(""),
     [status, setStatus] = useState("all"),
     [date, setDate] = useState(today());
@@ -777,13 +837,13 @@ function Appointments({ w, onSelect }: any) {
           ))}
         </TabsList>
       </Tabs>
-      <AppointmentTable rows={rows} showDate={!date} onSelect={onSelect} />
+      <AppointmentTable rows={rows} showDate={!date} onSelect={onSelect} highlightedId={highlightedId} />
       <p className="helper">{rows.length} randevu gösteriliyor.</p>
     </section>
   );
 }
 
-function Calendar({ w, onSelect }: any) {
+function Calendar({ w, onSelect, highlightedId }: any) {
   const [date, setDate] = useState(today());
   const people = w.staff.filter((p: any) => p.active),
     rows = w.appointments.filter(
@@ -880,6 +940,7 @@ function Calendar({ w, onSelect }: any) {
                     <button
                       className={
                         "calendar-event " +
+                        (a.id === highlightedId ? "highlight-event " : "") +
                         (a.status === "completed" ? "finished" : "")
                       }
                       key={a.id}
