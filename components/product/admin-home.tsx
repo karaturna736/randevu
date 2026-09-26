@@ -11,6 +11,7 @@ import {
   Gift,
   GraduationCap,
   Link2,
+  MessageCircleQuestion,
   MessageSquareWarning,
   Shield,
   Sparkles,
@@ -27,6 +28,7 @@ type AdminHomeData = {
   billing: any | null;
   growth: any | null;
   recurring: any | null;
+  helpInsights: any | null;
 };
 
 function settledValue(result: PromiseSettledResult<any>) {
@@ -42,11 +44,12 @@ export default function AdminHome() {
     setError("");
     try {
       const core = await api("admin");
-      const [campaigns, billing, growth, recurring] = await Promise.allSettled([
+      const [campaigns, billing, growth, recurring, helpInsights] = await Promise.allSettled([
         api("campaigns"),
         api("platform-billing"),
         api("platform-growth"),
         api("platform-recurring"),
+        api("platform-help-insights"),
       ]);
       setData({
         core,
@@ -54,6 +57,7 @@ export default function AdminHome() {
         billing: settledValue(billing),
         growth: settledValue(growth),
         recurring: settledValue(recurring),
+        helpInsights: settledValue(helpInsights),
       });
       setDenied(false);
     } catch (e: any) {
@@ -112,6 +116,8 @@ export default function AdminHome() {
   const pendingReferrals = referrals.filter((r: any) => r.status === "pending").length;
   const paidAmount = Number(data.billing?.totals?.paid_amount || 0);
   const recurringAmount = Number(data.recurring?.totals?.amount || 0);
+  const openHelpTopics = Number(data.helpInsights?.totals?.open_topics || 0);
+  const openHelpAsks = Number(data.helpInsights?.totals?.open_asks || 0);
 
   const modules = [
     {
@@ -127,6 +133,13 @@ export default function AdminHome() {
       title: "Kampanyalar",
       description: "İndirim kodu oluşturun, hedef işletme veya kayıtlı kişi seçin, tarih ve kullanım limitlerini yönetin.",
       meta: `${activeCampaigns} aktif kampanya`,
+    },
+    {
+      href: "/admin/yardim-sorulari",
+      icon: MessageCircleQuestion,
+      title: "Cevaplanamayan yardım soruları",
+      description: "Neta Asistanın yanıtlayamadığı soruları görün; tekrar sayılarına göre kılavuz ve ürün önceliklerini belirleyin.",
+      meta: `${openHelpTopics} açık konu · ${openHelpAsks} soru tekrarı`,
     },
     {
       href: "/admin/odemeler",
@@ -206,6 +219,7 @@ export default function AdminHome() {
               <Link className="text-button" href="/admin/kayitlar"><MessageSquareWarning size={16} /> {openComplaints} açık şikâyet</Link>
               <Link className="text-button" href="/admin/kayitlar"><GraduationCap size={16} /> {pendingTraining} açık eğitim talebi</Link>
               <Link className="text-button" href="/admin/referanslar"><Gift size={16} /> {pendingReferrals} bekleyen referans</Link>
+              <Link className="text-button" href="/admin/yardim-sorulari"><MessageCircleQuestion size={16} /> {openHelpTopics} cevap bekleyen yardım konusu</Link>
             </div>
           </section>
 
