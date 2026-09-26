@@ -1,4 +1,4 @@
 import {redirect} from 'next/navigation';
 export const dynamic='force-dynamic';
-export const metadata={title:'İşletme oluştur · Randevu'};
-export default function Page(){redirect('/odeme')}
+export const metadata={title:'Panel erişimi · Neta'};
+export default function Page(){redirect('/erisim-bekliyor')}
