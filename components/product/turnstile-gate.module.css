@@ -1,0 +1,7 @@
+.gate{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:24px;background:rgba(7,10,22,.78);backdrop-filter:blur(12px)}
+.card{width:min(430px,100%);padding:30px;border:1px solid rgba(148,163,184,.22);border-radius:22px;background:#0f1425;box-shadow:0 30px 80px rgba(0,0,0,.45);color:#f8fafc;text-align:center}
+.icon{width:52px;height:52px;margin:0 auto 14px;display:grid;place-items:center;border-radius:16px;background:rgba(113,91,255,.16);color:#8b7cff}
+.card h2{margin:0 0 8px;font-size:24px;line-height:1.2}
+.card>p{margin:0 auto 20px;max-width:330px;color:#aab3ca;line-height:1.55}
+.widget{min-height:65px;width:100%;display:flex;justify-content:center}
+.error{margin:14px 0 0!important;color:#fca5a5!important;font-size:14px}
