@@ -472,7 +472,26 @@ export default function CampaignAdmin() {
                 <Field label="Kampanya adı"><Input required minLength={2} maxLength={120} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
                 <Field label="Benzersiz kod"><Input required minLength={3} maxLength={32} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "") })} /></Field>
               </div>
-              <Field label="Açıklama"><Textarea maxLength={500} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+              <Field label="Müşteriye gösterilecek kısa neden">
+                <Textarea
+                  maxLength={120}
+                  placeholder="Örn. Sezon indirimi"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+                <small>Bu metin kampanya uygulandığında ödeme düğmesinin hemen üstünde gösterilir.</small>
+              </Field>
+              <div className="notice success" role="status">
+                <Megaphone size={18} />
+                <span>
+                  <strong>{form.description.trim() || "Sezon indirimi"}</strong>
+                  <small>
+                    {form.discount_type === "percentage"
+                      ? `%${form.discount_value || "0"} kampanya avantajı`
+                      : `${form.discount_value || "0"} TL kampanya avantajı`} · müşterinin ödeme ekranında böyle görünecek.
+                  </small>
+                </span>
+              </div>
               <div className="form-grid">
                 <Field label="İndirim türü"><select className="campaign-select" value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })}><option value="percentage">Yüzdelik indirim</option><option value="fixed">Sabit tutar indirimi</option></select></Field>
                 <Field label={form.discount_type === "percentage" ? "İndirim (%)" : "İndirim (TL)"}><Input required type="number" min="0.01" max={form.discount_type === "percentage" ? "100" : "1000000"} step="0.01" value={form.discount_value} onChange={(e) => setForm({ ...form, discount_value: e.target.value })} /></Field>
