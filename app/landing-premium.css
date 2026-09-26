@@ -1,0 +1,509 @@
+/* Premium landing hero overrides — scoped to the public Neta homepage. */
+.neta-home{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(900px 520px at 70% 16%, rgba(111,86,255,.14), transparent 66%),
+    radial-gradient(680px 420px at 16% 22%, rgba(71,194,190,.06), transparent 72%),
+    #090d19;
+}
+
+.neta-home::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:880px;
+  pointer-events:none;
+  opacity:.34;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size:52px 52px;
+  mask-image:linear-gradient(to bottom,#000 0%,transparent 84%);
+}
+
+.neta-home .neta-header{
+  position:relative;
+  z-index:20;
+  background:rgba(9,13,25,.7);
+  border-bottom:1px solid rgba(255,255,255,.055);
+  backdrop-filter:blur(18px);
+}
+
+.neta-home .neta-hero{
+  position:relative;
+  z-index:2;
+  min-height:780px;
+  display:grid;
+  grid-template-columns:minmax(0,.92fr) minmax(520px,1.08fr);
+  gap:78px;
+  align-items:center;
+  padding-top:86px;
+  padding-bottom:92px;
+}
+
+.neta-home .neta-hero::after{
+  content:"";
+  position:absolute;
+  width:420px;
+  height:420px;
+  right:40px;
+  top:160px;
+  border-radius:50%;
+  border:1px solid rgba(142,128,255,.12);
+  box-shadow:0 0 0 76px rgba(142,128,255,.025),0 0 0 152px rgba(142,128,255,.018);
+  pointer-events:none;
+  z-index:-1;
+}
+
+.neta-home .neta-hero-copy{
+  max-width:640px;
+  padding-left:2px;
+}
+
+.neta-home .neta-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:7px 11px;
+  border:1px solid rgba(142,128,255,.22);
+  border-radius:999px;
+  background:rgba(142,128,255,.07);
+  color:#a99fff;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:1.55px;
+}
+
+.neta-home .neta-hero-copy>.neta-eyebrow>span{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#8e80ff;
+  box-shadow:0 0 0 5px rgba(142,128,255,.1),0 0 16px rgba(142,128,255,.8);
+}
+
+.neta-home .neta-hero-copy h1{
+  margin-top:26px;
+  max-width:650px;
+  color:#f7f8ff;
+  font-size:clamp(56px,4.75vw,78px);
+  line-height:.985;
+  font-weight:720;
+  letter-spacing:-4.2px;
+  text-wrap:balance;
+}
+
+.neta-home .neta-hero-copy h1 em{
+  position:relative;
+  color:#9a8cff;
+  font-style:normal;
+  text-shadow:0 12px 38px rgba(113,96,244,.22);
+}
+
+.neta-home .neta-hero-copy h1 em::after{
+  content:"";
+  position:absolute;
+  left:3px;
+  right:0;
+  bottom:-7px;
+  height:3px;
+  border-radius:10px;
+  background:linear-gradient(90deg,#8e80ff,rgba(142,128,255,0));
+  opacity:.55;
+}
+
+.neta-home .neta-hero-copy>p{
+  max-width:570px;
+  margin-top:26px;
+  color:#a8b1cb;
+  font-size:17px;
+  line-height:1.8;
+}
+
+.neta-home .neta-hero-actions{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  margin-top:32px;
+  flex-wrap:wrap;
+}
+
+.neta-home .neta-hero-actions .button{
+  min-height:54px;
+  padding:0 22px;
+  border-radius:13px;
+  font-size:14px;
+  font-weight:650;
+}
+
+.neta-home .neta-hero-actions .button.primary{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(135deg,#806dff,#6552ec 60%,#5945dd);
+  border-color:#8978ff;
+  box-shadow:0 15px 36px rgba(87,67,225,.29),inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+.neta-home .neta-hero-actions .button.primary:hover{
+  transform:translateY(-2px);
+  background:linear-gradient(135deg,#8e7cff,#715ff4 60%,#614ce6);
+  box-shadow:0 20px 44px rgba(87,67,225,.38),inset 0 1px 0 rgba(255,255,255,.2);
+}
+
+.neta-home .neta-outline{
+  background:rgba(255,255,255,.025);
+  border-color:rgba(164,151,255,.42);
+  color:#f4f5ff;
+}
+
+.neta-home .neta-outline:hover{
+  background:rgba(142,128,255,.09);
+  border-color:rgba(164,151,255,.64);
+}
+
+.neta-home .neta-trust{
+  display:flex;
+  gap:22px;
+  margin-top:25px;
+  color:#8792ae;
+  font-size:12px;
+  flex-wrap:wrap;
+}
+
+.neta-home .neta-trust span{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.neta-home .neta-trust svg{
+  color:#67d2bd;
+  stroke-width:2.4;
+}
+
+.neta-home .neta-hero-visual{
+  position:relative;
+  min-height:610px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  isolation:isolate;
+}
+
+.neta-home .neta-hero-visual::before{
+  content:"";
+  position:absolute;
+  inset:38px 24px 42px 18px;
+  z-index:-3;
+  border-radius:42px;
+  background:linear-gradient(145deg,rgba(121,102,246,.13),rgba(19,26,48,.08) 55%,rgba(91,196,191,.045));
+  border:1px solid rgba(159,147,255,.09);
+  transform:rotate(-2.2deg);
+}
+
+.neta-home .neta-hero-visual::after{
+  content:"";
+  position:absolute;
+  width:360px;
+  height:160px;
+  left:50%;
+  bottom:8px;
+  transform:translateX(-50%);
+  z-index:-4;
+  background:rgba(105,83,238,.3);
+  filter:blur(85px);
+  border-radius:50%;
+}
+
+.neta-home .neta-orbit-caption{
+  position:absolute;
+  top:32px;
+  left:52px;
+  right:52px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  color:#eef0ff;
+  font-weight:650;
+  font-size:13px;
+}
+
+.neta-home .neta-orbit-caption>span:last-child{
+  margin-left:auto;
+  padding:5px 9px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;
+  background:rgba(255,255,255,.025);
+  color:#8e98b2;
+  font-weight:500;
+  font-size:11px;
+}
+
+.neta-home .neta-booking-example{
+  position:relative;
+  z-index:3;
+  width:min(100%,560px);
+  margin-top:8px;
+  padding:28px;
+  border:1px solid rgba(151,141,208,.24);
+  border-radius:24px;
+  background:linear-gradient(145deg,rgba(20,25,46,.98),rgba(15,20,38,.97));
+  box-shadow:0 32px 100px rgba(0,0,0,.42),0 0 0 1px rgba(255,255,255,.018) inset;
+  backdrop-filter:blur(24px);
+}
+
+.neta-home .neta-booking-example::before{
+  content:"Canlı randevu görünümü";
+  position:absolute;
+  top:-14px;
+  right:22px;
+  padding:6px 11px;
+  border:1px solid rgba(142,128,255,.35);
+  border-radius:999px;
+  background:#14192d;
+  color:#a99fff;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.6px;
+  text-transform:uppercase;
+  box-shadow:0 8px 24px rgba(0,0,0,.28);
+}
+
+.neta-home .neta-example-head{
+  padding-bottom:20px;
+  border-bottom:1px solid rgba(255,255,255,.075);
+}
+
+.neta-home .neta-example-head>span:first-child{
+  color:#f5f6ff;
+  font-weight:650;
+}
+
+.neta-home .neta-example-head>span:last-child{
+  color:#a99fff;
+  background:rgba(121,102,246,.1);
+  border:1px solid rgba(121,102,246,.1);
+  border-radius:999px;
+  padding:6px 10px;
+}
+
+.neta-home .neta-example-service{
+  margin-top:22px;
+  padding:2px 0 6px;
+}
+
+.neta-home .neta-example-service>span{
+  width:46px;
+  height:46px;
+  border-radius:13px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(145deg,rgba(142,128,255,.16),rgba(142,128,255,.07));
+  color:#aa9fff;
+  border:1px solid rgba(142,128,255,.08);
+}
+
+.neta-home .neta-example-service strong{
+  color:#f5f6ff;
+  font-size:14px;
+}
+
+.neta-home .neta-example-service small{
+  color:#8e98b5;
+}
+
+.neta-home .neta-example-service b{
+  font-size:16px;
+  color:#f5f6ff;
+}
+
+.neta-home .neta-example-times{
+  gap:10px;
+  margin:19px 0 18px;
+}
+
+.neta-home .neta-example-times button{
+  min-height:55px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.065);
+  background:#181e34;
+  color:#e9ecff;
+  transition:transform .18s,border-color .18s,background .18s,box-shadow .18s;
+}
+
+.neta-home .neta-example-times button:not(:disabled):hover{
+  transform:translateY(-2px);
+  border-color:rgba(142,128,255,.36);
+  background:#202742;
+}
+
+.neta-home .neta-example-times button.selected{
+  background:linear-gradient(135deg,#7c68fa,#6652ed);
+  border-color:#a497ff;
+  color:white;
+  box-shadow:0 9px 24px rgba(88,68,224,.26),inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+.neta-home .neta-example-times button:disabled{
+  background:#12172a;
+  color:#596079;
+  border-color:rgba(255,255,255,.04);
+}
+
+.neta-home .neta-booking-example>.button.primary{
+  min-height:50px;
+  border-radius:12px;
+  background:linear-gradient(135deg,#7b67f9,#6652ed);
+  box-shadow:0 14px 26px rgba(88,68,224,.2);
+}
+
+.neta-home .neta-booking-example>p{
+  color:#77819d;
+  margin-top:14px;
+}
+
+.neta-home .neta-demand-float{
+  position:absolute;
+  z-index:5;
+  right:-10px;
+  bottom:12px;
+  width:78%;
+  min-height:104px;
+  padding:18px 20px;
+  border-radius:18px;
+  border:1px solid rgba(151,141,208,.19);
+  background:rgba(17,22,40,.96);
+  box-shadow:0 22px 70px rgba(0,0,0,.34);
+  backdrop-filter:blur(18px);
+}
+
+.neta-home .neta-demand-float>span{
+  width:43px;
+  height:43px;
+  border-radius:13px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(121,102,246,.11);
+  color:#9c90ff;
+}
+
+.neta-home .neta-demand-float small{
+  color:#9c90ff;
+  font-size:10px;
+  letter-spacing:.9px;
+  font-weight:700;
+}
+
+.neta-home .neta-demand-float strong{
+  margin-top:4px;
+  color:#f0f2ff;
+  font-size:13px;
+}
+
+.neta-home .neta-demand-float p{
+  color:#7f89a4;
+  margin-top:2px;
+}
+
+.neta-home .neta-visual-note{
+  position:absolute;
+  left:58px;
+  bottom:-14px;
+  color:#707a96;
+  font-size:11px;
+}
+
+.neta-home .neta-visual-note>span{
+  background:#8e80ff;
+  box-shadow:0 0 0 4px rgba(142,128,255,.08);
+}
+
+.neta-home .neta-sectors{
+  position:relative;
+  z-index:2;
+  border-top:1px solid rgba(255,255,255,.055);
+  border-bottom:1px solid rgba(255,255,255,.055);
+  background:rgba(255,255,255,.012);
+  backdrop-filter:blur(12px);
+}
+
+@media (max-width:1100px){
+  .neta-home .neta-hero{
+    grid-template-columns:1fr;
+    gap:38px;
+    padding-top:64px;
+    min-height:auto;
+  }
+  .neta-home .neta-hero-copy{
+    max-width:760px;
+  }
+  .neta-home .neta-hero-copy h1{
+    font-size:clamp(52px,8vw,72px);
+  }
+  .neta-home .neta-hero-visual{
+    width:min(100%,720px);
+    margin:0 auto;
+  }
+  .neta-home .neta-demand-float{
+    right:22px;
+  }
+}
+
+@media (max-width:680px){
+  .neta-home .neta-hero{
+    padding-top:44px;
+    padding-bottom:68px;
+    gap:30px;
+  }
+  .neta-home .neta-hero-copy h1{
+    margin-top:20px;
+    font-size:46px;
+    line-height:1.02;
+    letter-spacing:-2.8px;
+  }
+  .neta-home .neta-hero-copy>p{
+    font-size:15px;
+    line-height:1.7;
+  }
+  .neta-home .neta-hero-actions{
+    align-items:stretch;
+  }
+  .neta-home .neta-hero-actions .button{
+    width:100%;
+  }
+  .neta-home .neta-trust{
+    gap:10px 18px;
+  }
+  .neta-home .neta-hero-visual{
+    min-height:575px;
+    width:100%;
+  }
+  .neta-home .neta-orbit-caption{
+    top:20px;
+    left:12px;
+    right:12px;
+  }
+  .neta-home .neta-booking-example{
+    width:100%;
+    padding:20px;
+    border-radius:20px;
+  }
+  .neta-home .neta-booking-example::before{
+    right:14px;
+  }
+  .neta-home .neta-demand-float{
+    width:calc(100% - 20px);
+    right:0;
+    bottom:6px;
+  }
+  .neta-home .neta-visual-note{
+    display:none;
+  }
+  .neta-home .neta-hero::after,
+  .neta-home .neta-hero-visual::before{
+    display:none;
+  }
+}
