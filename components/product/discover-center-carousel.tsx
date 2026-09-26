@@ -38,10 +38,47 @@ type CategoryCarouselItem = {
 function CenterCarousel({ items, resetKey, label }: { items: CarouselItem[]; resetKey: string; label: string }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
+  const settleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
   function slides() {
     return Array.from(viewportRef.current?.querySelectorAll<HTMLElement>("[data-center-slide]") || []);
+  }
+
+  function closestSlideIndex() {
+    const viewport = viewportRef.current;
+    const nodes = slides();
+    if (!viewport || !nodes.length) return null;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const viewportCenter = viewportRect.left + viewportRect.width / 2;
+    let closest = 0;
+    let distance = Number.POSITIVE_INFINITY;
+
+    nodes.forEach((node, index) => {
+      const rect = node.getBoundingClientRect();
+      const nodeCenter = rect.left + rect.width / 2;
+      const nextDistance = Math.abs(nodeCenter - viewportCenter);
+      if (nextDistance < distance) {
+        closest = index;
+        distance = nextDistance;
+      }
+    });
+
+    return closest;
+  }
+
+  function applyActiveSlide() {
+    const closest = closestSlideIndex();
+    if (closest != null) setActiveIndex(closest);
+  }
+
+  function scheduleSettledSync(delay = 140) {
+    if (settleRef.current != null) clearTimeout(settleRef.current);
+    settleRef.current = setTimeout(() => {
+      settleRef.current = null;
+      applyActiveSlide();
+    }, delay);
   }
 
   function scrollToIndex(index: number, smooth = true) {
@@ -50,30 +87,24 @@ function CenterCarousel({ items, resetKey, label }: { items: CarouselItem[]; res
     if (!viewport || !nodes.length) return;
     const next = Math.max(0, Math.min(index, nodes.length - 1));
     const slide = nodes[next];
-    const left = slide.offsetLeft - (viewport.clientWidth - slide.offsetWidth) / 2;
+    const viewportRect = viewport.getBoundingClientRect();
+    const slideRect = slide.getBoundingClientRect();
+    const left = viewport.scrollLeft + (slideRect.left - viewportRect.left) - (viewport.clientWidth - slideRect.width) / 2;
     viewport.scrollTo({ left: Math.max(0, left), behavior: smooth ? "smooth" : "auto" });
     setActiveIndex(next);
+    scheduleSettledSync(smooth ? 360 : 0);
   }
 
   function syncActiveSlide() {
     if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
     frameRef.current = requestAnimationFrame(() => {
-      const viewport = viewportRef.current;
-      const nodes = slides();
-      if (!viewport || !nodes.length) return;
-      const center = viewport.scrollLeft + viewport.clientWidth / 2;
-      let closest = 0;
-      let distance = Number.POSITIVE_INFINITY;
-      nodes.forEach((node, index) => {
-        const nodeCenter = node.offsetLeft + node.offsetWidth / 2;
-        const nextDistance = Math.abs(nodeCenter - center);
-        if (nextDistance < distance) {
-          closest = index;
-          distance = nextDistance;
-        }
-      });
-      setActiveIndex(closest);
+      frameRef.current = null;
+      applyActiveSlide();
     });
+    // Mobile browsers can finish CSS scroll-snap after the last scroll event.
+    // Re-read the geometry after the snap settles so the visually centered card
+    // cannot remain dim while a neighbouring card stays marked active.
+    scheduleSettledSync();
   }
 
   useEffect(() => {
@@ -82,6 +113,7 @@ function CenterCarousel({ items, resetKey, label }: { items: CarouselItem[]; res
     return () => {
       cancelAnimationFrame(id);
       if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+      if (settleRef.current != null) clearTimeout(settleRef.current);
     };
     // resetKey intentionally resets carousel position whenever filters/data change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,7 +123,12 @@ function CenterCarousel({ items, resetKey, label }: { items: CarouselItem[]; res
 
   return (
     <div className={styles.mobileCarousel} aria-label={label}>
-      <div ref={viewportRef} className={styles.viewport} onScroll={syncActiveSlide}>
+      <div
+        ref={viewportRef}
+        className={styles.viewport}
+        onScroll={syncActiveSlide}
+        onPointerUp={() => scheduleSettledSync(180)}
+      >
         <div className={styles.track}>
           {items.map((item, index) => (
             <div
