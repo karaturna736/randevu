@@ -140,13 +140,18 @@ jobs:
           CURL_BASE=(--connect-timeout 8 --max-time 25 --fail --show-error --silent)
           CURL_RETRY=(--retry 6 --retry-delay 3 --retry-connrefused --retry-all-errors)
 
-          rm -f /tmp/neta-health.headers /tmp/neta-health.body
+          rm -f /tmp/neta-health.headers /tmp/neta-health.body /tmp/neta-auth.body
           curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" \
             --dump-header /tmp/neta-health.headers \
             --output /tmp/neta-health.body \
-            https://netarandevu.com/api/health
+            https://netarandevu.com/api/health \
+            --output /tmp/neta-auth.body \
+            https://netarandevu.com/api/v1/auth-status
           cat /tmp/neta-health.body
           grep -qi '^cache-control:.*no-store' /tmp/neta-health.headers || { echo "::error::API responses must be non-cacheable at the edge"; exit 1; }
+
+          auth_status="$(cat /tmp/neta-auth.body)"
+          AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
 
           headers="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" --head https://netarandevu.com)"
           printf '%s\n' "$headers"
@@ -170,9 +175,6 @@ jobs:
             echo "::error::Web server version must not be exposed"
             exit 1
           fi
-
-          auth_status="$(curl "${CURL_BASE[@]}" "${CURL_RETRY[@]}" https://netarandevu.com/api/v1/auth-status)"
-          AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
 
       - name: Run isolated 250-user heavy synchronization test
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_load_test }}
