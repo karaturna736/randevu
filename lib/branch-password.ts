@@ -30,8 +30,9 @@ async function derive(password: string, salt: Uint8Array, iterations: number) {
     false,
     ["deriveBits"],
   );
+  const saltBuffer = new Uint8Array(salt).buffer;
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+    { name: "PBKDF2", hash: "SHA-256", salt: saltBuffer, iterations },
     material,
     KEY_BYTES * 8,
   );
