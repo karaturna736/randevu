@@ -69,7 +69,7 @@ export async function getAppUser() {
           email: s.email,
           fullName: s.full_name,
           displayName: s.full_name || s.email,
-          provider: "google",
+          provider: String(s.user_id).startsWith("local:") ? "password" : "google",
         }
       : null;
   }
@@ -85,6 +85,38 @@ function redirect(path: string, cookies: string[] = []) {
   cookies.forEach((c) => h.append("Set-Cookie", c));
   return new Response(null, { status: 303, headers: h });
 }
+
+export async function issueAppSession(
+  req: Request,
+  identity: { userId: string; email: string; name: string },
+) {
+  if (!env.DB) throw new Error("DB_NOT_CONFIGURED");
+  const session = randomToken(),
+    old = cookieValue(req.headers.get("cookie"), SESSION),
+    stamp = Date.now();
+  const ops = [
+    env.DB.prepare("DELETE FROM auth_sessions WHERE expires_at<?").bind(stamp),
+    env.DB.prepare(
+      "INSERT INTO auth_sessions(token_hash,user_id,email,full_name,created_at,expires_at) VALUES(?,?,?,?,?,?)",
+    ).bind(
+      await digest(session),
+      identity.userId,
+      identity.email,
+      identity.name,
+      stamp,
+      stamp + 7 * 86400000,
+    ),
+  ];
+  if (old)
+    ops.push(
+      env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash=?").bind(
+        await digest(old),
+      ),
+    );
+  await env.DB.batch(ops);
+  return cookie(SESSION, session, 7 * 86400);
+}
+
 export async function startGoogle(req: Request) {
   if (!authStatus().google || !env.DB)
     return redirect("/giris?rol=business&hata=google_hazir_degil");
@@ -204,34 +236,10 @@ export async function finishGoogle(req: Request) {
       .bind(identity.userId)
       .first<any>();
     if (p?.disabled) throw new Error("ACCOUNT_DISABLED");
-    const session = randomToken(),
-      old = cookieValue(req.headers.get("cookie"), SESSION),
-      stamp = Date.now();
-    const ops = [
-      env.DB.prepare("DELETE FROM auth_sessions WHERE expires_at<?").bind(
-        stamp,
-      ),
-      env.DB.prepare(
-        "INSERT INTO auth_sessions(token_hash,user_id,email,full_name,created_at,expires_at) VALUES(?,?,?,?,?,?)",
-      ).bind(
-        await digest(session),
-        identity.userId,
-        identity.email,
-        identity.name,
-        stamp,
-        stamp + 7 * 86400000,
-      ),
-    ];
-    if (old)
-      ops.push(
-        env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash=?").bind(
-          await digest(old),
-        ),
-      );
-    await env.DB.batch(ops);
+    const sessionCookie = await issueAppSession(req, identity);
     return redirect(safeDestination(flow.return_to, "/panel"), [
       clear,
-      cookie(SESSION, session, 7 * 86400),
+      sessionCookie,
     ]);
   } catch {
     return redirect("/giris?rol=business&hata=google_dogrulanamadi", [clear]);
