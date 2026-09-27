@@ -286,7 +286,7 @@ async function receive(c: any, m: any) {
     await deliver(c, x.id);
     return;
   }
-  if (
+  const bookingLinkIntent =
     [
       "link",
       "randevu",
@@ -296,8 +296,9 @@ async function receive(c: any, m: any) {
       "randevu almak",
       "site",
       "rezervasyon",
-    ].includes(linkCommand)
-  ) {
+    ].includes(linkCommand) ||
+    /\\b(randevu|rezervasyon|müsait|müsaitlik|musait|musaitlik|boş saat|bos saat|uygun saat)\\b/u.test(lower);
+  if (bookingLinkIntent) {
     reply =
       "Neta üzerinden online randevu alabilirsiniz:\n" +
       appOrigin() +

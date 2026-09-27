@@ -9,6 +9,11 @@ import {
   TrendingDown,
   Trash2,
   LibraryBig,
+  BarChart3,
+  Crown,
+  Gauge,
+  Layers3,
+  ArrowRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { api, Busy, Blank, Field, Modal, Pick } from "./common";
@@ -24,6 +29,18 @@ const categories = [
   ["vergi", "Vergi"],
   ["diger", "Diğer"],
 ];
+
+function signedMoney(value: number) {
+  return `${value > 0 ? "+" : ""}${money(value)}`;
+}
+
+function factorValues(factor: any) {
+  if (factor.leader_value === null || factor.target_value === null) return "";
+  if (factor.unit === "money")
+    return `${money(factor.leader_value)} / ${money(factor.target_value)}`;
+  return `${factor.leader_value} / ${factor.target_value} ${factor.unit || ""}`;
+}
+
 export function BranchProfitability({ w }: any) {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)),
     [data, setData] = useState<any>(null),
@@ -32,16 +49,19 @@ export function BranchProfitability({ w }: any) {
     [branch, setBranch] = useState<any>(null),
     [expense, setExpense] = useState<any>(null),
     [catalogItem, setCatalogItem] = useState<any>(null);
+
   const load = useCallback(() => {
     setError("");
     return api(`branches?tenant=${w.business.id}&month=${month}`)
       .then(setData)
       .catch((e) => setError(e.message));
   }, [w.business.id, month]);
+
   useEffect(() => {
     setData(null);
     load();
   }, [load]);
+
   async function post(path: string, payload: any) {
     setBusy(true);
     setError("");
@@ -58,12 +78,30 @@ export function BranchProfitability({ w }: any) {
       setBusy(false);
     }
   }
+
   if (!data) return error ? <p className="error-message">{error}</p> : <Busy />;
-  const best = [...data.branches].sort((a, b) => b.net - a.net)[0],
+
+  const isPlus = data.plan === "plus",
+    isPro = data.plan === "pro",
+    best = [...data.branches].sort((a, b) => b.net - a.net)[0],
     worst = [...data.branches].sort((a, b) => a.net - b.net)[0],
     canAdd =
       data.limits.branches === null ||
-      data.branches.filter((b: any) => b.active).length < data.limits.branches;
+      data.branches.filter((b: any) => b.active).length < data.limits.branches,
+    companyMargin = data.summary.revenue
+      ? Math.round((data.summary.net / data.summary.revenue) * 1000) / 10
+      : 0,
+    expenseBreakdown = categories
+      .map(([key, label]) => ({
+        key,
+        label,
+        amount: data.expenses
+          .filter((row: any) => row.category === key)
+          .reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0),
+      }))
+      .filter((row) => row.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
+
   return (
     <div className="operations-stack">
       <section className="panel branch-summary">
@@ -72,8 +110,7 @@ export function BranchProfitability({ w }: any) {
             <span className="eyebrow">ŞUBELER ARASI ANALİZ</span>
             <h2>Hangi şube kârda, hangisi zararda?</h2>
             <p className="muted">
-              Tamamlanan randevu cirosunu kaydettiğiniz giderlerle
-              karşılaştırın.
+              Tamamlanan randevu cirosunu kaydettiğiniz giderlerle karşılaştırın.
             </p>
           </div>
           <Input
@@ -83,6 +120,7 @@ export function BranchProfitability({ w }: any) {
             onChange={(e) => setMonth(e.target.value)}
           />
         </div>
+
         <div className="operations-metrics">
           <div className="operation-metric">
             <span>Toplam ciro</span>
@@ -106,19 +144,20 @@ export function BranchProfitability({ w }: any) {
             </strong>
           </div>
         </div>
+
         <div className="notice margin-top">
-          <b>Gelir otomatik hesaplanır.</b> Müşteri kaydı veya bekleyen randevu
-          tek başına gelir oluşturmaz. Randevu “Tamamlandı” olduğunda hizmetin
-          kayıtlı fiyatı ilgili şubenin cirosuna eklenir; net sonuç, bu cirodan
-          manuel kaydettiğiniz gerçek giderler düşülerek hesaplanır.
+          <b>Gelir otomatik hesaplanır.</b> Randevu “Tamamlandı” olduğunda hizmetin
+          kayıtlı fiyatı ilgili şubenin cirosuna eklenir. Net sonuç, bu cirodan
+          kaydettiğiniz giderler düşülerek hesaplanır.
         </div>
-        {data.branches.length > 1 && (
+
+        {data.branches.length > 1 && best && (
           <div className="branch-insight">
             <TrendingUp size={18} />
             <span>
               <b>En yüksek net sonuç:</b> {best.name} · {money(best.net)}
             </span>
-            {worst.net < 0 && (
+            {worst?.net < 0 && (
               <>
                 <TrendingDown size={18} />
                 <span>
@@ -134,6 +173,162 @@ export function BranchProfitability({ w }: any) {
           vergi beyannamesi yerine geçmez.
         </p>
       </section>
+
+      {isPlus && (
+        <section
+          className="panel"
+          style={{
+            border: "1px solid color-mix(in srgb, var(--primary) 44%, var(--border))",
+            background:
+              "linear-gradient(135deg, color-mix(in srgb, var(--primary) 11%, var(--card)), var(--card) 52%, color-mix(in srgb, var(--accent) 45%, var(--card)))",
+          }}
+        >
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">PLUS FİNANS MERKEZİ</span>
+              <h2><Crown size={20} /> Şube yönetiminin finans kokpiti</h2>
+              <p className="muted">
+                Şube performansını, gider yapısını ve kârın neden oluştuğunu tek
+                ekranda izleyin. Hesaplamalar doğrudan kayıtlı verilerden üretilir.
+              </p>
+            </div>
+            <span className="badge confirmed">Plus aktif</span>
+          </div>
+
+          <div
+            className="operations-metrics margin-top"
+            style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}
+          >
+            <div className="operation-metric">
+              <Crown size={19} />
+              <span>En güçlü şube</span>
+              <strong style={{ fontSize: 20 }}>{best?.name || "—"}</strong>
+              <small>{best ? money(best.net) + " net sonuç" : "Veri bekleniyor"}</small>
+            </div>
+            <div className="operation-metric">
+              <Gauge size={19} />
+              <span>Toplam net marj</span>
+              <strong>%{companyMargin}</strong>
+              <small>Ciroya göre net sonuç</small>
+            </div>
+            <div className="operation-metric">
+              <Layers3 size={19} />
+              <span>Kayıtlı gider kalemi</span>
+              <strong>{data.catalog.length}</strong>
+              <small>Tekrar kullanılabilir şablon</small>
+            </div>
+            <div className="operation-metric">
+              <ReceiptText size={19} />
+              <span>Bu ay gider kaydı</span>
+              <strong>{data.expenses.length}</strong>
+              <small>{money(data.summary.expenses)} toplam</small>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {isPlus && data.analysis?.comparisons?.length > 0 && (
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">NEDEN DAHA KÂRLI?</span>
+              <h2>Şube kâr farkının matematiksel açıklaması</h2>
+              <p className="muted">
+                Yapay zekâ kullanılmaz. Neta; tamamlanan işlem sayısı, ortalama
+                işlem tutarı ve gerçek gider farklarını doğrudan veriden hesaplar.
+              </p>
+            </div>
+            <span className="badge confirmed">Plus · Sistemsel analiz</span>
+          </div>
+
+          <div className="operations-stack margin-top">
+            {data.analysis.comparisons.map((comparison: any) => (
+              <article className="panel branch-card" key={comparison.target.id}>
+                <div className="section-heading">
+                  <div>
+                    <h3>
+                      {comparison.leader.name} neden {comparison.target.name}
+                      {"'"}den daha yüksek net sonuç üretti?
+                    </h3>
+                    <p className="muted">
+                      Net sonuç farkı: <b>{money(comparison.net_difference)}</b>
+                    </p>
+                  </div>
+                  <BarChart3 size={20} />
+                </div>
+
+                <div className="collection-list">
+                  {comparison.factors.map((factor: any) => (
+                    <div className="collection-row" key={factor.key}>
+                      <div>
+                        <strong>{factor.label}</strong>
+                        {factorValues(factor) && (
+                          <small>
+                            {comparison.leader.name} / {comparison.target.name}: {" "}
+                            {factorValues(factor)}
+                          </small>
+                        )}
+                      </div>
+                      <b
+                        className={
+                          factor.amount >= 0
+                            ? "profit-positive"
+                            : "profit-negative"
+                        }
+                      >
+                        {signedMoney(factor.amount)}
+                      </b>
+                    </div>
+                  ))}
+                </div>
+
+                {comparison.signals?.length > 0 && (
+                  <div className="notice margin-top">
+                    <b>Destekleyici göstergeler</b>
+                    {comparison.signals.map((signal: string) => (
+                      <p className="helper" key={signal}>
+                        {signal}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+          <p className="helper margin-top">
+            Pozitif tutar, önde olan şubenin net sonuç farkına katkıyı; negatif
+            tutar ise avantajını azaltan kalemi gösterir. Göstergeler korelasyon
+            bilgisidir; para farkı hesabına ikinci kez eklenmez.
+          </p>
+        </section>
+      )}
+
+      {isPro && (
+        <section
+          className="panel"
+          style={{
+            borderStyle: "dashed",
+            background: "color-mix(in srgb, var(--primary) 4%, var(--card))",
+          }}
+        >
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">PLUS İLE DAHA DERİN ANALİZ</span>
+              <h2><Crown size={19} /> Kârın nedenini kalem kalem görün</h2>
+              <p className="muted">
+                Pro temel ciro, gider ve net sonucu gösterir. Plus; ortalama işlem
+                tutarı, saat başı ciro, net marj, geri dönen müşteri, no-show,
+                hizmet karması ve şubeler arası kâr farkının matematiksel nedenlerini
+                açar. Kayıtlı gider kalemlerini de tekrar kullanabilirsiniz.
+              </p>
+            </div>
+            <a className="button primary" href={`/abonelik?tenant=${w.business.id}`}>
+              Plus özelliklerini gör <ArrowRight size={16} />
+            </a>
+          </div>
+        </section>
+      )}
+
       <div className="toolbar">
         <p className="muted">
           {data.branches.length} şube ·{" "}
@@ -158,10 +353,9 @@ export function BranchProfitability({ w }: any) {
             }
             disabled={data.plan === "normal"}
           >
-            <ReceiptText size={16} />
-            Gider ekle
+            <ReceiptText size={16} /> Gider ekle
           </button>
-          {data.plan === "plus" && (
+          {isPlus && (
             <button
               className="button"
               onClick={() =>
@@ -176,7 +370,6 @@ export function BranchProfitability({ w }: any) {
                   note: "",
                 })
               }
-              disabled={data.plan === "normal"}
             >
               <LibraryBig size={16} /> Gider kalemi kaydet
             </button>
@@ -184,21 +377,15 @@ export function BranchProfitability({ w }: any) {
           <button
             className="button primary"
             onClick={() =>
-              setBranch({
-                name: "",
-                city: "",
-                address: "",
-                phone: "",
-                active: 1,
-              })
+              setBranch({ name: "", city: "", address: "", phone: "", active: 1 })
             }
             disabled={!canAdd}
           >
-            <Plus size={16} />
-            Şube ekle
+            <Plus size={16} /> Şube ekle
           </button>
         </div>
       </div>
+
       <div className="branch-grid">
         {data.branches.map((b: any) => (
           <article className="panel branch-card" key={b.id}>
@@ -206,9 +393,7 @@ export function BranchProfitability({ w }: any) {
               <span className="module-icon">
                 <Building2 />
               </span>
-              <span
-                className={"badge " + (b.net < 0 ? "cancelled" : "confirmed")}
-              >
+              <span className={"badge " + (b.net < 0 ? "cancelled" : "confirmed")}>
                 {b.net < 0 ? "Zararda" : "Kârda"}
               </span>
             </div>
@@ -216,22 +401,34 @@ export function BranchProfitability({ w }: any) {
             <p className="muted">
               {b.city || "Konum girilmedi"} · {b.completed} tamamlanan işlem
             </p>
+
             <div className="branch-finance">
-              <span>
-                Ciro <b>{money(b.revenue)}</b>
-              </span>
-              <span>
-                Gider <b>{money(b.expenses)}</b>
-              </span>
+              <span>Ciro <b>{money(b.revenue)}</b></span>
+              <span>Gider <b>{money(b.expenses)}</b></span>
               <span>
                 Net sonuç{" "}
-                <b
-                  className={b.net < 0 ? "profit-negative" : "profit-positive"}
-                >
+                <b className={b.net < 0 ? "profit-negative" : "profit-positive"}>
                   {money(b.net)}
                 </b>
               </span>
             </div>
+
+            {isPlus && (
+              <>
+                <div className="branch-finance">
+                  <span>Ort. işlem <b>{money(b.avg_ticket)}</b></span>
+                  <span>Hizmet saati başı <b>{money(b.revenue_per_hour)}</b></span>
+                  <span>Net marj <b>%{b.net_margin}</b></span>
+                </div>
+                <p className="helper">
+                  Gelmeme: %{b.no_show_rate} · Geri dönen müşteri: %{b.returning_rate}
+                  {b.top_service
+                    ? ` · En çok ciro: ${b.top_service.name} (%${b.top_service.revenue_share})`
+                    : ""}
+                </p>
+              </>
+            )}
+
             <div className="button-group">
               <button className="button" onClick={() => setBranch({ ...b })}>
                 Düzenle
@@ -265,8 +462,7 @@ export function BranchProfitability({ w }: any) {
                     })
                   }
                 >
-                  <CheckCircle2 size={15} />
-                  Giderleri onayla
+                  <CheckCircle2 size={15} /> Giderleri onayla
                 </button>
               ) : (
                 <span className="badge neutral">Giderler onaylı</span>
@@ -275,7 +471,9 @@ export function BranchProfitability({ w }: any) {
           </article>
         ))}
       </div>
+
       {!data.branches.length && <Blank title="İlk şubenizi oluşturun" />}
+
       {data.plan === "normal" && (
         <div className="notice">
           Standart pakette 1 şube ve temel randevu yönetimi bulunur. Şube gideri
@@ -283,19 +481,25 @@ export function BranchProfitability({ w }: any) {
           pakettedir.
         </div>
       )}
-      {data.plan === "plus" && (
-        <section className="panel expense-catalog-panel">
+
+      {isPlus && (
+        <section
+          className="panel expense-catalog-panel"
+          style={{
+            border: "1px solid color-mix(in srgb, var(--primary) 32%, var(--border))",
+          }}
+        >
           <div className="section-heading">
             <div>
-              <span className="eyebrow">TEKRAR KULLANILAN GİDERLER</span>
-              <h2>Kayıtlı gider kalemleri</h2>
+              <span className="eyebrow">PLUS · GİDER KÜTÜPHANESİ</span>
+              <h2><LibraryBig size={20} /> Kayıtlı gider kalemleri</h2>
               <p className="muted">
-                Makas, krem, masaj aleti veya kira gibi kalemleri bir kez
-                kaydedin; sonraki aylarda listeden seçin.
+                Makas, krem, masaj aleti, kira veya düzenli hizmet giderlerini bir
+                kez tanımlayın; sonraki aylarda tekrar yazmadan kullanın.
               </p>
             </div>
             <button
-              className="button"
+              className="button primary"
               onClick={() =>
                 setCatalogItem({
                   name: "",
@@ -309,12 +513,30 @@ export function BranchProfitability({ w }: any) {
                 })
               }
             >
-              <Plus size={16} />
-              Yeni kalem
+              <Plus size={16} /> Yeni gider kalemi
             </button>
           </div>
+
+          {expenseBreakdown.length > 0 && (
+            <div className="collection-list">
+              <div className="collection-row">
+                <div>
+                  <strong>Bu ay gider dağılımı</strong>
+                  <small>Şubelerde kaydedilen giderlerin kategori bazlı özeti</small>
+                </div>
+                <b>{money(data.summary.expenses)}</b>
+              </div>
+              {expenseBreakdown.map((row) => (
+                <div className="collection-row" key={row.key}>
+                  <div><strong>{row.label}</strong></div>
+                  <b>{money(row.amount)}</b>
+                </div>
+              ))}
+            </div>
+          )}
+
           {data.catalog.length ? (
-            <div className="catalog-grid">
+            <div className="catalog-grid margin-top">
               {data.catalog.map((item: any) => (
                 <button
                   type="button"
@@ -343,9 +565,16 @@ export function BranchProfitability({ w }: any) {
           )}
         </section>
       )}
+
       {data.expenses.length > 0 && (
         <section className="panel">
-          <h2>Bu ayın gider kayıtları</h2>
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">AYLIK GİDER DEFTERİ</span>
+              <h2>Bu ayın gider kayıtları</h2>
+            </div>
+            {isPlus && <span className="badge neutral">{data.expenses.length} kayıt</span>}
+          </div>
           {data.expenses.map((e: any) => (
             <div className="collection-row" key={e.id}>
               <div>
@@ -362,9 +591,7 @@ export function BranchProfitability({ w }: any) {
               <button
                 className="icon-button"
                 aria-label="Gideri sil"
-                onClick={() =>
-                  post("branches", { action: "delete-expense", id: e.id })
-                }
+                onClick={() => post("branches", { action: "delete-expense", id: e.id })}
               >
                 <Trash2 size={16} />
               </button>
@@ -372,6 +599,7 @@ export function BranchProfitability({ w }: any) {
           ))}
         </section>
       )}
+
       <Modal
         open={!!branch}
         onClose={() => setBranch(null)}
@@ -397,26 +625,20 @@ export function BranchProfitability({ w }: any) {
               <Field label="Şehir">
                 <Input
                   value={branch.city || ""}
-                  onChange={(e) =>
-                    setBranch({ ...branch, city: e.target.value })
-                  }
+                  onChange={(e) => setBranch({ ...branch, city: e.target.value })}
                 />
               </Field>
               <Field label="Telefon">
                 <Input
                   value={branch.phone || ""}
-                  onChange={(e) =>
-                    setBranch({ ...branch, phone: e.target.value })
-                  }
+                  onChange={(e) => setBranch({ ...branch, phone: e.target.value })}
                 />
               </Field>
             </div>
             <Field label="Adres">
               <Input
                 value={branch.address || ""}
-                onChange={(e) =>
-                  setBranch({ ...branch, address: e.target.value })
-                }
+                onChange={(e) => setBranch({ ...branch, address: e.target.value })}
               />
             </Field>
             {error && <p className="error-message">{error}</p>}
@@ -426,11 +648,8 @@ export function BranchProfitability({ w }: any) {
           </form>
         )}
       </Modal>
-      <Modal
-        open={!!expense}
-        onClose={() => setExpense(null)}
-        title="Şube gideri ekle"
-      >
+
+      <Modal open={!!expense} onClose={() => setExpense(null)} title="Şube gideri ekle">
         {expense && (
           <form
             className="form-stack"
@@ -439,9 +658,7 @@ export function BranchProfitability({ w }: any) {
               post("branch-expenses", {
                 ...expense,
                 catalog_item_id:
-                  expense.catalog_item_id === "manual"
-                    ? null
-                    : expense.catalog_item_id,
+                  expense.catalog_item_id === "manual" ? null : expense.catalog_item_id,
                 amount: Math.round(
                   Number(expense.amount) * Number(expense.quantity || 1) * 100,
                 ),
@@ -453,21 +670,17 @@ export function BranchProfitability({ w }: any) {
                 label="Şube"
                 value={expense.branch_id}
                 onChange={(branch_id) => setExpense({ ...expense, branch_id })}
-                options={data.branches.map((b: any) => ({
-                  value: b.id,
-                  label: b.name,
-                }))}
+                options={data.branches.map((b: any) => ({ value: b.id, label: b.name }))}
               />
             </Field>
-            {data.plan === "plus" && (
+
+            {isPlus && (
               <Field label="Kayıtlı gider kalemi">
                 <Pick
                   label="Gider kalemi"
                   value={expense.catalog_item_id || "manual"}
                   onChange={(catalog_item_id) => {
-                    const item = data.catalog.find(
-                      (x: any) => x.id === catalog_item_id,
-                    );
+                    const item = data.catalog.find((x: any) => x.id === catalog_item_id);
                     setExpense(
                       item
                         ? {
@@ -491,15 +704,14 @@ export function BranchProfitability({ w }: any) {
                 />
               </Field>
             )}
+
             <div className="form-grid">
               <Field label="Ay">
                 <Input
                   type="month"
                   required
                   value={expense.month}
-                  onChange={(e) =>
-                    setExpense({ ...expense, month: e.target.value })
-                  }
+                  onChange={(e) => setExpense({ ...expense, month: e.target.value })}
                 />
               </Field>
               <Field label="Gider türü">
@@ -507,13 +719,11 @@ export function BranchProfitability({ w }: any) {
                   label="Gider türü"
                   value={expense.category}
                   onChange={(category) => setExpense({ ...expense, category })}
-                  options={categories.map((c) => ({
-                    value: c[0],
-                    label: c[1],
-                  }))}
+                  options={categories.map((c) => ({ value: c[0], label: c[1] }))}
                 />
               </Field>
             </div>
+
             <div className="form-grid">
               <Field label="Adet / miktar">
                 <Input
@@ -522,9 +732,7 @@ export function BranchProfitability({ w }: any) {
                   step="0.01"
                   required
                   value={expense.quantity || 1}
-                  onChange={(e) =>
-                    setExpense({ ...expense, quantity: e.target.value })
-                  }
+                  onChange={(e) => setExpense({ ...expense, quantity: e.target.value })}
                 />
               </Field>
               <Field label="Birim">
@@ -532,12 +740,11 @@ export function BranchProfitability({ w }: any) {
                   maxLength={20}
                   required
                   value={expense.unit || "adet"}
-                  onChange={(e) =>
-                    setExpense({ ...expense, unit: e.target.value })
-                  }
+                  onChange={(e) => setExpense({ ...expense, unit: e.target.value })}
                 />
               </Field>
             </div>
+
             <Field label="Birim tutarı (₺)">
               <Input
                 type="number"
@@ -545,18 +752,14 @@ export function BranchProfitability({ w }: any) {
                 step="0.01"
                 required
                 value={expense.amount}
-                onChange={(e) =>
-                  setExpense({ ...expense, amount: e.target.value })
-                }
+                onChange={(e) => setExpense({ ...expense, amount: e.target.value })}
               />
             </Field>
             <Field label="Açıklama">
               <Input
                 maxLength={300}
                 value={expense.note}
-                onChange={(e) =>
-                  setExpense({ ...expense, note: e.target.value })
-                }
+                onChange={(e) => setExpense({ ...expense, note: e.target.value })}
               />
             </Field>
             {error && <p className="error-message">{error}</p>}
@@ -566,12 +769,11 @@ export function BranchProfitability({ w }: any) {
           </form>
         )}
       </Modal>
+
       <Modal
         open={!!catalogItem}
         onClose={() => setCatalogItem(null)}
-        title={
-          catalogItem?.id ? "Gider kalemini düzenle" : "Gider kalemi kaydet"
-        }
+        title={catalogItem?.id ? "Gider kalemini düzenle" : "Gider kalemi kaydet"}
       >
         {catalogItem && (
           <form
@@ -592,23 +794,17 @@ export function BranchProfitability({ w }: any) {
                 minLength={2}
                 placeholder="Örn. Saç kremi"
                 value={catalogItem.name}
-                onChange={(e) =>
-                  setCatalogItem({ ...catalogItem, name: e.target.value })
-                }
+                onChange={(e) => setCatalogItem({ ...catalogItem, name: e.target.value })}
               />
             </Field>
+
             <div className="form-grid">
               <Field label="Gider türü">
                 <Pick
                   label="Gider türü"
                   value={catalogItem.category}
-                  onChange={(category) =>
-                    setCatalogItem({ ...catalogItem, category })
-                  }
-                  options={categories.map((c) => ({
-                    value: c[0],
-                    label: c[1],
-                  }))}
+                  onChange={(category) => setCatalogItem({ ...catalogItem, category })}
+                  options={categories.map((c) => ({ value: c[0], label: c[1] }))}
                 />
               </Field>
               <Field label="Birim">
@@ -616,12 +812,11 @@ export function BranchProfitability({ w }: any) {
                   required
                   placeholder="adet, kutu, ay"
                   value={catalogItem.unit}
-                  onChange={(e) =>
-                    setCatalogItem({ ...catalogItem, unit: e.target.value })
-                  }
+                  onChange={(e) => setCatalogItem({ ...catalogItem, unit: e.target.value })}
                 />
               </Field>
             </div>
+
             <Field label="Varsayılan birim fiyatı (₺)">
               <Input
                 required
@@ -630,13 +825,11 @@ export function BranchProfitability({ w }: any) {
                 step="0.01"
                 value={catalogItem.default_unit_amount}
                 onChange={(e) =>
-                  setCatalogItem({
-                    ...catalogItem,
-                    default_unit_amount: e.target.value,
-                  })
+                  setCatalogItem({ ...catalogItem, default_unit_amount: e.target.value })
                 }
               />
             </Field>
+
             {!catalogItem.id && (
               <div className="form-grid">
                 <Field label="Giderin işleneceği şube">
@@ -646,9 +839,9 @@ export function BranchProfitability({ w }: any) {
                     onChange={(apply_to_branch_id) =>
                       setCatalogItem({ ...catalogItem, apply_to_branch_id })
                     }
-                    options={data.branches.map((branch: any) => ({
-                      value: branch.id,
-                      label: branch.name,
+                    options={data.branches.map((item: any) => ({
+                      value: item.id,
+                      label: item.name,
                     }))}
                   />
                 </Field>
@@ -660,28 +853,25 @@ export function BranchProfitability({ w }: any) {
                     step="0.01"
                     value={catalogItem.quantity}
                     onChange={(e) =>
-                      setCatalogItem({
-                        ...catalogItem,
-                        quantity: e.target.value,
-                      })
+                      setCatalogItem({ ...catalogItem, quantity: e.target.value })
                     }
                   />
                 </Field>
               </div>
             )}
+
             {!catalogItem.id && (
               <p className="helper">
-                Kaydettiğinizde bu kalem {month} ayı için seçilen şubenin
-                gider toplamına otomatik eklenir.
+                Kaydettiğinizde bu kalem {month} ayı için seçilen şubenin gider
+                toplamına otomatik eklenir.
               </p>
             )}
+
             <Field label="Not">
               <Input
                 maxLength={300}
                 value={catalogItem.note || ""}
-                onChange={(e) =>
-                  setCatalogItem({ ...catalogItem, note: e.target.value })
-                }
+                onChange={(e) => setCatalogItem({ ...catalogItem, note: e.target.value })}
               />
             </Field>
             {error && <p className="error-message">{error}</p>}
