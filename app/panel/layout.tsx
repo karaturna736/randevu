@@ -2,6 +2,7 @@ import type {ReactNode} from 'react';
 import {redirect} from 'next/navigation';
 import {getAppUser} from '@/lib/identity';
 import {accountPaymentState} from '@/lib/onboarding-payment';
+import {branchPasswordSetupTarget} from '@/lib/branch-password';
 
 export const dynamic='force-dynamic';
 
@@ -10,5 +11,7 @@ export default async function PanelLayout({children}:{children:ReactNode}){
  if(!current)redirect('/giris?rol=business&sonra=%2Fpanel');
  const payment=await accountPaymentState(current.userId);
  if(payment.state!=='active')redirect('/erisim-bekliyor');
+ const passwordTarget=await branchPasswordSetupTarget(current.userId);
+ if(passwordTarget)redirect('/sube-sifre-kurulum');
  return children;
 }
