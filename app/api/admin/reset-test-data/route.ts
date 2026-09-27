@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const retained = new Set([
   "admins", "billing_settings", "temporary_payment_settings", "addon_catalog",
-  "growth_settings", "__drizzle_migrations", "sqlite_sequence",
+  "__drizzle_migrations", "sqlite_sequence",
 ]);
 
 async function authorized() {
