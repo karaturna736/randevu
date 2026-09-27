@@ -3,6 +3,7 @@ import { mkdirSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 import { admin, ApiError } from "@/lib/server";
 import { adminAccessConfigured, hasAdminAccess } from "@/lib/admin-access";
+import { appOrigin } from "@/lib/identity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,7 +61,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await authorized();
-    if (request.headers.get("origin") !== new URL(request.url).origin)
+    if (request.headers.get("origin") !== (appOrigin() || new URL(request.url).origin))
       throw new ApiError("İstek kaynağı doğrulanamadı.", 403);
     const input = await request.json() as { confirmation?: string; users?: number; businesses?: number; appointments?: number };
     if (input?.confirmation !== "TÜM TEST VERİLERİNİ SIFIRLA")
