@@ -119,8 +119,8 @@ export default function AuthPage({ signup = false }: { signup?: boolean }) {
           <div>
             <strong>Davet kodunuz var mı?</strong>
             <small>
-              İlk gerçek ödeme ve işletme onayından sonra davet eden işletmeye
-              Neta Kredisi yüklenir.
+              İlk gerçek ödeme ve işletme onayından sonra davet eden işletme
+              200 Neta puanı kazanır.
             </small>
           </div>
         </div>

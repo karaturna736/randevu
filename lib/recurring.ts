@@ -502,6 +502,7 @@ export async function recurringWebhook(req: Request) {
       x.subscriptionReferenceCode,
     ),
   ]);
+  if (success && !row.test_mode) await (await import("./growth")).approveReferral(row.tenant_id);
   return new Response("SUCCESS");
 }
 export async function recurringAction(id: string, input: any) {

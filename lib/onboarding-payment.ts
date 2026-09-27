@@ -554,6 +554,7 @@ export async function onboardingPaymentCallback(req: Request) {
       ),
     );
   await db().batch(ops);
+  if (!row.test_mode) await (await import("./growth")).approveReferral(tenantId);
   return redirect(
     "/panel?tenant=" + encodeURIComponent(tenantId) + "&odeme=basarili",
   );
