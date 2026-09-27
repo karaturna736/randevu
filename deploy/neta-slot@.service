@@ -9,10 +9,7 @@ User=neta
 Group=neta
 WorkingDirectory=/opt/neta/slots/%i
 EnvironmentFile=/etc/neta/neta.env
-Environment=NODE_ENV=production
-Environment=HOSTNAME=127.0.0.1
-Environment=PORT=%i
-ExecStart=/usr/bin/node server.js
+ExecStart=/usr/bin/env NODE_ENV=production HOSTNAME=127.0.0.1 PORT=%i /usr/bin/node server.js
 Restart=always
 RestartSec=2
 TimeoutStopSec=20
