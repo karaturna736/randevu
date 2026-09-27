@@ -184,18 +184,45 @@ jobs:
           release_sha="$1"
           letsencrypt_email="$2"
 
-          sudo /usr/local/sbin/neta-release "/tmp/neta-vps-release-${release_sha}.tar.gz"
+          archive="/tmp/neta-vps-release-${release_sha}.tar.gz"
+          deploy_stage="$(mktemp -d)"
+          trap 'rm -rf "$deploy_stage"' EXIT
+          tar -xzf "$archive" -C "$deploy_stage" ./deploy/release-vps.sh ./deploy/neta-slot@.service
+          sudo install -o root -g root -m 0755 "$deploy_stage/deploy/release-vps.sh" /usr/local/sbin/neta-release
+          sudo install -o root -g root -m 0644 "$deploy_stage/deploy/neta-slot@.service" /etc/systemd/system/neta-slot@.service
+          sudo systemctl daemon-reload
+
           test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl "$letsencrypt_email"
+
+          # First migration keeps the legacy port 3000 live. Later deploys
+          # preserve whichever blue/green slot is currently active.
+          if [[ -f /var/lib/neta/active-port ]]; then
+            current_port="$(tr -d '\r\n ' < /var/lib/neta/active-port)"
+          else
+            current_port=3000
+          fi
+          case "$current_port" in 3000|3001) ;; *) current_port=3000 ;; esac
+          if [[ ! -s /etc/nginx/neta-upstream.conf ]]; then
+            printf 'server 127.0.0.1:%s;\n' "$current_port" | sudo tee /etc/nginx/neta-upstream.conf >/dev/null
+            sudo chmod 0644 /etc/nginx/neta-upstream.conf
+          fi
+
           sudo install -o root -g root -m 0644 "/tmp/neta-nginx-${release_sha}.conf" /etc/nginx/sites-available/netarandevu
           sudo nginx -t
           sudo systemctl reload nginx
+
+          # neta-release starts the inactive slot, health-checks it, switches
+          # Nginx gracefully, and only then stops the previous process.
+          sudo /usr/local/sbin/neta-release "$archive"
           rm -f "/tmp/neta-nginx-${release_sha}.conf"
 
-          systemctl is-active --quiet neta
+          active_port="$(tr -d '\r\n ' < /var/lib/neta/active-port)"
+          case "$active_port" in 3000|3001) ;; *) echo "Invalid active port: $active_port" >&2; exit 1 ;; esac
+          systemctl is-active --quiet "neta-slot@${active_port}.service"
 
           health=""
           for attempt in $(seq 1 20); do
-            if health="$(curl --connect-timeout 2 --max-time 5 --silent --show-error --fail http://127.0.0.1:3000/api/health 2>/dev/null)"; then
+            if health="$(curl --connect-timeout 2 --max-time 5 --silent --show-error --fail "http://127.0.0.1:${active_port}/api/health" 2>/dev/null)"; then
               break
             fi
             sleep 1
@@ -204,7 +231,7 @@ jobs:
           printf '%s\n' "$health"
           HEALTH="$health" node -e 'const x=JSON.parse(process.env.HEALTH||"{}"); if(x.status!=="ok"||x.database!=="ok"){console.error("Local production health failed"); process.exit(1)}'
 
-          auth_status="$(curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:3000/api/v1/auth-status)"
+          auth_status="$(curl --connect-timeout 2 --max-time 5 --fail --silent --show-error "http://127.0.0.1:${active_port}/api/v1/auth-status")"
           AUTH_STATUS="$auth_status" node -e 'const x=JSON.parse(process.env.AUTH_STATUS||"{}"); if(x.google!==true){console.error("Google production auth is not ready"); process.exit(1)}'
 
           for path in '/.git/config' '/.env' '/package.json' '/pnpm-lock.yaml' '/server.js' '/neta.sqlite' '/backup.sql'; do
