@@ -186,6 +186,27 @@ try {
     "Standart limits match the sold package",
   );
   check(
+    normal.entitlements.modules.referral &&
+      !normal.entitlements.modules.growth &&
+      !normal.entitlements.modules.receivables &&
+      !normal.entitlements.modules.journeys &&
+      !normal.entitlements.modules.recovery &&
+      !normal.entitlements.modules.demand &&
+      !normal.entitlements.modules.whatsapp &&
+      !normal.entitlements.modules.accounting &&
+      !normal.entitlements.modules.setupCenter,
+    "Standart adds only Neta referral credit without Pro or Plus modules",
+  );
+  const normalReferral = await call("referral?tenant=plan-normal", { user: "normal-owner" });
+  check(
+    normalReferral.status === 200 && normalReferral.data.referral_points === 200,
+    "Standart referral endpoint exposes a 200 Neta Point reward",
+  );
+  check(
+    (await call("growth?tenant=plan-normal", { user: "normal-owner" })).status === 402,
+    "Standart referral access does not unlock the Growth module",
+  );
+  check(
     pro.entitlements.plan === "pro" &&
       pro.entitlements.whatsappMonthly === 1000 &&
       pro.entitlements.aiDaily === 50 &&
@@ -209,10 +230,10 @@ try {
       pro.entitlements.modules.demand &&
       pro.entitlements.modules.branchProfit &&
       pro.entitlements.modules.whatsapp &&
+      pro.entitlements.modules.referral &&
       !pro.entitlements.modules.accounting &&
-      !pro.entitlements.modules.referral &&
       !pro.entitlements.modules.setupCenter,
-    "Pro receives Pro modules but not Plus-only accounting/referral/setup",
+    "Pro receives Pro modules and shared Neta referral credit, but not Plus-only accounting/setup",
   );
   check(
     plus.entitlements.modules.accounting &&
