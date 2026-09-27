@@ -34,7 +34,7 @@ export function roleCapabilities(role: BusinessRole) {
     views: owner
       ? null
       : manager
-        ? ["overview", "appointments", "calendar", "customers", "services", "staff", "branches", "help"]
+        ? ["overview", "appointments", "calendar", "customers", "staff", "branches", "help"]
         : ["appointments", "calendar", "customers", "help"],
   };
 }
