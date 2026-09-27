@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { chmodSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const filename = process.env.DATABASE_PATH;
 if (!filename) throw new Error("DATABASE_PATH is required");
@@ -14,10 +15,12 @@ const apply = db.transaction((name, sql) => {
   for (const statement of sql.split("--> statement-breakpoint").map((part) => part.trim()).filter(Boolean)) db.exec(statement);
   db.prepare("INSERT INTO __neta_migrations(name,applied_at) VALUES(?,?)").run(name, new Date().toISOString());
 });
+const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+const migrationsDirectory = resolve(scriptDirectory, "..", "drizzle");
 let count = 0;
-for (const name of readdirSync(resolve("drizzle")).filter((name) => name.endsWith(".sql")).sort()) {
+for (const name of readdirSync(migrationsDirectory).filter((name) => name.endsWith(".sql")).sort()) {
   if (applied.has(name)) continue;
-  apply(name, readFileSync(resolve("drizzle", name), "utf8"));
+  apply(name, readFileSync(resolve(migrationsDirectory, name), "utf8"));
   count++;
 }
 db.close();
