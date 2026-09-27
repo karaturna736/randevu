@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { CalendarDays, CalendarRange, Check, UserRound, Scissors, ShieldCheck, UserPlus, Trash2, ArrowRight, Users, Route, MessageSquare, LockKeyhole } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -30,7 +30,7 @@ const staffNav = [
 
 async function secureWorkspace(payload: any) {
   const r = await fetch('/api/team/workspace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  const data = await r.json().catch(() => ({}));
+  const data: any = await r.json().catch(() => ({}));
   if (!r.ok) { const e: any = new Error(data.error || 'Çalışan alanı açılamadı.'); e.status = r.status; throw e; }
   return data;
 }
@@ -42,7 +42,6 @@ function TeamDesk() {
   async function unlock(e?: FormEvent) { e?.preventDefault(); if (!tenant) return; setBusy(true); setError(''); try { setData(await secureWorkspace({ tenant_id: tenant, date, branch_password: password })); } catch (e: any) { setData(null); setError(e.message); } finally { setBusy(false); } }
   async function refreshForDate(nextDate: string) { setDate(nextDate); if (!data || !password) return; setBusy(true); try { setData(await secureWorkspace({ tenant_id: tenant, date: nextDate, branch_password: password })); setError(''); } catch (e: any) { setData(null); setError(e.message); } finally { setBusy(false); } }
   async function finish(a: any, status: string) { setJobBusy(a.id); try { await api('team-jobs', { tenant_id: data.business.id, id: a.id, status, branch_password: password }); setNoShow(null); await unlock(); toast.success('İşlem sonucu kaydedildi.'); } catch (e: any) { toast.error(e.message); } finally { setJobBusy(''); } }
-  const ownAppointments = useMemo(() => data?.appointments?.filter((a: any) => a.staff_id === data.business.staff_id) || [], [data]);
 
   if (!memberships.length && !tenant) return <section className="panel"><Blank title="Çalışan erişiminiz yok" description="İşletme sahibi, Ekip bölümünden üyelik e-postanızı bir personel kaydına bağlamalı." /></section>;
   if (!data) return <><div className="member-heading"><div><span className="eyebrow">ÇALIŞAN GİRİŞİ</span><h1>Şubenizi doğrulayın.</h1><p>Hesabınız doğrulandı. Şube verileri açılmadan önce işletme sahibinin belirlediği şifre gerekir.</p></div></div><section className="panel form-stack" style={{ maxWidth: 520 }}><Field label="İşletme / şube"><Pick label="Çalıştığınız şube" value={tenant} onChange={setTenant} options={memberships.map((b: any) => ({ value: b.id, label: b.name }))} /></Field><form className="form-stack" onSubmit={unlock}><Field label="Şube erişim şifresi"><Input type="password" required minLength={8} maxLength={72} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Şube şifresi" /></Field>{error && <p role="alert" className="error-message">{error}</p>}<button className="button primary full" disabled={busy || !tenant}>{busy ? <Busy /> : <LockKeyhole size={17} />}Çalışan panelini aç</button></form></section></>;
