@@ -5,15 +5,17 @@ test -f .next/standalone/server.js
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
 cp -R .next/standalone/. "$stage/"
-mkdir -p "$stage/.next" "$stage/scripts" "$stage/drizzle"
+mkdir -p "$stage/.next" "$stage/scripts" "$stage/drizzle" "$stage/deploy"
 cp -R .next/static "$stage/.next/static"
 cp -R public "$stage/public"
 cp scripts/migrate-sqlite.mjs scripts/backup-sqlite.mjs scripts/load-test-100.mjs scripts/run-isolated-load-test.sh scripts/configure-whatsapp.sh "$stage/scripts/"
 chmod +x "$stage/scripts/run-isolated-load-test.sh" "$stage/scripts/configure-whatsapp.sh"
 cp drizzle/*.sql "$stage/drizzle/"
+cp deploy/release-vps.sh deploy/neta-slot@.service "$stage/deploy/"
+chmod +x "$stage/deploy/release-vps.sh"
 
-# The VPS runs a single standalone Node process. Keep the appointment notification
-# outbox moving from inside that process so manual appointment changes do not
+# Each active VPS slot runs a standalone Node process. Keep the appointment
+# notification outbox moving from inside the process so manual appointment changes do not
 # depend on an external cron service. The endpoint is still protected by the
 # server-only AUTOMATION_SECRET and the runner only talks to loopback.
 cat >> "$stage/server.js" <<'NODE'
