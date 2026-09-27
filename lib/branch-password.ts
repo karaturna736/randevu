@@ -113,11 +113,12 @@ export async function branchPasswordSetupTarget(userId: string) {
   const business = await paidTenant(userId);
   if (!business || business.demo) return null;
   return one(
-    `SELECT b.id tenant_id,b.name business_name,br.id branch_id,br.name branch_name
+    `SELECT b.id tenant_id,b.name business_name,br.id branch_id,br.name branch_name,br.is_primary
      FROM businesses b
-     JOIN branches br ON br.tenant_id=b.id AND br.active=1 AND br.is_primary=1
+     JOIN branches br ON br.tenant_id=b.id AND br.active=1
      LEFT JOIN branch_credentials bc ON bc.tenant_id=br.tenant_id AND bc.branch_id=br.id
      WHERE b.id=? AND bc.branch_id IS NULL
+     ORDER BY br.is_primary DESC,br.created_at,br.name
      LIMIT 1`,
     business.id,
   );
