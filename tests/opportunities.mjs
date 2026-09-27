@@ -14,6 +14,7 @@ const mf=new Miniflare({modules:files.map(p=>({type:'ESModule',path:resolve(root
 let checks=0;
 function check(condition,message){assert.ok(condition,message);checks++;console.log('PASS',message)}
 async function call(path,{user,body,token,headers={}}={}){const h={...headers,...(user?{'oai-authenticated-user-id':user,'oai-authenticated-user-email':user+'@example.test'}:{}),...(body?{'content-type':'application/json',origin:'https://randevu.test'}:{}),...(token?{authorization:'Bearer '+token}:{})};const r=await mf.dispatchFetch('https://randevu.test/api/v1/'+path,{method:body?'POST':'GET',headers:h,...(body?{body:JSON.stringify(body)}:{})});const text=await r.text();let data;try{data=JSON.parse(text)}catch{throw new Error('Non-JSON '+r.status+' '+text.slice(0,300))}return {status:r.status,data}}
+async function direct(path,{user,body}={}){const h={...(user?{'oai-authenticated-user-id':user,'oai-authenticated-user-email':user+'@example.test'}:{}),...(body?{'content-type':'application/json',origin:'https://randevu.test','sec-fetch-site':'same-origin'}:{})};const r=await mf.dispatchFetch('https://randevu.test'+path,{method:body?'POST':'GET',headers:h,...(body?{body:JSON.stringify(body)}:{})});const text=await r.text();let data;try{data=JSON.parse(text)}catch{throw new Error('Non-JSON '+r.status+' '+text.slice(0,300))}return {status:r.status,data}}
 const day=(n)=>new Date(Date.now()+n*86400000).toISOString().slice(0,10);
 
 try{
@@ -80,22 +81,30 @@ try{
  check((await call('team-access',{user:'owner-a',body:{tenant_id:A,staff_id:P,email:'worker-a@example.test'}})).status===200,'Owner can attach an existing membership to a staff record');
  check((await call('workspace?tenant='+A,{user:'worker-a'})).status===403&&(await call('demand-insights?tenant='+A,{user:'worker-a'})).status===403,'Staff role cannot read the owner workspace or demand revenue reports');
  check((await call('services',{user:'worker-a',body:{tenant_id:A,name:'Forbidden',duration:30,price:1}})).status===403,'Staff role cannot modify business services');
+ const BRANCH=wa.staff.find(p=>p.id===P).branch_id,staffPassword='Sube12345';
+ const lockedJobs=(await call('team-jobs?tenant='+A+'&date='+day(3),{user:'worker-a'})).data;
+ check(lockedJobs.password_required===true&&lockedJobs.appointments.length===0,'Staff appointment data stays locked until branch password verification');
+ check((await direct('/api/team/workspace',{user:'worker-a',body:{tenant_id:A,date:day(3),branch_password:staffPassword}})).status===409,'Staff cannot open a branch before its password is configured');
+ check((await direct('/api/manager/branch-password',{user:'owner-a',body:{tenant_id:A,branch_id:BRANCH,password:staffPassword}})).status===200,'Owner can configure the branch password independently of the manager addon');
+ check((await direct('/api/team/workspace',{user:'worker-a',body:{tenant_id:A,date:day(3),branch_password:'Yanlis123'}})).status===403,'Wrong staff branch password is rejected');
  await call('staff',{user:'owner-a',body:{tenant_id:A,name:'İkinci Uzman',title:'Uzman',hours}});
  const P2=(await call('workspace?tenant='+A,{user:'owner-a'})).data.staff.find(p=>p.id!==P).id;
  const otherJob=(await call('bookings',{body:{...payload,staff_id:P2,minute:600}})).data;
- const jobs=(await call('team-jobs?tenant='+A+'&date='+day(3),{user:'worker-a'})).data;
- check(jobs.appointments.length===3&&jobs.appointments.every(a=>a.staff_id===P)&&jobs.appointments.some(a=>a.customer_note==='Makas kesimi istiyorum.'),'Staff sees only assigned appointments with selected work details');
- check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:otherJob.id,status:'completed'}})).status===404,'Staff cannot complete a colleague’s appointment');
+ const secure=(await direct('/api/team/workspace',{user:'worker-a',body:{tenant_id:A,date:day(3),branch_password:staffPassword}})).data;
+ check(secure.appointments.length>=3&&secure.appointments.every(a=>a.branch_id===BRANCH)&&secure.appointments.some(a=>a.staff_id===P&&a.customer_note==='Makas kesimi istiyorum.')&&secure.appointments.every(a=>!('price'in a)&&!('deposit_amount'in a)&&!('payment_status'in a)),'Staff sees branch-scoped appointments only after password verification without financial fields');
+ const legacyAfterUnlock=(await call('team-jobs?tenant='+A+'&date='+day(3),{user:'worker-a'})).data;
+ check(legacyAfterUnlock.appointments.length===0,'Legacy staff GET cannot bypass the branch password gate');
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:otherJob.id,status:'completed',branch_password:staffPassword}})).status===404,'Staff cannot complete a colleague’s appointment');
  check((await call('team-jobs?tenant='+B,{user:'worker-a'})).status===403,'Staff cannot cross business boundaries');
- check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'completed'}})).status===400,'Staff cannot complete work before its planned finish');
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'completed',branch_password:staffPassword}})).status===400,'Staff cannot complete work before its planned finish');
  await db.prepare('UPDATE appointments SET date=? WHERE id=?').bind(day(-1),booked.id).run();
  await db.prepare('DELETE FROM slots WHERE appointment_id=?').bind(booked.id).run();
- check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'completed'}})).status===200,'Assigned staff can record a completed past service');
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'completed',branch_password:staffPassword}})).status===200,'Assigned staff can record a completed past service after branch password verification');
  const serviceReport=(await call('service-insights?tenant='+A+'&days=30',{user:'owner-a'})).data;
  check(serviceReport.services[0].completed===1&&serviceReport.services[0].revenue===60000&&serviceReport.staff[0].completed===1,'Popular service report uses completed work and saved prices, grouped by staff');
  check((await call('service-insights?tenant='+A,{user:'worker-a'})).status===403,'Staff cannot read business-wide service income');
  await call('team-access',{user:'owner-a',body:{tenant_id:A,staff_id:P,action:'remove'}});
- check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'no_show'}})).status===403,'Revoking staff access immediately blocks work mutations');
+ check((await call('team-jobs',{user:'worker-a',body:{tenant_id:A,id:booked.id,status:'no_show',branch_password:staffPassword}})).status===403,'Revoking staff access immediately blocks work mutations');
  check((await call('bookings',{body:{...payload,date:day(2),early_from:1080}})).status===400,'Early arrival must begin before the booked start');
  const early1=(await call('bookings',{body:{...payload,date:day(2),early_from:1020}})).data;
  const early2=(await call('bookings',{body:{...payload,date:day(2),minute:1110,early_from:1020,phone:'05551110004'}})).data;
