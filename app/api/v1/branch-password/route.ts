@@ -10,6 +10,7 @@ import {
   user,
 } from "@/lib/server";
 import {
+  branchPasswordOverview,
   branchPasswordSchema,
   setBranchPassword,
   verifyBranchPassword,
@@ -29,6 +30,17 @@ const requestSchema = z.discriminatedUnion("action", [
     password: branchPasswordSchema,
   }),
 ]);
+
+export async function GET(req: Request) {
+  try {
+    const tenantId = new URL(req.url).searchParams.get("tenant") || "";
+    if (!tenantId) throw new ApiError("İşletme seçilmelidir.", 400);
+    await ownedTenant(tenantId);
+    return ok({ branches: await branchPasswordOverview(tenantId) });
+  } catch (error) {
+    return fail(error);
+  }
+}
 
 export async function POST(req: Request) {
   try {
