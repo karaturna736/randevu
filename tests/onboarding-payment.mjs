@@ -420,10 +420,10 @@ try {
   check(
     (
       await db
-        .prepare("SELECT COALESCE(SUM(amount),0) balance FROM credit_ledger WHERE tenant_id='referrer'")
+        .prepare("SELECT COALESCE(SUM(amount),0) balance FROM neta_point_ledger WHERE tenant_id='referrer'")
         .first()
-    ).balance === 50000,
-    "First verified live payment and approval awards Neta Credit once",
+    ).balance === 200,
+    "First verified live payment and approval awards 200 points once",
   );
   await api("admin", {
     action: "business-status",
@@ -433,12 +433,43 @@ try {
   check(
     (
       await db
-        .prepare("SELECT COUNT(*) n FROM credit_ledger WHERE reference=?")
-        .bind("referral:" + workspace.business.id)
+        .prepare("SELECT COUNT(*) n FROM neta_point_ledger WHERE reference=?")
+        .bind("referral-points:" + workspace.business.id)
         .first()
     ).n === 1,
-    "Repeated approval cannot duplicate referral credit",
+    "Repeated approval cannot duplicate referral points",
   );
+  await db.prepare("UPDATE recurring_subscriptions SET test_mode=0 WHERE tenant_id='referrer'").run();
+  for (let i = 0; i < 4; i++)
+    await db.prepare("INSERT INTO neta_point_ledger(id,tenant_id,amount,reference,description,created_at) VALUES(?,?,200,?,?,?)")
+      .bind(randomUUID(), "referrer", "other-verified:" + i, "Diğer doğrulanmış davet", new Date().toISOString()).run();
+  const pointsRequest = async (path, userId, body) => {
+    const response = await mf.dispatchFetch("https://neta.test/api/" + path, {
+      method: "POST", headers: {
+        "oai-authenticated-user-id": userId,
+        "oai-authenticated-user-email": userId + "@example.test",
+        "content-type": "application/json", origin: "https://neta.test",
+      }, body: JSON.stringify(body),
+    });
+    return { status: response.status, data: await response.json() };
+  };
+  check((await pointsRequest("referral-points", "owner", { tenant_id: "referrer", kind: "month" })).status === 403,
+    "Another business cannot spend referral points");
+  const firstRedemption = await pointsRequest("referral-points", "referrer-owner", { tenant_id: "referrer", kind: "month" });
+  check(firstRedemption.status === 200 && firstRedemption.data.status === "pending", "1000 points create a pending free-month request");
+  check((await pointsRequest("referral-points", "referrer-owner", { tenant_id: "referrer", kind: "management" })).status !== 200,
+    "Pending redemption cannot spend the same points twice");
+  check((await pointsRequest("admin/referral-redemptions", "owner", { id: firstRedemption.data.id, action: "fulfill" })).status === 409,
+    "Free month cannot be marked fulfilled without provider adjustment reference");
+  check((await pointsRequest("admin/referral-redemptions", "owner", { id: firstRedemption.data.id, action: "reject" })).status === 200,
+    "Rejected redemption returns the points");
+  check((await db.prepare("SELECT balance FROM neta_point_balances WHERE tenant_id='referrer'").first()).balance === 1000,
+    "Points balance restored exactly once");
+  const addonRedemption = await pointsRequest("referral-points", "referrer-owner", { tenant_id: "referrer", kind: "management" });
+  check(addonRedemption.status === 200, "Recovered points can request the management addon");
+  check((await pointsRequest("admin/referral-redemptions", "owner", { id: addonRedemption.data.id, action: "fulfill" })).status === 200 &&
+    !!(await db.prepare("SELECT 1 ok FROM tenant_addons WHERE tenant_id='referrer' AND code='management' AND enabled=1").first()),
+    "Admin fulfillment activates the addon once");
   const waiting = await api("waitlist", {
     slug: business.slug,
     service_id: serviceId,

@@ -366,7 +366,7 @@ function PaymentWizard() {
               />
               <small>
                 Geçerli kod, ödeme ve işletme onayından sonra davet eden
-                işletmeye Neta Kredisi kazandırır.
+                işletmeye 200 Neta puanı kazandırır.
               </small>
             </Field>
             <div className="form-grid">

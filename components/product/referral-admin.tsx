@@ -6,7 +6,7 @@ import { ArrowLeft, Check, Gift, RefreshCw, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PublicShell } from "./public";
 import { api, Blank, Busy } from "./common";
-import { dateLabel, money } from "@/lib/types";
+import { dateLabel } from "@/lib/types";
 
 type Referral = {
   referred_tenant: string;
@@ -21,6 +21,7 @@ type Referral = {
 type Data = {
   referrals: Referral[];
   enabled: boolean;
+  redemptions: Array<{id:string;business_name:string;kind:string;status:string;created_at:string}>;
 };
 
 const labels: Record<string, string> = {
@@ -46,6 +47,20 @@ export default function ReferralAdmin() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function resolve(id:string, action:'fulfill'|'reject', kind:string){
+    let provider_reference:string|undefined;
+    if(action==='fulfill'&&kind==='month'){
+      provider_reference=window.prompt('Ödeme sağlayıcısında ücretsiz dönemi ayarladıktan sonra işlem referansını girin:')?.trim();
+      if(!provider_reference)return;
+    }
+    setBusy(id);
+    try{
+      const response=await fetch('/api/admin/referral-redemptions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,action,provider_reference})});
+      const result=await response.json() as {error?:string};if(!response.ok)throw new Error(result.error||'İşlem başarısız.');
+      toast.success(action==='reject'?'Puanlar iade edildi.':'Talep tamamlandı.');await load();
+    }catch(e:any){toast.error(e.message)}finally{setBusy('')}
+  }
 
   async function review(id: string) {
     setBusy(id);
@@ -120,7 +135,7 @@ export default function ReferralAdmin() {
           </section>
           <section className="stat-card">
             <div className="stat-top">Oluşan kredi <Gift size={19} /></div>
-            <strong className="stat-value">{money(reward)}</strong>
+            <strong className="stat-value">{reward} puan</strong>
           </section>
         </div>
 
@@ -128,7 +143,7 @@ export default function ReferralAdmin() {
           <div className="panel-header">
             <div>
               <h2>Referans kayıtları</h2>
-              <p className="muted">Kredi, yalnızca sunucuda doğrulanan gerçek abonelik ve ödeme şartları sağlandığında oluşur.</p>
+              <p className="muted">Puan, ilk gerçek abonelik tahsilatı ve işletme onayı doğrulandığında oluşur.</p>
             </div>
             <span className="badge neutral">{data.referrals.length} kayıt</span>
           </div>
@@ -153,7 +168,7 @@ export default function ReferralAdmin() {
                     <tr key={`${r.referred_tenant}-${r.referrer_tenant}`}>
                       <td>{r.referrer_name}</td>
                       <td>{r.referred_name}</td>
-                      <td>{money(Number(r.reward || 0))}</td>
+                      <td>{"200 puan"}</td>
                       <td><span className="badge neutral">{labels[r.status] || r.status}</span></td>
                       <td>{dateLabel(r.created_at.slice(0, 10))}</td>
                       <td>
@@ -175,6 +190,7 @@ export default function ReferralAdmin() {
             </div>
           )}
         </section>
+        <section className="panel margin-top"><h2>Puan kullanım talepleri</h2><p className="muted">Ücretsiz ayı tamamlamadan önce iyzico üzerindeki sonraki tahsilatı gerçekten ayarlayın; yalnızca Neta erişim tarihini değiştirmek ödeme alımını durdurmaz.</p>{!data.redemptions?.length?<p className="muted margin-top">Henüz talep yok.</p>:<div className="collection-list margin-top">{data.redemptions.map(r=><div className="collection-row" key={r.id}><div><strong>{r.business_name} · {r.kind==='month'?'Mevcut pakette ücretsiz ay':'Müdürlük ek paketi'}</strong><small>{r.status==='pending'?'İşlem bekliyor':r.status==='fulfilled'?'Tamamlandı':'Puanlar iade edildi'}</small></div>{r.status==='pending'&&<div className="button-group"><button type="button" className="button small" disabled={busy===r.id} onClick={()=>resolve(r.id,'fulfill',r.kind)}>Tamamla</button><button type="button" className="button small" disabled={busy===r.id} onClick={()=>resolve(r.id,'reject',r.kind)}>Reddet / puanı iade et</button></div>}</div>)}</div>}</section>
       </main>
     </PublicShell>
   );
