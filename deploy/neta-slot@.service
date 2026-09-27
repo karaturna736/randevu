@@ -21,7 +21,9 @@ ProtectHome=true
 ReadWritePaths=/var/lib/neta /var/backups/neta
 RestrictSUIDSGID=true
 LockPersonality=true
-MemoryDenyWriteExecute=true
+# Node/V8 JIT needs to create executable code pages at runtime. Enabling
+# MemoryDenyWriteExecute makes the candidate slot core-dump before health checks.
+MemoryDenyWriteExecute=false
 
 [Install]
 WantedBy=multi-user.target
