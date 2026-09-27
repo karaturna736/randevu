@@ -24,7 +24,8 @@ function bytesToBase64Url(bytes: Uint8Array) {
 }
 
 function base64UrlToBytes(value: string) {
-  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
   const binary = atob(padded);
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
@@ -98,6 +99,6 @@ export async function authenticatePassword(loginInput: unknown, passwordInput: u
   );
   if (!row || row.disabled || !(await verifyPanelPassword(password, row.password_hash)))
     throw new ApiError("E-posta veya şifre hatalı.", 401);
-  await q("UPDATE password_credentials SET last_login_at=?,updated_at=updated_at WHERE user_id=?", now(), row.user_id).run();
+  await q("UPDATE password_credentials SET last_login_at=? WHERE user_id=?", now(), row.user_id).run();
   return row;
 }
