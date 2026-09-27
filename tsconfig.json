@@ -25,6 +25,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "read-excel-file": [
+        "./lib/read-excel-file-shim.ts"
       ]
     },
     "types": [
