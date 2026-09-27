@@ -422,8 +422,8 @@ try {
       await db
         .prepare("SELECT COALESCE(SUM(amount),0) balance FROM credit_ledger WHERE tenant_id='referrer'")
         .first()
-    ).balance === 50000,
-    "First verified live payment and approval awards Neta Credit once",
+    ).balance === 20000,
+    "First verified live payment and approval awards 200 Neta Points once",
   );
   await api("admin", {
     action: "business-status",
