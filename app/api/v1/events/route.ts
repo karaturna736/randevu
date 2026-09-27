@@ -1,5 +1,6 @@
 import { broadcaster } from "@/lib/events";
-import { ApiError, fail, tenant } from "@/lib/server";
+import { businessAccess } from "@/lib/business-access";
+import { ApiError, fail } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,8 @@ export async function GET(req: Request) {
     const tenantId =
       url.searchParams.get("tenant") || url.searchParams.get("businessId") || "";
     if (!tenantId) throw new ApiError("İşletme kimliği gerekli.", 400);
-    await tenant(tenantId);
+    const access = await businessAccess(tenantId, ["owner", "manager", "employee"]);
+    const branchId = access.role === "owner" ? null : String(access.branchId);
 
     let unsubscribe: (() => void) | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -45,10 +47,12 @@ export async function GET(req: Request) {
         send("connected", {
           connected: true,
           tenantId,
+          branchId,
           timestamp: new Date().toISOString(),
         });
 
         unsubscribe = broadcaster.subscribe(tenantId, (event) => {
+          if (branchId && event.branchId !== branchId) return;
           send(event.type, event, event.id);
         });
 
@@ -65,9 +69,7 @@ export async function GET(req: Request) {
           "abort",
           () => {
             cleanup();
-            try {
-              controller.close();
-            } catch {}
+            try { controller.close(); } catch {}
           },
           { once: true },
         );
