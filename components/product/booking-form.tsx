@@ -393,6 +393,12 @@ export default function BookingForm({
               person={person}
               date={date}
               demo={demo}
+              demoSlots={demo ? Array.from({ length: 16 }, (_, i) => ({
+                minute: 600 + i * 30,
+                time: time(600 + i * 30),
+                staff_id: person === "any" ? staff[0]?.id : person,
+                staff_name: staff.find((p: any) => p.id === person)?.name || staff[0]?.name,
+              })) : []}
               disabled={loading}
               filtered={demand}
               onResult={(r: any) => {
@@ -410,8 +416,8 @@ export default function BookingForm({
                       Array.from({ length: 16 }, (_, i) => ({
                         minute: 600 + i * 30,
                         time: time(600 + i * 30),
-                        staff_id: staff[0]?.id,
-                        staff_name: staff[0]?.name,
+                        staff_id: person === "any" ? staff[0]?.id : person,
+                        staff_name: staff.find((p: any) => p.id === person)?.name || staff[0]?.name,
                       })),
                     );
                   else
