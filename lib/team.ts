@@ -21,7 +21,6 @@ export async function setTeamAccess(id: string, x: any) {
     return { ok: true };
   }
   if (!staff.branch_id) throw new ApiError('Önce personeli bir şubeye bağlayın.', 409);
-  if (!(await one('SELECT 1 ok FROM branch_manager_passwords WHERE tenant_id=? AND branch_id=?', id, staff.branch_id))) throw new ApiError('Çalışan hesabını bağlamadan önce bu şube için erişim şifresi belirleyin.', 409);
   const email = z.string().email().max(254).parse(x.email).toLowerCase();
   const matches = await all('SELECT user_id,name,email FROM profiles WHERE lower(email)=? AND disabled=0 LIMIT 2', email);
   if (matches.length !== 1) throw new ApiError('Personel önce bu e-posta ile üyeliğini tamamlamalı.');
