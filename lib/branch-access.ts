@@ -1,7 +1,23 @@
-import { one, ApiError } from "./server";
+import { z } from "zod";
+import { one, q, tenant, now, ApiError } from "./server";
 
 const PASSWORD_ITERATIONS_MIN = 100000;
 const PASSWORD_ITERATIONS_MAX = 1000000;
+const PASSWORD_ITERATIONS = 210000;
+const passwordSchema = z
+  .string()
+  .min(8, "Şube şifresi en az 8 karakter olmalı.")
+  .max(72, "Şube şifresi en fazla 72 karakter olabilir.")
+  .refine(
+    (value) => /\p{L}/u.test(value) && /\d/.test(value),
+    "Şube şifresinde en az bir harf ve bir rakam olmalı.",
+  );
+
+function toHex(bytes: Uint8Array) {
+  return Array.from(bytes)
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 function fromHex(value: string) {
   if (!/^[0-9a-f]+$/i.test(value) || value.length % 2) return null;
@@ -57,6 +73,35 @@ export async function branchPasswordConfigured(tenantId: string, branchId: strin
     tenantId,
     branchId,
   ));
+}
+
+export async function setBranchAccessPassword(
+  tenantId: string,
+  branchId: string,
+  password: string,
+) {
+  await tenant(tenantId);
+  const normalized = passwordSchema.parse(password);
+  const branch = await one(
+    "SELECT id FROM branches WHERE tenant_id=? AND id=? AND active=1",
+    tenantId,
+    branchId,
+  );
+  if (!branch) throw new ApiError("Şube bulunamadı.", 404);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const digest = await derivePassword(normalized, salt, PASSWORD_ITERATIONS);
+  const encoded = `pbkdf2-sha256$${PASSWORD_ITERATIONS}$${toHex(salt)}$${toHex(digest)}`;
+  await q(
+    `INSERT INTO branch_manager_passwords(tenant_id,branch_id,password_hash,updated_at)
+     VALUES(?,?,?,?)
+     ON CONFLICT(tenant_id,branch_id) DO UPDATE SET
+       password_hash=excluded.password_hash,updated_at=excluded.updated_at`,
+    tenantId,
+    branchId,
+    encoded,
+    now(),
+  ).run();
+  return { ok: true, branch_id: branchId, password_configured: true };
 }
 
 export async function verifyBranchAccessPassword(
