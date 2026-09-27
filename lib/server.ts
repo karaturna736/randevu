@@ -75,7 +75,7 @@ export async function paidTenant(userId: string, id?: string) {
  WHERE m.user_id=? AND m.disabled=0 AND m.role='owner' AND b.status NOT IN ('deleted','suspended')
  AND (? IS NULL OR b.id=?) AND (b.demo=1 OR EXISTS(SELECT 1 FROM subscriptions s WHERE s.tenant_id=b.id AND s.paid_until>?)
  OR EXISTS(SELECT 1 FROM recurring_subscriptions r WHERE r.tenant_id=b.id AND r.test_mode=0 AND r.plan IN ('normal','pro','plus') AND r.paid_until>?)
- OR EXISTS(SELECT 1 FROM onboarding_payments p JOIN admins a ON a.user_id=p.user_id WHERE p.tenant_id=b.id AND p.user_id=? AND p.state='active' AND p.test_mode=1))
+ OR EXISTS(SELECT 1 FROM onboarding_payments p JOIN admins a ON a.user_id=p.user_id WHERE p.tenant_id=b.id AND p.user_id=? AND p.state='active' AND p.test_mode=1 AND p.expires_at>?))
  ORDER BY b.created_at DESC LIMIT 1`,
     userId,
     id || null,
@@ -83,6 +83,7 @@ export async function paidTenant(userId: string, id?: string) {
     now(),
     now(),
     userId,
+    now(),
   );
 }
 export async function ownedTenant(id: string) {
