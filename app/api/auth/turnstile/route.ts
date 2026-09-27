@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
-        "Set-Cookie": `neta_turnstile=${gate}; Path=/api/auth/google; HttpOnly; Secure; SameSite=Lax; Max-Age=300`,
+        "Set-Cookie": `neta_turnstile=${gate}; Path=/api/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=300`,
       },
     });
   } catch (e) {
