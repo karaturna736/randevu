@@ -23,7 +23,14 @@ export async function teamJobs(id:string,d:string){
  const {u,rows}=await assignments();if(!rows.length)return {businesses:[],appointments:[],user:u};
  const b=id?rows.find(b=>b.id===id):rows[0];if(!b)throw new ApiError('Ekip erişimi reddedildi.',403);
  const day=date.parse(d||today());if(day<addDays(today(),-90)||day>addDays(today(),90))throw new ApiError('90 günlük aralıkta bir tarih seçin.');
- return {businesses:rows,business:b,user:u,appointments:await all(SELECT_APPOINTMENTS+' WHERE a.tenant_id=? AND a.staff_id=? AND a.date=? ORDER BY a.minute LIMIT 100',b.id,b.staff_id,day)};
+ const appointments=await all(SELECT_APPOINTMENTS+' WHERE a.tenant_id=? AND a.staff_id=? AND a.date=? ORDER BY a.minute LIMIT 100',b.id,b.staff_id,day);
+ return {businesses:rows,business:b,user:u,appointments:appointments.map((a:any)=>{
+  const operational={...a};
+  delete operational.price;
+  delete operational.deposit_amount;
+  delete operational.payment_status;
+  return operational;
+ })};
 }
 export async function finishTeamJob(id:string,x:any){
  const {rows}=await assignments(),assignment=rows.find(b=>b.id===id);if(!assignment)throw new ApiError('Ekip erişimi reddedildi.',403);

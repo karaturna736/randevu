@@ -122,6 +122,13 @@ export default function AdminHome() {
 
   const modules = [
     {
+      href: "/admin/ek-paketler",
+      icon: BadgePercent,
+      title: "Ek paketler",
+      description: "Müdürlük modülünün fiyatını ve işletme bazında erişimini yönetin. Çalışan paneli temel sistemde kalır.",
+      meta: "Fiyat · pilot erişim · şube yetkisi",
+    },
+    {
       href: "/admin/sistem",
       icon: Wrench,
       title: "Sistem kontrol merkezi",
