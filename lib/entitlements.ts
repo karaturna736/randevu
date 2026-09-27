@@ -190,13 +190,14 @@ export async function tenantPlan(tenantId: string): Promise<PlanCode> {
     "SELECT plan,state,test_mode,paid_until FROM recurring_subscriptions WHERE tenant_id=?",
     tenantId,
   );
+  const verifiedPlans: PlanCode[] = [];
   if (recurring && ["normal", "pro", "plus"].includes(recurring.plan)) {
     const paid =
         typeof recurring.paid_until === "string" && recurring.paid_until > now(),
       test =
         Number(recurring.test_mode) === 1 &&
         ["ACTIVE", "PENDING", "UPGRADED"].includes(String(recurring.state));
-    if (paid || test) return recurring.plan as PlanCode;
+    if (paid || test) verifiedPlans.push(recurring.plan as PlanCode);
   }
 
   const manual = await one(
@@ -205,8 +206,14 @@ export async function tenantPlan(tenantId: string): Promise<PlanCode> {
     now(),
   );
   if (manual && ["normal", "pro", "plus"].includes(manual.plan))
-    return manual.plan as PlanCode;
-  return "normal";
+    verifiedPlans.push(manual.plan as PlanCode);
+  // A verified manual/temporary Plus grant may overlap an older recurring Pro
+  // record. Honor the strongest still-active entitlement, never selected_plan.
+  const rank: Record<PlanCode, number> = { normal: 0, pro: 1, plus: 2 };
+  return verifiedPlans.reduce<PlanCode>(
+    (best, plan) => rank[plan] > rank[best] ? plan : best,
+    "normal",
+  );
 }
 
 function windowFor(feature: "whatsapp" | "ai") {
