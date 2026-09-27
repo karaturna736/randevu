@@ -58,7 +58,9 @@ async function inflateRaw(data: Uint8Array) {
     throw new Error(
       "Tarayıcınız Excel sıkıştırmasını desteklemiyor. Güncel Chrome, Edge veya Firefox ile tekrar deneyin.",
     );
-  const stream = new Blob([data]).stream().pipeThrough(new Ctor("deflate-raw"));
+  const copy = new Uint8Array(data.byteLength);
+  copy.set(data);
+  const stream = new Blob([copy.buffer]).stream().pipeThrough(new Ctor("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
