@@ -23,6 +23,7 @@ import {
   parseSetupCsv,
   type SetupImportKind,
 } from "./setup-import-utils";
+import { parseSetupXlsx } from "./setup-xlsx-reader";
 
 export function RecoveryEngine({ w }: any) {
   const [d, setD] = useState<any>(null),
@@ -139,10 +140,8 @@ export function SetupCenter({ w }: any) {
     setError("");
     try {
       let rows: unknown[][];
-      if (f.name.toLowerCase().endsWith(".xlsx")) {
-        const read = (await import("read-excel-file")).default;
-        rows = (await read(f)) as unknown[][];
-      } else rows = parseSetupCsv(await f.text());
+      if (f.name.toLowerCase().endsWith(".xlsx")) rows = await parseSetupXlsx(f);
+      else rows = parseSetupCsv(await f.text());
       const groups = buildSetupImport(kind, rows);
       let imported = 0,
         skipped = 0,
@@ -184,7 +183,7 @@ export function SetupCenter({ w }: any) {
         );
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message || "Excel/CSV dosyası okunamadı.");
     } finally {
       setBusy(false);
       e.target.value = "";
