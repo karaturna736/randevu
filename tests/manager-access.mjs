@@ -33,11 +33,15 @@ try {
 
   await db.prepare("INSERT INTO profiles(user_id,name,email,phone,city,account_type,created_at,updated_at) VALUES('employee','Çalışan','employee@example.test','','','business',?,?)")
     .bind(new Date().toISOString(),new Date().toISOString()).run();
-  assert.equal((await call('team-access','owner',{tenant_id:id,staff_id:job.staff_id,email:'employee@example.test'})).status,409);
+  assert.equal((await call('team-access','owner',{tenant_id:id,staff_id:job.staff_id,email:'employee@example.test'})).status,200);
+  const beforePassword=await call('team-jobs?tenant='+id+'&date='+job.date,'employee');
+  assert.equal(beforePassword.status,200);
+  assert.equal(beforePassword.data.password_required,true);
+  assert.equal(beforePassword.data.appointments.length,0);
+  assert.equal((await request('/api/team/workspace','employee',{tenant_id:id,date:job.date,branch_password:'Sube12345'})).status,409);
   assert.equal((await request('/api/manager/branch-password','owner',{tenant_id:id,branch_id:branch.id,password:'12345678'})).status,400);
   const branchPassword='Sube12345';
   assert.equal((await request('/api/manager/branch-password','owner',{tenant_id:id,branch_id:branch.id,password:branchPassword})).status,200);
-  assert.equal((await call('team-access','owner',{tenant_id:id,staff_id:job.staff_id,email:'employee@example.test'})).status,200);
   const legacyEmployee=await call('team-jobs?tenant='+id+'&date='+job.date,'employee');
   assert.equal(legacyEmployee.status,200);
   assert.equal(legacyEmployee.data.password_required,true);
