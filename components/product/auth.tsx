@@ -38,7 +38,7 @@ export default function AuthPage({ signup = false }: { signup?: boolean }) {
   });
   useEffect(() => {
     const q = new URLSearchParams(location.search);
-    if (q.get("rol") === "customer") setRole("customer");
+    if (["customer", "business", "manager", "staff"].includes(q.get("rol") || "")) setRole(q.get("rol")!);
     setNext(q.get("sonra"));
     const captured = (q.get("ref") || sessionStorage.getItem("neta-ref") || "")
       .trim()
@@ -64,7 +64,7 @@ export default function AuthPage({ signup = false }: { signup?: boolean }) {
   const destination = () =>
     safeDestination(
       next,
-      role === "business"
+      role === "manager" ? "/mudur" : role === "staff" ? "/ekibim" : role === "business"
         ? data?.businesses?.length
           ? "/panel"
           : "/kurulum"
@@ -103,7 +103,7 @@ export default function AuthPage({ signup = false }: { signup?: boolean }) {
     setError("");
     try {
       if (role === "business" && referral) await verifyReferral();
-      await api("account", { ...form, account_type: role });
+      await api("account", { ...form, account_type: role === "customer" ? "customer" : "business" });
       await reload();
       location.assign(destination());
     } catch (e: any) {
@@ -269,19 +269,21 @@ export default function AuthPage({ signup = false }: { signup?: boolean }) {
                 : "Hesabınızı oluşturun, işletmenizi hazırlayın ve randevu almaya başlayın."}
           </p>
           <Tabs value={role} onValueChange={setRole}>
-            <TabsList className="role-tabs">
+            <TabsList className="role-tabs account-role-tabs">
               <TabsTrigger value="customer">
                 <UserRound size={18} />
                 Müşteriyim
               </TabsTrigger>
               <TabsTrigger value="business">
                 <Store size={18} />
-                İşletme sahibiyim
+                Yönetici
               </TabsTrigger>
+              <TabsTrigger value="manager"><ShieldCheck size={18}/>Müdür</TabsTrigger>
+              <TabsTrigger value="staff"><UserRound size={18}/>Çalışan</TabsTrigger>
             </TabsList>
           </Tabs>
           <p className="role-description">
-            {role === "customer"
+            {role === "manager" ? "Yetkili olduğunuz şubenin randevuları ve yönetim özeti." : role === "staff" ? "Atanan randevularınız ve günlük işleriniz. Ek paket gerektirmez." : role === "customer"
               ? "Randevularınız, favorileriniz ve profiliniz."
               : "İşletmeniz, ekibiniz ve müşterileriniz."}
           </p>
@@ -311,7 +313,7 @@ export default function AuthPage({ signup = false }: { signup?: boolean }) {
                 className="button primary full large-button"
                 href={destination()}
               >
-                {role === "business"
+                {role === "manager" ? "Müdür panelime git" : role === "staff" ? "Çalışan panelime git" : role === "business"
                   ? data.businesses.length
                     ? "İşletme panelime git"
                     : "İşletmemi oluştur"

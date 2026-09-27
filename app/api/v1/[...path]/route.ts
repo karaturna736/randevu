@@ -87,6 +87,7 @@ import {
   serviceAnalytics,
 } from "@/lib/demand";
 import { earlyInbox } from "@/lib/early";
+import { managerDirectory, setManager, managerBusinesses, managerAppointment, businessAddons, adminAddonOverview, adminSetAddonPrice, adminSetManagerAddon } from "@/lib/manager";
 import { teamAccess, setTeamAccess, teamJobs, finishTeamJob } from "@/lib/team";
 import {
   accountSnapshot,
@@ -255,6 +256,10 @@ export async function GET(req: Request) {
       return ok(await serviceAnalytics(id, u.searchParams.get("days") || 30));
     if (p[0] === "early-offers") return ok(await earlyInbox());
     if (p[0] === "team-access") return ok(await teamAccess(id));
+    if (p[0] === "managers") return ok(await managerDirectory(id));
+    if (p[0] === "business-addons") return ok(await businessAddons(id));
+    if (p[0] === "admin-addons") return ok(await adminAddonOverview());
+    if (p[0] === "manager-businesses") return ok({ businesses: await managerBusinesses() });
     if (p[0] === "team-jobs")
       return ok(await teamJobs(id, u.searchParams.get("date") || ""));
     if (p[0] === "account") return ok(await accountSnapshot());
@@ -459,6 +464,22 @@ export async function POST(req: Request) {
     if (p[0] === "team-access") {
       await limit(req, "team-access", 30);
       return ok(await setTeamAccess(id, x));
+    }
+    if (p[0] === "managers") {
+      await limit(req, "manager-assign", 30);
+      return ok(await setManager(id, x));
+    }
+    if (p[0] === "manager-appointment") {
+      await limit(req, "manager-appointment", 60);
+      return ok(await managerAppointment(id, x));
+    }
+    if (p[0] === "admin-addon-price") {
+      await limit(req, "addon-price", 15);
+      return ok(await adminSetAddonPrice(x));
+    }
+    if (p[0] === "admin-manager-addon") {
+      await limit(req, "manager-addon", 30);
+      return ok(await adminSetManagerAddon(x));
     }
     if (p[0] === "team-jobs") return ok(await finishTeamJob(id, x));
     if (p[0] === "account") {

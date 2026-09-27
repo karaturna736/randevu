@@ -78,9 +78,9 @@ export default function Landing() {
             <ThemeToggle />
             <a
               className="neta-login"
-              href={signed ? "/panel" : "/giris?rol=business"}
+              href="/giris?rol=business"
             >
-              {signed ? "Panelime git" : "Giriş yap"}
+              {signed ? "Panele giriş" : "Giriş yap"}
             </a>
             <a className="button primary" href={start}>
               Hemen başla <ArrowRight size={16} />

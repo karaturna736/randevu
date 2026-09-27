@@ -90,6 +90,7 @@ export default function Admin({ initialView = "businesses" }: { initialView?: st
           <Link className="button primary" href="/admin/kampanyalar">
             <Megaphone size={16} /> Kampanyalar
           </Link>
+          <Link className="button" href="/admin/ek-paketler">Ek paketler</Link>
         </div>
         {error ? (
           <section className="panel">
