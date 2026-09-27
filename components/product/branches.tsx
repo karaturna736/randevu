@@ -313,17 +313,18 @@ export function BranchProfitability({ w }: any) {
         >
           <div className="section-heading">
             <div>
-              <span className="eyebrow">PLUS İLE DAHA DERİN ANALİZ</span>
+              <span className="eyebrow">
+                {w.business.selected_plan === "plus" ? "PAKET DURUMU" : "PLUS İLE DAHA DERİN ANALİZ"}
+              </span>
               <h2><Crown size={19} /> Kârın nedenini kalem kalem görün</h2>
               <p className="muted">
-                Pro temel ciro, gider ve net sonucu gösterir. Plus; ortalama işlem
-                tutarı, saat başı ciro, net marj, geri dönen müşteri, no-show,
-                hizmet karması ve şubeler arası kâr farkının matematiksel nedenlerini
-                açar. Kayıtlı gider kalemlerini de tekrar kullanabilirsiniz.
+                {w.business.selected_plan === "plus"
+                  ? "Plus seçilmiş görünüyor; ancak bu işletme için etkin Plus ödeme veya yönetici onayı bulunamadı. Abonelik durumunuzu kontrol edin."
+                  : "Pro temel ciro, gider ve net sonucu gösterir. Plus; ortalama işlem tutarı, saat başı ciro, net marj, geri dönen müşteri, no-show, hizmet karması ve şubeler arası kâr farkının nedenlerini açar."}
               </p>
             </div>
             <a className="button primary" href={`/abonelik?tenant=${w.business.id}`}>
-              Plus özelliklerini gör <ArrowRight size={16} />
+              {w.business.selected_plan === "plus" ? "Aboneliği kontrol et" : "Plus özelliklerini gör"} <ArrowRight size={16} />
             </a>
           </div>
         </section>

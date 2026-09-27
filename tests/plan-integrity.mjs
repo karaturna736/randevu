@@ -237,6 +237,40 @@ try {
     "Plus setup center is operational",
   );
 
+  // A verified Plus grant can overlap a recurring Pro record. Every module
+  // must resolve the same effective entitlement.
+  await db.prepare("UPDATE businesses SET selected_plan='plus' WHERE id='plan-pro'").run();
+  check(
+    (await call("branches?tenant=plan-pro", { user: "pro-owner" })).data.plan === "pro",
+    "Choosing Plus without a verified grant does not unlock it",
+  );
+  await db.prepare(
+    "INSERT INTO subscriptions(tenant_id,paid_until,updated_at,plan) VALUES(?,?,?,'plus')",
+  ).bind("plan-pro", future(), created).run();
+  const upgradedWorkspace = await call("workspace?tenant=plan-pro", { user: "pro-owner" });
+  const upgradedBranches = await call("branches?tenant=plan-pro", { user: "pro-owner" });
+  const upgradedGrowth = await call("growth?tenant=plan-pro", { user: "pro-owner" });
+  check(
+    upgradedWorkspace.data.entitlements.plan === "plus" &&
+      upgradedBranches.data.plan === "plus" &&
+      upgradedBranches.data.limits.branches === null &&
+      upgradedGrowth.data.premium === true,
+    "Verified Plus grant overrides older Pro across workspace, branch and branding",
+  );
+  check(
+    (await call("growth", { user: "pro-owner", body: {
+      tenant_id: "plan-pro", theme: "auto", hide_brand: true,
+      autopilot: false, recall_days: 30,
+      welcome: "Merhaba, randevu için bize yazabilirsiniz.",
+    } })).status === 200,
+    "Verified Plus owner can save brand hiding",
+  );
+  await db.prepare("DELETE FROM subscriptions WHERE tenant_id='plan-pro'").run();
+  check(
+    (await call("branches?tenant=plan-pro", { user: "pro-owner" })).data.plan === "pro",
+    "Removing Plus grant restores the active Pro entitlement",
+  );
+
   // Panel randevu asistanı da Pro/Plus AI günlük kotasından tüketir.
   const aiBucket = new Date().toISOString().slice(0, 10);
   const aiKey = sha256(`plan-quota:plan-pro:ai:${aiBucket}`);
