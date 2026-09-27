@@ -70,17 +70,16 @@ const importSchema = z.object({
 });
 
 export async function setupSnapshot(id: string) {
-  await tenant(id);
+  const b = await tenant(id);
   await requirePlanModule(id, "setupCenter");
-  const b = await tenant(id),
-    counts = await one(
-      "SELECT (SELECT COUNT(*) FROM customers WHERE tenant_id=?) customers,(SELECT COUNT(*) FROM services WHERE tenant_id=? AND active=1) services,(SELECT COUNT(*) FROM staff WHERE tenant_id=? AND active=1) staff,(SELECT COUNT(*) FROM appointments WHERE tenant_id=?) appointments,(SELECT COUNT(*) FROM receivables WHERE tenant_id=? AND status='open' AND remaining>0) receivables",
-      id,
-      id,
-      id,
-      id,
-      id,
-    );
+  const counts = await one(
+    "SELECT (SELECT COUNT(*) FROM customers WHERE tenant_id=?) customers,(SELECT COUNT(*) FROM services WHERE tenant_id=? AND active=1) services,(SELECT COUNT(*) FROM staff WHERE tenant_id=? AND active=1) staff,(SELECT COUNT(*) FROM appointments WHERE tenant_id=?) appointments,(SELECT COUNT(*) FROM receivables WHERE tenant_id=? AND status='open' AND remaining>0) receivables",
+    id,
+    id,
+    id,
+    id,
+    id,
+  );
   return {
     business: { name: b.name, slug: b.slug, hours: JSON.parse(b.hours) },
     counts,
@@ -97,11 +96,11 @@ export async function setupSnapshot(id: string) {
 }
 
 export async function importSetup(id: string, input: any) {
-  await tenant(id);
+  const b = await tenant(id);
   await requirePlanModule(id, "setupCenter");
-  const b = await tenant(id),
-    u = await user(),
+  const u = await user(),
     x = importSchema.parse(input);
+
   if (
     await one(
       "SELECT id FROM setup_import_batches WHERE id=? AND tenant_id=?",
@@ -127,7 +126,7 @@ export async function importSetup(id: string, input: any) {
     skipped++;
     if (issues.length < 12) issues.push(`${index + 2}. satır: ${message}`);
   };
-  const parse = <T>(schema: z.ZodType<T>, raw: unknown, index: number) => {
+  const parse = <T>(schema: z.ZodType<T>, raw: unknown, index: number): T | null => {
     const result = schema.safeParse(raw);
     if (result.success) return result.data;
     issue(index, result.error.issues[0]?.message || "Kayıt doğrulanamadı.");
@@ -155,9 +154,16 @@ export async function importSetup(id: string, input: any) {
   }
 
   if (x.kind === "services") {
+    const localNames = new Set<string>();
     for (let index = 0; index < x.rows.length; index++) {
       const r = parse(service, x.rows[index], index);
       if (!r) continue;
+      const localKey = r.name.toLocaleLowerCase("tr-TR");
+      if (localNames.has(localKey)) {
+        duplicateRows++;
+        continue;
+      }
+      localNames.add(localKey);
       const old = await one(
         "SELECT id FROM services WHERE tenant_id=? AND lower(name)=lower(?) LIMIT 1",
         id,
@@ -195,9 +201,16 @@ export async function importSetup(id: string, input: any) {
   );
 
   if (x.kind === "staff") {
+    const localNames = new Set<string>();
     for (let index = 0; index < x.rows.length; index++) {
       const r = parse(person, x.rows[index], index);
       if (!r) continue;
+      const localKey = r.name.toLocaleLowerCase("tr-TR");
+      if (localNames.has(localKey)) {
+        duplicateRows++;
+        continue;
+      }
+      localNames.add(localKey);
       const old = await one(
         "SELECT id FROM staff WHERE tenant_id=? AND lower(name)=lower(?) LIMIT 1",
         id,
@@ -230,8 +243,10 @@ export async function importSetup(id: string, input: any) {
   }
 
   if (x.kind === "appointments" || x.kind === "receivables") {
-    if (!primaryBranch)
-      throw new ApiError("Aktarım için aktif bir şube bulunamadı. Önce şube ayarlarını kontrol edin.");
+    if (x.kind === "appointments" && !primaryBranch)
+      throw new ApiError(
+        "Randevu aktarımı için aktif bir şube bulunamadı. Önce şube ayarlarını kontrol edin.",
+      );
 
     const customerIds = new Map<string, string>(),
       touchedCustomers = new Set<string>(),
@@ -241,14 +256,15 @@ export async function importSetup(id: string, input: any) {
       staffBranches = new Map<string, string>(),
       touchedStaff = new Set<string>(),
       pendingAppointments = new Set<string>(),
-      pendingSlots = new Set<string>();
+      pendingSlots = new Set<string>(),
+      pendingReceivables = new Set<string>();
 
     const customerId = async (r: {
       name: string;
       phone: string;
       email?: string;
       consent?: boolean;
-    }) => {
+    }): Promise<string> => {
       let cid = customerIds.get(r.phone);
       if (!cid) {
         const old = await one(
@@ -256,7 +272,7 @@ export async function importSetup(id: string, input: any) {
           id,
           r.phone,
         );
-        cid = old?.id || uid();
+        cid = String(old?.id || uid());
         customerIds.set(r.phone, cid);
       }
       if (!touchedCustomers.has(r.phone)) {
@@ -281,7 +297,7 @@ export async function importSetup(id: string, input: any) {
       service_name: string;
       duration: number;
       price: number;
-    }) => {
+    }): Promise<string> => {
       const key = r.service_name.toLocaleLowerCase("tr-TR");
       let sid = serviceIds.get(key);
       if (!sid) {
@@ -290,7 +306,7 @@ export async function importSetup(id: string, input: any) {
           id,
           r.service_name,
         );
-        sid = old?.id || uid();
+        sid = String(old?.id || uid());
         serviceIds.set(key, sid);
         if (!old && !touchedServices.has(key)) {
           touchedServices.add(key);
@@ -311,7 +327,11 @@ export async function importSetup(id: string, input: any) {
       return sid;
     };
 
-    const staffId = async (staffName: string) => {
+    const staffId = async (
+      staffName: string,
+    ): Promise<{ id: string; branchId: string }> => {
+      if (!primaryBranch)
+        throw new ApiError("Randevu aktarımı için aktif bir şube bulunamadı.");
       const key = staffName.toLocaleLowerCase("tr-TR");
       let pid = staffIds.get(key);
       if (!pid) {
@@ -320,9 +340,9 @@ export async function importSetup(id: string, input: any) {
           id,
           staffName,
         );
-        pid = old?.id || uid();
+        pid = String(old?.id || uid());
         staffIds.set(key, pid);
-        staffBranches.set(key, old?.branch_id || primaryBranch.id);
+        staffBranches.set(key, String(old?.branch_id || primaryBranch.id));
         if (!old && !touchedStaff.has(key)) {
           touchedStaff.add(key);
           ops.push(
@@ -341,7 +361,7 @@ export async function importSetup(id: string, input: any) {
       }
       return {
         id: pid,
-        branchId: staffBranches.get(key) || primaryBranch.id,
+        branchId: staffBranches.get(key) || String(primaryBranch.id),
       };
     };
 
@@ -352,13 +372,7 @@ export async function importSetup(id: string, input: any) {
         const cid = await customerId(r),
           sid = await serviceId(r),
           staff = await staffId(r.staff_name),
-          appointmentKey = [
-            cid,
-            sid,
-            staff.id,
-            r.date,
-            r.minute,
-          ].join("|");
+          appointmentKey = [cid, sid, staff.id, r.date, r.minute].join("|");
         if (pendingAppointments.has(appointmentKey)) {
           duplicateRows++;
           continue;
@@ -459,6 +473,10 @@ export async function importSetup(id: string, input: any) {
               r.note,
             ].join("|"),
           );
+        if (pendingReceivables.has(idempotencyKey)) {
+          duplicateRows++;
+          continue;
+        }
         if (
           await one(
             "SELECT id FROM receivables WHERE tenant_id=? AND idempotency_key=? LIMIT 1",
@@ -469,6 +487,7 @@ export async function importSetup(id: string, input: any) {
           duplicateRows++;
           continue;
         }
+        pendingReceivables.add(idempotencyKey);
         ops.push(
           q(
             "INSERT INTO receivables(id,tenant_id,customer_id,appointment_id,title,amount,remaining,due_date,note,created_by,created_at,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
