@@ -10,8 +10,22 @@ export async function accountSnapshot(){
  const u=await user();
  const profile=await one('SELECT * FROM profiles WHERE user_id=?',u.userId);
  const businesses=await all("SELECT b.id,b.name,b.slug,b.status,b.demo FROM businesses b JOIN members m ON m.tenant_id=b.id WHERE m.user_id=? AND m.disabled=0 AND m.role='owner' AND b.status NOT IN ('deleted','suspended') ORDER BY b.created_at DESC",u.userId);
- const staffMemberships=await all("SELECT b.id,b.name FROM members m JOIN businesses b ON b.id=m.tenant_id JOIN staff p ON p.tenant_id=m.tenant_id AND p.id=m.staff_id WHERE m.user_id=? AND m.role='staff' AND m.disabled=0 AND p.active=1 AND b.status NOT IN ('deleted','suspended')",u.userId);
- return {authenticated:true,user:u,profile,businesses,staff_memberships:staffMemberships,isAdmin:await isAdmin(u)};
+ const staffMemberships=await all(`SELECT b.id,b.name,b.slug,m.staff_id,p.name staff_name,
+   COALESCE(m.branch_id,p.branch_id) branch_id,br.name branch_name,
+   CASE WHEN bp.password_hash IS NULL THEN 0 ELSE 1 END password_configured
+   FROM members m JOIN businesses b ON b.id=m.tenant_id
+   JOIN staff p ON p.tenant_id=m.tenant_id AND p.id=m.staff_id
+   LEFT JOIN branches br ON br.tenant_id=m.tenant_id AND br.id=COALESCE(m.branch_id,p.branch_id)
+   LEFT JOIN branch_manager_passwords bp ON bp.tenant_id=m.tenant_id AND bp.branch_id=COALESCE(m.branch_id,p.branch_id)
+   WHERE m.user_id=? AND m.role='staff' AND m.disabled=0 AND p.active=1
+     AND b.status NOT IN ('deleted','suspended')`,u.userId);
+ const managerMemberships=await all(`SELECT b.id,b.name,b.slug,m.branch_id,br.name branch_name
+   FROM members m JOIN businesses b ON b.id=m.tenant_id
+   JOIN branches br ON br.tenant_id=m.tenant_id AND br.id=m.branch_id AND br.active=1
+   JOIN tenant_addons ta ON ta.tenant_id=b.id AND ta.code='management' AND ta.enabled=1
+   WHERE m.user_id=? AND m.role='manager' AND m.disabled=0
+     AND b.status NOT IN ('deleted','suspended')`,u.userId);
+ return {authenticated:true,user:u,profile,businesses,staff_memberships:staffMemberships,manager_memberships:managerMemberships,isAdmin:await isAdmin(u)};
 }
 
 export async function saveProfile(input:unknown){
