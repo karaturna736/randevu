@@ -9,7 +9,6 @@ const MANAGER = new Set([
   "Randevular",
   "Takvim",
   "Müşteriler",
-  "Hizmetler",
   "Ekip",
   "Şube kârlılığı",
   "Yardım merkezi",
