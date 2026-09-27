@@ -10,6 +10,10 @@ import {
   Trash2,
   LibraryBig,
   BarChart3,
+  Crown,
+  Gauge,
+  Layers3,
+  ArrowRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { api, Busy, Blank, Field, Modal, Pick } from "./common";
@@ -77,11 +81,26 @@ export function BranchProfitability({ w }: any) {
 
   if (!data) return error ? <p className="error-message">{error}</p> : <Busy />;
 
-  const best = [...data.branches].sort((a, b) => b.net - a.net)[0],
+  const isPlus = data.plan === "plus",
+    isPro = data.plan === "pro",
+    best = [...data.branches].sort((a, b) => b.net - a.net)[0],
     worst = [...data.branches].sort((a, b) => a.net - b.net)[0],
     canAdd =
       data.limits.branches === null ||
-      data.branches.filter((b: any) => b.active).length < data.limits.branches;
+      data.branches.filter((b: any) => b.active).length < data.limits.branches,
+    companyMargin = data.summary.revenue
+      ? Math.round((data.summary.net / data.summary.revenue) * 1000) / 10
+      : 0,
+    expenseBreakdown = categories
+      .map(([key, label]) => ({
+        key,
+        label,
+        amount: data.expenses
+          .filter((row: any) => row.category === key)
+          .reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0),
+      }))
+      .filter((row) => row.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
 
   return (
     <div className="operations-stack">
@@ -155,7 +174,60 @@ export function BranchProfitability({ w }: any) {
         </p>
       </section>
 
-      {data.analysis?.comparisons?.length > 0 && (
+      {isPlus && (
+        <section
+          className="panel"
+          style={{
+            border: "1px solid color-mix(in srgb, var(--primary) 44%, var(--border))",
+            background:
+              "linear-gradient(135deg, color-mix(in srgb, var(--primary) 11%, var(--card)), var(--card) 52%, color-mix(in srgb, var(--accent) 45%, var(--card)))",
+          }}
+        >
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">PLUS FİNANS MERKEZİ</span>
+              <h2><Crown size={20} /> Şube yönetiminin finans kokpiti</h2>
+              <p className="muted">
+                Şube performansını, gider yapısını ve kârın neden oluştuğunu tek
+                ekranda izleyin. Hesaplamalar doğrudan kayıtlı verilerden üretilir.
+              </p>
+            </div>
+            <span className="badge confirmed">Plus aktif</span>
+          </div>
+
+          <div
+            className="operations-metrics margin-top"
+            style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}
+          >
+            <div className="operation-metric">
+              <Crown size={19} />
+              <span>En güçlü şube</span>
+              <strong style={{ fontSize: 20 }}>{best?.name || "—"}</strong>
+              <small>{best ? money(best.net) + " net sonuç" : "Veri bekleniyor"}</small>
+            </div>
+            <div className="operation-metric">
+              <Gauge size={19} />
+              <span>Toplam net marj</span>
+              <strong>%{companyMargin}</strong>
+              <small>Ciroya göre net sonuç</small>
+            </div>
+            <div className="operation-metric">
+              <Layers3 size={19} />
+              <span>Kayıtlı gider kalemi</span>
+              <strong>{data.catalog.length}</strong>
+              <small>Tekrar kullanılabilir şablon</small>
+            </div>
+            <div className="operation-metric">
+              <ReceiptText size={19} />
+              <span>Bu ay gider kaydı</span>
+              <strong>{data.expenses.length}</strong>
+              <small>{money(data.summary.expenses)} toplam</small>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {isPlus && data.analysis?.comparisons?.length > 0 && (
         <section className="panel">
           <div className="section-heading">
             <div>
@@ -166,7 +238,7 @@ export function BranchProfitability({ w }: any) {
                 işlem tutarı ve gerçek gider farklarını doğrudan veriden hesaplar.
               </p>
             </div>
-            <span className="badge confirmed">Sistemsel analiz</span>
+            <span className="badge confirmed">Plus · Sistemsel analiz</span>
           </div>
 
           <div className="operations-stack margin-top">
@@ -231,6 +303,32 @@ export function BranchProfitability({ w }: any) {
         </section>
       )}
 
+      {isPro && (
+        <section
+          className="panel"
+          style={{
+            borderStyle: "dashed",
+            background: "color-mix(in srgb, var(--primary) 4%, var(--card))",
+          }}
+        >
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">PLUS İLE DAHA DERİN ANALİZ</span>
+              <h2><Crown size={19} /> Kârın nedenini kalem kalem görün</h2>
+              <p className="muted">
+                Pro temel ciro, gider ve net sonucu gösterir. Plus; ortalama işlem
+                tutarı, saat başı ciro, net marj, geri dönen müşteri, no-show,
+                hizmet karması ve şubeler arası kâr farkının matematiksel nedenlerini
+                açar. Kayıtlı gider kalemlerini de tekrar kullanabilirsiniz.
+              </p>
+            </div>
+            <a className="button primary" href={`/abonelik?tenant=${w.business.id}`}>
+              Plus özelliklerini gör <ArrowRight size={16} />
+            </a>
+          </div>
+        </section>
+      )}
+
       <div className="toolbar">
         <p className="muted">
           {data.branches.length} şube ·{" "}
@@ -257,7 +355,7 @@ export function BranchProfitability({ w }: any) {
           >
             <ReceiptText size={16} /> Gider ekle
           </button>
-          {data.plan === "plus" && (
+          {isPlus && (
             <button
               className="button"
               onClick={() =>
@@ -314,17 +412,22 @@ export function BranchProfitability({ w }: any) {
                 </b>
               </span>
             </div>
-            <div className="branch-finance">
-              <span>Ort. işlem <b>{money(b.avg_ticket)}</b></span>
-              <span>Hizmet saati başı <b>{money(b.revenue_per_hour)}</b></span>
-              <span>Net marj <b>%{b.net_margin}</b></span>
-            </div>
-            <p className="helper">
-              Gelmeme: %{b.no_show_rate} · Geri dönen müşteri: %{b.returning_rate}
-              {b.top_service
-                ? ` · En çok ciro: ${b.top_service.name} (%${b.top_service.revenue_share})`
-                : ""}
-            </p>
+
+            {isPlus && (
+              <>
+                <div className="branch-finance">
+                  <span>Ort. işlem <b>{money(b.avg_ticket)}</b></span>
+                  <span>Hizmet saati başı <b>{money(b.revenue_per_hour)}</b></span>
+                  <span>Net marj <b>%{b.net_margin}</b></span>
+                </div>
+                <p className="helper">
+                  Gelmeme: %{b.no_show_rate} · Geri dönen müşteri: %{b.returning_rate}
+                  {b.top_service
+                    ? ` · En çok ciro: ${b.top_service.name} (%${b.top_service.revenue_share})`
+                    : ""}
+                </p>
+              </>
+            )}
 
             <div className="button-group">
               <button className="button" onClick={() => setBranch({ ...b })}>
@@ -379,19 +482,24 @@ export function BranchProfitability({ w }: any) {
         </div>
       )}
 
-      {data.plan === "plus" && (
-        <section className="panel expense-catalog-panel">
+      {isPlus && (
+        <section
+          className="panel expense-catalog-panel"
+          style={{
+            border: "1px solid color-mix(in srgb, var(--primary) 32%, var(--border))",
+          }}
+        >
           <div className="section-heading">
             <div>
-              <span className="eyebrow">TEKRAR KULLANILAN GİDERLER</span>
-              <h2>Kayıtlı gider kalemleri</h2>
+              <span className="eyebrow">PLUS · GİDER KÜTÜPHANESİ</span>
+              <h2><LibraryBig size={20} /> Kayıtlı gider kalemleri</h2>
               <p className="muted">
-                Makas, krem, masaj aleti veya kira gibi kalemleri bir kez kaydedin;
-                sonraki aylarda listeden seçin.
+                Makas, krem, masaj aleti, kira veya düzenli hizmet giderlerini bir
+                kez tanımlayın; sonraki aylarda tekrar yazmadan kullanın.
               </p>
             </div>
             <button
-              className="button"
+              className="button primary"
               onClick={() =>
                 setCatalogItem({
                   name: "",
@@ -405,12 +513,30 @@ export function BranchProfitability({ w }: any) {
                 })
               }
             >
-              <Plus size={16} /> Yeni kalem
+              <Plus size={16} /> Yeni gider kalemi
             </button>
           </div>
 
+          {expenseBreakdown.length > 0 && (
+            <div className="collection-list">
+              <div className="collection-row">
+                <div>
+                  <strong>Bu ay gider dağılımı</strong>
+                  <small>Şubelerde kaydedilen giderlerin kategori bazlı özeti</small>
+                </div>
+                <b>{money(data.summary.expenses)}</b>
+              </div>
+              {expenseBreakdown.map((row) => (
+                <div className="collection-row" key={row.key}>
+                  <div><strong>{row.label}</strong></div>
+                  <b>{money(row.amount)}</b>
+                </div>
+              ))}
+            </div>
+          )}
+
           {data.catalog.length ? (
-            <div className="catalog-grid">
+            <div className="catalog-grid margin-top">
               {data.catalog.map((item: any) => (
                 <button
                   type="button"
@@ -442,7 +568,13 @@ export function BranchProfitability({ w }: any) {
 
       {data.expenses.length > 0 && (
         <section className="panel">
-          <h2>Bu ayın gider kayıtları</h2>
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">AYLIK GİDER DEFTERİ</span>
+              <h2>Bu ayın gider kayıtları</h2>
+            </div>
+            {isPlus && <span className="badge neutral">{data.expenses.length} kayıt</span>}
+          </div>
           {data.expenses.map((e: any) => (
             <div className="collection-row" key={e.id}>
               <div>
@@ -542,7 +674,7 @@ export function BranchProfitability({ w }: any) {
               />
             </Field>
 
-            {data.plan === "plus" && (
+            {isPlus && (
               <Field label="Kayıtlı gider kalemi">
                 <Pick
                   label="Gider kalemi"
