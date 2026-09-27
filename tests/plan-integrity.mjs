@@ -271,6 +271,51 @@ try {
     "Removing Plus grant restores the active Pro entitlement",
   );
 
+  // Platform yöneticisinin eski 0 TL Plus test kaydı, subscriptions satırı Pro
+  // kalsa bile aynı doğrulanmış Plus yetkisini bütün modüllere taşımalı.
+  await db
+    .prepare("INSERT INTO admins(user_id,email,created_at) VALUES(?,?,?)")
+    .bind("pro-owner", "pro-owner@example.test", created)
+    .run();
+  await db
+    .prepare(
+      `INSERT INTO onboarding_payments(
+        id,user_id,user_email,user_name,slug,provider,plan,plan_reference,amount,currency,payload,state,test_mode,
+        created_at,updated_at,paid_at,account_activated_at,expires_at,idempotency_key,tenant_id
+      ) VALUES(?,?,?,?,?,'neta_zero_test','plus','zero-test',0,'TRY','{}','active',1,?,?,?,?,?,?,?)`,
+    )
+    .bind(
+      randomUUID(),
+      "pro-owner",
+      "pro-owner@example.test",
+      "Pro Owner",
+      "plan-pro-zero-test",
+      created,
+      created,
+      created,
+      created,
+      future(),
+      randomUUID(),
+      "plan-pro",
+    )
+    .run();
+  const zeroTestBranches = await call("branches?tenant=plan-pro", { user: "pro-owner" });
+  const zeroTestGrowth = await call("growth?tenant=plan-pro", { user: "pro-owner" });
+  check(
+    zeroTestBranches.data.plan === "plus" &&
+      zeroTestBranches.data.limits.branches === null &&
+      zeroTestGrowth.data.premium === true,
+    "Active admin zero-test Plus entitlement overrides stale Pro records",
+  );
+  await db
+    .prepare("UPDATE onboarding_payments SET expires_at=? WHERE tenant_id='plan-pro'")
+    .bind(new Date(Date.now() - 60000).toISOString())
+    .run();
+  check(
+    (await call("branches?tenant=plan-pro", { user: "pro-owner" })).data.plan === "pro",
+    "Expired admin zero-test entitlement no longer unlocks Plus",
+  );
+
   // Panel randevu asistanı da Pro/Plus AI günlük kotasından tüketir.
   const aiBucket = new Date().toISOString().slice(0, 10);
   const aiKey = sha256(`plan-quota:plan-pro:ai:${aiBucket}`);
