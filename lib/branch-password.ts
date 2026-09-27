@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { equalSecret } from "./security";
-import { ApiError, now, one, q } from "./server";
+import { ApiError, all, now, one, q } from "./server";
 
 const ALGORITHM = "pbkdf2-sha256";
 const ITERATIONS = 310_000;
@@ -107,4 +107,33 @@ export async function verifyBranchPassword(
   );
   if (!row?.password_hash) return false;
   return verifyBranchPasswordHash(raw, String(row.password_hash));
+}
+
+export async function branchPasswordSetupTarget(userId: string) {
+  return one(
+    `SELECT b.id tenant_id,b.name business_name,br.id branch_id,br.name branch_name
+     FROM businesses b
+     JOIN members m ON m.tenant_id=b.id
+     JOIN branches br ON br.tenant_id=b.id AND br.active=1 AND br.is_primary=1
+     LEFT JOIN branch_credentials bc ON bc.tenant_id=br.tenant_id AND bc.branch_id=br.id
+     WHERE m.user_id=? AND m.role='owner' AND m.disabled=0
+       AND b.demo=0 AND b.status NOT IN ('deleted','suspended')
+       AND bc.branch_id IS NULL
+     ORDER BY b.created_at DESC
+     LIMIT 1`,
+    userId,
+  );
+}
+
+export async function branchPasswordOverview(tenantId: string) {
+  return all(
+    `SELECT b.id,b.name,b.city,b.is_primary,b.active,
+       CASE WHEN bc.branch_id IS NULL THEN 0 ELSE 1 END has_password,
+       bc.updated_at password_updated_at
+     FROM branches b
+     LEFT JOIN branch_credentials bc ON bc.tenant_id=b.tenant_id AND bc.branch_id=b.id
+     WHERE b.tenant_id=?
+     ORDER BY b.is_primary DESC,b.name`,
+    tenantId,
+  );
 }
