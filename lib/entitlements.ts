@@ -207,6 +207,21 @@ export async function tenantPlan(tenantId: string): Promise<PlanCode> {
   );
   if (manual && ["normal", "pro", "plus"].includes(manual.plan))
     verifiedPlans.push(manual.plan as PlanCode);
+
+  // Platform yöneticisinin 0 TL paket testleri de doğrulanmış ve süreli bir
+  // yetkidir. Eski kayıtlarda subscriptions satırı daha düşük bir pakette
+  // kalmış olsa bile aktif onboarding kaydındaki planı esas al.
+  const adminTest = await one(
+    `SELECT p.plan,p.expires_at FROM onboarding_payments p
+     JOIN admins a ON a.user_id=p.user_id
+     WHERE p.tenant_id=? AND p.state='active' AND p.test_mode=1 AND p.expires_at>?
+     ORDER BY p.updated_at DESC LIMIT 1`,
+    tenantId,
+    now(),
+  );
+  if (adminTest && ["normal", "pro", "plus"].includes(adminTest.plan))
+    verifiedPlans.push(adminTest.plan as PlanCode);
+
   // A verified manual/temporary Plus grant may overlap an older recurring Pro
   // record. Honor the strongest still-active entitlement, never selected_plan.
   const rank: Record<PlanCode, number> = { normal: 0, pro: 1, plus: 2 };
