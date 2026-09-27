@@ -12,7 +12,6 @@ import {
   Radar,
   Menu,
   X,
-  Wallet,
   Play,
 } from "lucide-react";
 import { Brand, ThemeToggle, api } from "./common";
@@ -52,7 +51,7 @@ export default function Landing() {
       .then((p) => setPlan({ ...p, amount: 200000 }))
       .catch(() => setPlan({ amount: 200000 }));
   }, []);
-  const start = "/kayit?rol=business&sonra=%2Fkurulum",
+  const start = "/panel-kayit",
     signed = !!data?.profile;
   return (
     <div className="neta-home neta-home-premium">
@@ -78,9 +77,9 @@ export default function Landing() {
             <ThemeToggle />
             <a
               className="neta-login"
-              href={signed ? "/panel" : "/giris?rol=business"}
+              href={signed ? "/panel" : "/panel-giris"}
             >
-              {signed ? "Panelime git" : "Giriş yap"}
+              {signed ? "Panelime git" : "Panele giriş yap"}
             </a>
             <a className="button primary" href={start}>
               Hemen başla <ArrowRight size={16} />
@@ -212,8 +211,8 @@ export default function Landing() {
               {[
                 {
                   n: "1",
-                  t: "Hesabınızı açın",
-                  p: "Kimliğinizi doğrulayın ve işletme sahibi olarak üyeliğinizi tamamlayın.",
+                  t: "Yönetici hesabınızı açın",
+                  p: "Şifrenizi belirleyin ve işletmenin ana yönetici hesabını oluşturun.",
                 },
                 {
                   n: "2",
@@ -222,8 +221,8 @@ export default function Landing() {
                 },
                 {
                   n: "3",
-                  t: "Bağlantınızı paylaşın",
-                  p: "İşletmeniz onaylanınca müşterileriniz size özel sayfadan randevu alsın.",
+                  t: "Ekibinize yetki verin",
+                  p: "Müdür ve çalışan hesaplarını şubelere göre oluşturup randevu bağlantınızı paylaşın.",
                 },
               ].map((s) => (
                 <article key={s.n}>
@@ -306,15 +305,15 @@ export default function Landing() {
               },
               {
                 q: "Çalışanlarım hangi bilgileri görür?",
-                a: "Personel hesabı, işletme sahibinin verdiği erişimle yalnızca kendisine atanmış randevuları ve işlem tercihlerini görür.",
+                a: "Çalışan hesabı yalnızca atandığı şubenin randevu, takvim ve müşteri işlemlerini görür. Kâr/zarar, gelir raporu, abonelik ve işletme ayarları gösterilmez.",
               },
               {
-                q: "Kaçan talep gerçekten nasıl ölçülür?",
-                a: "Müşterinin özellikle aradığı ancak bulamadığı saatler kaydedilir. Sayfadan çıkan herkes kayıp müşteri sayılmaz. Gösterilen ciro potansiyeli, varsayımları açık bir tahmindir.",
+                q: "Müdür hangi bilgilere erişir?",
+                a: "Müdür veya sorumlu yalnızca atandığı şubenin operasyonunu, ekibini ve şube finans görünümünü yönetir. Diğer şubelerin verilerine erişemez.",
               },
               {
                 q: "Randevularımı başka bir işletme görebilir mi?",
-                a: "Her işletmenin kayıtları kendi erişim yetkisiyle sınırlandırılır. Personel ve işletme yetkileri sunucuda kontrol edilir.",
+                a: "Her işletmenin ve şubenin kayıtları rol tabanlı erişim yetkileriyle sunucuda sınırlandırılır.",
               },
             ].map((f) => (
               <details key={f.q}>
@@ -345,7 +344,7 @@ export default function Landing() {
         <Brand />
         <p>Randevunuz net. İşiniz yolunda.</p>
         <nav>
-          <a href="/giris?rol=business">İşletme girişi</a>
+          <a href="/panel-giris">İşletme paneli girişi</a>
           <a href="/kesfet">Randevu al</a>
           <a href="/gizlilik">Gizlilik</a>
           <a href="/kosullar">Kullanım koşulları</a>
