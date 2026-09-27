@@ -26,7 +26,7 @@ export default function ManagersPage() {
     setBusy(true);setError("");setMessage("");
     try{
       const response=await fetch("/api/manager/branch-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tenant_id:tenant,branch_id:branch,password:branchPassword})});
-      const result=await response.json();
+      const result=await response.json() as any;
       if(!response.ok)throw new Error(result.error||"Şube şifresi kaydedilemedi.");
       setBranchPassword("");
       setMessage("Şube erişim şifresi kaydedildi.");

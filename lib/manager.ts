@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { all, one, q, user, tenant, admin, now, date, ApiError } from "./server";
-import { SELECT_APPOINTMENTS } from "./booking";
+import { all, one, q, user, tenant, admin, now, date, uid, ApiError } from "./server";
+import { SELECT_APPOINTMENTS, change } from "./booking";
 import { adminAccessConfigured, hasAdminAccess } from "./admin-access";
 
 const ADDON = "management";
@@ -32,7 +32,7 @@ async function derivePassword(password: string, salt: Uint8Array, iterations = P
   );
   return new Uint8Array(
     await crypto.subtle.deriveBits(
-      { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+      { name: "PBKDF2", hash: "SHA-256", salt: new Uint8Array(salt), iterations },
       key,
       256,
     ),
@@ -127,6 +127,22 @@ export async function setManagerBranchPassword(tenantId: string, input: unknown)
   return { ok: true, branch_id: x.branch_id, password_configured: true };
 }
 
+export async function businessAddons(tenantId: string) {
+  await tenant(tenantId);
+  return {
+    addons: [{
+      code: ADDON,
+      name: "Müdürlük ve şube yönetimi",
+      description: "Müdüre yalnızca atandığı şubenin randevularını ve finans özetini gösterir.",
+      included: false,
+      enabled: await managerAddon(tenantId),
+      price: (await one("SELECT price FROM addon_catalog WHERE code=?", ADDON))?.price ?? null,
+      purchasable: false,
+    }],
+    employee: { name: "Çalışan paneli", included: true, price: 0 },
+  };
+}
+
 export async function setManager(tenantId: string, input: unknown) {
   await tenant(tenantId);
   if (!(await managerAddon(tenantId))) throw new ApiError("Önce müdürlük modülünü etkinleştirin.", 402);
@@ -187,15 +203,51 @@ export async function managerSnapshot(tenantId: string, dayInput: string, passwo
   return { access, appointments, finance: { month, revenue: revenue.amount, expenses: expenses.amount, estimate: revenue.amount - expenses.amount } };
 }
 
-// Only the platform administrator can provision an addon. This is not a payment callback.
-export async function adminSetManagerAddon(input: unknown) {
+export async function managerAppointment(tenantId: string, input: unknown) {
+  const access = await managerAccess(tenantId);
+  const x = z.object({ id: z.string().min(1), status: z.enum(["cancelled", "completed", "no_show"]), branch_password: branchPassword }).parse(input);
+  const passwordRow = await one("SELECT password_hash FROM branch_manager_passwords WHERE tenant_id=? AND branch_id=?", tenantId, access.branch_id);
+  if (!passwordRow?.password_hash || !(await verifyBranchPassword(x.branch_password,passwordRow.password_hash)))
+    throw new ApiError("Şube şifresi hatalı.", 403);
+  const appointment = await one(SELECT_APPOINTMENTS + " WHERE a.tenant_id=? AND a.branch_id=? AND a.id=?", tenantId, access.branch_id, x.id);
+  if (!appointment) throw new ApiError("Bu şubede randevu bulunamadı.", 404);
+  const business = await one("SELECT * FROM businesses WHERE id=?", tenantId);
+  return change(business, appointment, { status: x.status });
+}
+
+async function verifiedAdmin() {
   const u = await admin();
   if (adminAccessConfigured() && !(await hasAdminAccess(u.userId)))
     throw new ApiError("Yönetici şifresiyle tekrar doğrulama gerekiyor.", 403);
+  return u;
+}
+
+export async function adminAddonOverview() {
+  await verifiedAdmin();
+  return {
+    catalog: await one("SELECT code,price,updated_at FROM addon_catalog WHERE code=?", ADDON),
+    businesses: await all(`SELECT b.id,b.name,b.slug,b.status,b.demo,COALESCE(a.enabled,0) enabled,a.updated_at
+      FROM businesses b LEFT JOIN tenant_addons a ON a.tenant_id=b.id AND a.code=?
+      WHERE b.status NOT IN ('deleted','suspended') ORDER BY b.created_at DESC LIMIT 500`, ADDON),
+  };
+}
+
+export async function adminSetAddonPrice(input: unknown) {
+  const u = await verifiedAdmin();
+  const x = z.object({ price: z.number().int().min(0).max(100000000).nullable() }).parse(input);
+  await q("UPDATE addon_catalog SET price=?,updated_at=?,updated_by=? WHERE code=?", x.price, now(), u.userId, ADDON).run();
+  await q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)", uid(), u.userId, "addon.price.updated", ADDON, now()).run();
+  return { ok: true, price: x.price };
+}
+
+// Only the platform administrator can provision an addon. This is not a payment callback.
+export async function adminSetManagerAddon(input: unknown) {
+  const u = await verifiedAdmin();
   const x = z.object({ tenant_id: z.string().min(1), enabled: z.boolean() }).parse(input);
   if (!(await one("SELECT id FROM businesses WHERE id=?", x.tenant_id))) throw new ApiError("İşletme bulunamadı.", 404);
   await q(`INSERT INTO tenant_addons(tenant_id,code,enabled,updated_at,updated_by) VALUES(?,?,?,?,?)
     ON CONFLICT(tenant_id,code) DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,
     x.tenant_id, ADDON, x.enabled ? 1 : 0, now(), u.userId).run();
+  await q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)", uid(), u.userId, x.enabled ? "addon.management.enabled" : "addon.management.disabled", x.tenant_id, now()).run();
   return { ok: true, enabled: x.enabled };
 }

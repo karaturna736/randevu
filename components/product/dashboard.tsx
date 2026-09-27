@@ -115,6 +115,7 @@ const NAV = [
   { id: "plus-tools", title: "Plus araçları", icon: Plug },
   { id: "whatsapp", title: "WhatsApp", icon: MessageSquare },
   { id: "setup-center", title: "Kurulum Merkezi", icon: Store },
+  { id: "addons", title: "Ek paketler", icon: Plug },
   { id: "help", title: "Yardım merkezi", icon: LifeBuoy },
   { id: "settings", title: "Ayarlar", icon: SettingsIcon },
 ];
@@ -301,6 +302,7 @@ function SideNavigation({ w, view, navigate, onSetup, selectBusiness }: any) {
                   (view === "retention" && n.id === "customers")
                 }
                 onClick={() => {
+                  if (n.id === "addons") { location.assign("/panel/ek-paketler"); return; }
                   navigate(n.id);
                   setOpenMobile(false);
                 }}

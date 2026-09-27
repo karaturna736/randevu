@@ -75,6 +75,12 @@ export const tenantAddons = sqliteTable("tenant_addons", {
   updatedAt: text("updated_at").notNull(),
   updatedBy: text("updated_by").notNull(),
 }, (t) => [primaryKey({ columns: [t.tenantId, t.code] })]);
+export const addonCatalog = sqliteTable("addon_catalog", {
+  code: text("code").primaryKey(),
+  price: integer("price"),
+  updatedAt: text("updated_at").notNull(),
+  updatedBy: text("updated_by").notNull(),
+});
 export const services = sqliteTable(
   "services",
   {

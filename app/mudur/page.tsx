@@ -11,7 +11,6 @@ export default function ManagerPage() {
   const [snapshot, setSnapshot] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
   useEffect(() => { api("manager-businesses").then((x:any) => {
     setBusinesses(x.businesses); setTenant(x.businesses[0]?.id || "");
   }).catch((e:any) => setError(e.message)); }, []);
@@ -33,7 +32,7 @@ export default function ManagerPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenant_id: tenant, date: nextDay, branch_password: password }),
       });
-      const result = await response.json();
+      const result = await response.json() as any;
       if (!response.ok) throw new Error(result.error || "Şube açılamadı.");
       setSnapshot(result);
       setUnlocked(true);
@@ -51,6 +50,11 @@ export default function ManagerPage() {
     await loadSnapshot();
   }
 
+  async function update(id:string,status:"cancelled"|"completed"|"no_show"){
+    setBusy(true);setError("");try{await api("manager-appointment",{tenant_id:tenant,id,status,branch_password:password});
+      await loadSnapshot();
+    }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+  }
   return <main className="member-page" style={{maxWidth:1100,margin:"40px auto",padding:24}}>
     <a href="/">Neta</a><h1>Müdür paneli</h1>
     <p>Google hesabınıza ek olarak yalnızca size atanan şubenin erişim şifresiyle giriş yapabilirsiniz.</p>
@@ -79,6 +83,11 @@ export default function ManagerPage() {
       {snapshot.appointments.map((a:any)=><article className="panel" style={{padding:16,marginBottom:8}} key={a.id}>
         <strong>{String(Math.floor(a.minute/60)).padStart(2,"0")}:{String(a.minute%60).padStart(2,"0")} · {a.customer_name}</strong>
         <p>{a.customer_phone} · {a.service_name} · {a.staff_name} · {a.status}</p>
+        {a.status==="confirmed"&&<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button className="button" disabled={!!busy} onClick={()=>update(a.id,"completed")}>Tamamlandı</button>
+          <button className="button" disabled={!!busy} onClick={()=>update(a.id,"no_show")}>Gelmedi</button>
+          <button className="button" disabled={!!busy} onClick={()=>{if(window.confirm("Randevu iptal edilsin mi?"))update(a.id,"cancelled");}}>İptal et</button>
+        </div>}
       </article>)}
     </>}
   </main>;
