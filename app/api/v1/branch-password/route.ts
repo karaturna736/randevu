@@ -54,13 +54,24 @@ export async function POST(req: Request) {
 
     const current = await user();
     const membership = await one(
-      `SELECT role FROM members
-       WHERE tenant_id=? AND user_id=? AND disabled=0`,
+      `SELECT m.role,m.staff_id,s.branch_id
+       FROM members m
+       LEFT JOIN staff s ON s.tenant_id=m.tenant_id AND s.id=m.staff_id AND s.active=1
+       WHERE m.tenant_id=? AND m.user_id=? AND m.disabled=0`,
       input.tenant_id,
       current.userId,
     );
     if (!membership)
       throw new ApiError("Bu işletmeye erişim yetkiniz yok.", 403);
+
+    const role = String(membership.role || "");
+    const authorized =
+      role === "owner" ||
+      role === "manager" ||
+      role === "branch_manager" ||
+      (role === "staff" && String(membership.branch_id || "") === input.branch_id);
+    if (!authorized)
+      throw new ApiError("Bu şubenin şifresini doğrulama yetkiniz yok.", 403);
 
     const branch = await one(
       "SELECT id,name FROM branches WHERE tenant_id=? AND id=? AND active=1",
