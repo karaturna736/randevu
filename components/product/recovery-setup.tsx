@@ -16,6 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { money, time, dateLabel } from "@/lib/types";
 import { toast } from "sonner";
+import {
+  buildSetupImport,
+  downloadSetupTemplate,
+  IMPORT_LABELS,
+  parseSetupCsv,
+  type SetupImportKind,
+} from "./setup-import-utils";
 
 export function RecoveryEngine({ w }: any) {
   const [d, setD] = useState<any>(null),
@@ -112,123 +119,9 @@ export function RecoveryEngine({ w }: any) {
   );
 }
 
-const templates: any = {
-  customers: {
-    name: "musteriler.csv",
-    header: "ad_soyad,telefon,eposta,whatsapp_izni",
-    sample: "Ayşe Yılmaz,05321234567,ayse@example.com,evet",
-  },
-  services: {
-    name: "hizmetler.csv",
-    header: "hizmet,aciklama,sure_dakika,fiyat_tl",
-    sample: "Saç Kesimi,Kesim ve şekillendirme,45,650",
-  },
-  staff: {
-    name: "personel.csv",
-    header: "ad_soyad,unvan,gunler,baslangic,bitis",
-    sample:
-      "Ahmet Usta,Berber,pazartesi|sali|carsamba|persembe|cuma|cumartesi,09:00,19:00",
-  },
-};
-function download(kind: string) {
-  const t = templates[kind],
-    a = document.createElement("a");
-  a.href = URL.createObjectURL(
-    new Blob(["\ufeff" + t.header + "\n" + t.sample + "\n"], {
-      type: "text/csv",
-    }),
-  );
-  a.download = t.name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-function csv(text: string) {
-  const lines = text
-    .replace(/^\ufeff/, "")
-    .split(/\r?\n/)
-    .filter(Boolean);
-  return lines.map((line) => {
-    const out: string[] = [];
-    let s = "",
-      quote = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"' && line[i + 1] === '"') {
-        s += '"';
-        i++;
-      } else if (c === '"') quote = !quote;
-      else if (c === "," && !quote) {
-        out.push(s.trim());
-        s = "";
-      } else s += c;
-    }
-    out.push(s.trim());
-    return out;
-  });
-}
-const dayMap: any = {
-  pazar: 0,
-  pazartesi: 1,
-  sali: 2,
-  salı: 2,
-  carsamba: 3,
-  çarşamba: 3,
-  persembe: 4,
-  perşembe: 4,
-  cuma: 5,
-  cumartesi: 6,
-};
-const minutes = (s: any) => {
-  const [h, m] = String(s || "")
-    .split(":")
-    .map(Number);
-  return h * 60 + m;
-};
-function normalized(kind: string, rows: any[][]) {
-  const head = rows[0].map((x) => String(x).trim().toLocaleLowerCase("tr-TR")),
-    get = (r: any[], key: string) => r[head.indexOf(key)];
-  return rows
-    .slice(1)
-    .filter((r) => r.some(Boolean))
-    .map((r) => {
-      if (kind === "customers")
-        return {
-          name: String(get(r, "ad_soyad") || ""),
-          phone: String(get(r, "telefon") || ""),
-          email: String(get(r, "eposta") || ""),
-          consent: /^(evet|true|1)$/i.test(
-            String(get(r, "whatsapp_izni") || ""),
-          ),
-        };
-      if (kind === "services")
-        return {
-          name: String(get(r, "hizmet") || ""),
-          description: String(get(r, "aciklama") || ""),
-          duration: Number(get(r, "sure_dakika")),
-          price: Math.round(
-            Number(String(get(r, "fiyat_tl")).replace(",", ".")) * 100,
-          ),
-        };
-      const start = minutes(get(r, "baslangic")),
-        end = minutes(get(r, "bitis")),
-        hours: any = {};
-      String(get(r, "gunler") || "")
-        .split("|")
-        .forEach((x) => {
-          const n = dayMap[x.trim().toLocaleLowerCase("tr-TR")];
-          if (n != null) hours[n] = [start, end];
-        });
-      return {
-        name: String(get(r, "ad_soyad") || ""),
-        title: String(get(r, "unvan") || "Uzman"),
-        hours,
-      };
-    });
-}
-
 export function SetupCenter({ w }: any) {
   const [d, setD] = useState<any>(null),
-    [kind, setKind] = useState("customers"),
+    [kind, setKind] = useState<SetupImportKind>("auto"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [training, setTraining] = useState({ preferred_date: "", note: "" });
@@ -245,25 +138,50 @@ export function SetupCenter({ w }: any) {
     setBusy(true);
     setError("");
     try {
-      let rows: any[][];
+      let rows: unknown[][];
       if (f.name.toLowerCase().endsWith(".xlsx")) {
         const read = (await import("read-excel-file")).default;
-        rows = (await read(f)) as any[][];
-      } else rows = csv(await f.text());
-      const data = normalized(kind, rows);
-      if (!data.length)
-        throw new Error("Dosyada aktarılacak satır bulunamadı.");
-      let imported = 0;
-      for (let i = 0; i < data.length; i += 40) {
-        const r = await api("setup-import", {
-          tenant_id: w.business.id,
-          batch_id: crypto.randomUUID(),
-          kind,
-          rows: data.slice(i, i + 40),
-        });
-        imported += r.imported;
+        rows = (await read(f)) as unknown[][];
+      } else rows = parseSetupCsv(await f.text());
+      const groups = buildSetupImport(kind, rows);
+      let imported = 0,
+        skipped = 0,
+        duplicateRows = 0;
+      const issues: string[] = [];
+      for (const [importKind, data] of groups) {
+        const batchSize = importKind === "appointments" ? 20 : 40;
+        for (let i = 0; i < data.length; i += batchSize) {
+          const r = await api("setup-import", {
+            tenant_id: w.business.id,
+            batch_id: crypto.randomUUID(),
+            kind: importKind,
+            rows: data.slice(i, i + batchSize),
+          });
+          imported += Number(r.imported || 0);
+          skipped += Number(r.skipped || 0);
+          duplicateRows += Number(r.duplicate_rows || 0);
+          if (Array.isArray(r.issues)) issues.push(...r.issues);
+        }
       }
-      toast.success(imported + " kayıt içe aktarıldı.");
+      if (!imported && !duplicateRows)
+        throw new Error(
+          issues[0] || "Dosya okundu ancak aktarılabilir kayıt bulunamadı.",
+        );
+      const details = [
+        duplicateRows ? `${duplicateRows} tekrar kayıt atlandı` : "",
+        skipped ? `${skipped} hatalı satır atlandı` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      toast.success(
+        `${imported} sistem kaydı içe aktarıldı${details ? ` · ${details}` : ""}.`,
+      );
+      if (issues.length)
+        setError(
+          `Aktarım tamamlandı. Kontrol edilmesi gereken satırlar: ${issues
+            .slice(0, 5)
+            .join(" | ")}`,
+        );
       await load();
     } catch (e: any) {
       setError(e.message);
@@ -341,45 +259,58 @@ export function SetupCenter({ w }: any) {
       </section>
       <section className="panel">
         <span className="eyebrow">EXCEL / CSV AKTARIMI</span>
-        <h2 className="margin-top">Defterinizi Neta’ya taşıyın</h2>
+        <h2 className="margin-top">Eski kayıtlarınızı Neta’ya taşıyın</h2>
         <p className="muted margin-bottom">
-          Dosya tarayıcınızda okunur ve 40 satırlık güvenli paketlerle
-          aktarılır. Aynı telefonlu müşteri çoğaltılmaz.
+          Akıllı aktarım Türkçe Excel/CSV başlıklarını tanır. Müşteriyi,
+          geçmiş randevuyu, tamamlanan işlem gelirini ve borç/veresiye tutarını
+          ilgili Neta kayıtlarına otomatik bağlar. Aynı telefonlu müşteri veya
+          aynı randevu tekrar oluşturulmaz.
         </p>
         <div className="button-group">
-          {Object.entries({
-            customers: "Müşteriler",
-            services: "Hizmetler",
-            staff: "Personel",
-          }).map(([k, v]) => (
-            <button
-              className={"button " + (kind === k ? "primary" : "")}
-              onClick={() => setKind(k)}
-              key={k}
-            >
-              {v}
-            </button>
-          ))}
+          {(Object.entries(IMPORT_LABELS) as [SetupImportKind, string][]).map(
+            ([k, v]) => (
+              <button
+                type="button"
+                className={"button " + (kind === k ? "primary" : "")}
+                onClick={() => setKind(k)}
+                key={k}
+              >
+                {v}
+              </button>
+            ),
+          )}
         </div>
         <div className="import-drop margin-top">
           <Upload size={25} />
           <strong>.xlsx veya .csv dosyanızı seçin</strong>
-          <small>Önce örnek şablonu indirip başlıkları koruyun.</small>
+          <small>
+            {kind === "auto"
+              ? "Dosyanızın başlıklarını otomatik eşleştirir; eski programın şablonunu değiştirmeniz gerekmez."
+              : "Bu veri türünü seçtik. Farklı Türkçe başlık adları da otomatik tanınır."}
+          </small>
           <Input
             type="file"
-            accept=".xlsx,.csv"
+            accept=".xlsx,.csv,text/csv"
             onChange={file}
             disabled={busy}
           />
           {busy && <Busy />}
         </div>
         <button
+          type="button"
           className="text-button margin-top"
-          onClick={() => download(kind)}
+          onClick={() => downloadSetupTemplate(kind)}
         >
           <Download size={16} />
           Örnek şablonu indir
         </button>
+        {(d?.counts.appointments > 0 || d?.counts.receivables > 0) && (
+          <div className="notice margin-top">
+            <Check size={17} />
+            Sistemde {d?.counts.appointments || 0} randevu ve{" "}
+            {d?.counts.receivables || 0} açık borç/veresiye kaydı bulunuyor.
+          </div>
+        )}
         {error && <p className="error-message">{error}</p>}
       </section>
       <section className="panel">
