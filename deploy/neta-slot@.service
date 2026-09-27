@@ -1,0 +1,30 @@
+[Unit]
+Description=Neta Randevu slot %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=neta
+Group=neta
+WorkingDirectory=/opt/neta/slots/%i
+EnvironmentFile=/etc/neta/neta.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=%i
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=2
+TimeoutStopSec=20
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/neta /var/backups/neta
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
