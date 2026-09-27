@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/identity";
-import { businessMemberships, businessPanelActive } from "@/lib/business-access";
+import { businessMemberships, businessPanelActive, type BusinessRole } from "@/lib/business-access";
+import RolePanelGuard from "@/components/product/role-panel-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -10,13 +11,21 @@ export default async function PanelLayout({ children }: { children: ReactNode })
   if (!current) redirect("/panel-giris");
 
   const memberships = await businessMemberships(current.userId);
-  let active = false;
+  let activeMembership: any = null;
   for (const membership of memberships) {
     if (await businessPanelActive(String(membership.id))) {
-      active = true;
+      activeMembership = membership;
       break;
     }
   }
-  if (!active) redirect("/erisim-bekliyor");
-  return children;
+  if (!activeMembership) redirect("/erisim-bekliyor");
+  return (
+    <>
+      <RolePanelGuard
+        role={activeMembership.access_role as BusinessRole}
+        branchName={activeMembership.branch_name || null}
+      />
+      {children}
+    </>
+  );
 }
