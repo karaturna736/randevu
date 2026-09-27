@@ -74,8 +74,18 @@ candidate_unit="neta-slot@${candidate_port}.service"
 old_slot_unit="neta-slot@${active_port}.service"
 candidate_previous="$(readlink -f "/opt/neta/slots/$candidate_port" 2>/dev/null || true)"
 
+candidate_diagnostics() {
+  echo "--- Candidate service status: $candidate_unit ---" >&2
+  systemctl status "$candidate_unit" --no-pager -l >&2 || true
+  echo "--- Candidate service journal ---" >&2
+  journalctl -u "$candidate_unit" -n 80 --no-pager >&2 || true
+  echo "--- Listening ports 3000/3001 ---" >&2
+  ss -ltnp '( sport = :3000 or sport = :3001 )' >&2 || true
+}
+
 # The inactive slot may contain a stale process from an interrupted deploy.
 systemctl stop "$candidate_unit" >/dev/null 2>&1 || true
+systemctl reset-failed "$candidate_unit" >/dev/null 2>&1 || true
 ln -sfn "$release" "/opt/neta/slots/$candidate_port"
 systemctl daemon-reload
 systemctl start "$candidate_unit"
@@ -89,6 +99,7 @@ for _ in {1..30}; do
 done
 
 if [[ -z "$candidate_health" ]]; then
+  candidate_diagnostics
   systemctl stop "$candidate_unit" >/dev/null 2>&1 || true
   if [[ -n "$candidate_previous" && -d "$candidate_previous" ]]; then
     ln -sfn "$candidate_previous" "/opt/neta/slots/$candidate_port"
