@@ -162,10 +162,15 @@ export function BusinessLogin() {
           </form>
 
           {role === "owner" && (
-            <div className="auth-security-note">
-              <ShieldCheck size={18} />
-              <p>İlk kez Neta kullanacaksanız <a href="/panel-kayit"><strong>yönetici hesabı oluşturun</strong></a>. Müdür ve çalışan hesaplarını işletme yöneticisi panelden oluşturur.</p>
-            </div>
+            <>
+              <div className="auth-security-note">
+                <ShieldCheck size={18} />
+                <p>İlk kez Neta kullanacaksanız <a href="/panel-kayit"><strong>yönetici hesabı oluşturun</strong></a>. Müdür ve çalışan hesaplarını işletme yöneticisi panelden oluşturur.</p>
+              </div>
+              <a className="button google-provider" target="_top" href="/api/auth/google?sonra=%2Fpanel">
+                Mevcut Google yönetici hesabımla giriş yap <ArrowRight size={17} />
+              </a>
+            </>
           )}
           {role !== "owner" && (
             <div className="auth-security-note">
