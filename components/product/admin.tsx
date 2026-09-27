@@ -47,7 +47,34 @@ export default function Admin({ initialView = "businesses" }: { initialView?: st
     [denied, setDenied] = useState(false),
     [view, setView] = useState(initialView),
     [confirm, setConfirm] = useState<any>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [resetPreview, setResetPreview] = useState<any>(null),
+    [resetText, setResetText] = useState("");
+  async function previewReset() {
+    try {
+      const response = await fetch("/api/admin/reset-test-data", { cache: "no-store" });
+      const result = await response.json() as any;
+      if (!response.ok) throw new Error(result.error);
+      setResetPreview(result);
+      setResetText("");
+    } catch (e: any) { toast.error(e.message); }
+  }
+  async function resetData() {
+    if (!resetPreview || resetText !== "TÜM TEST VERİLERİNİ SIFIRLA") return;
+    setBusy(true);
+    try {
+      const response = await fetch("/api/admin/reset-test-data", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...resetPreview, confirmation: resetText }),
+      });
+      const result = await response.json() as any;
+      if (!response.ok) throw new Error(result.error);
+      setResetPreview(null);
+      toast.success("Yedek alındı ve test verileri sıfırlandı. Yeniden giriş yapın.");
+      location.assign("/giris?rol=business");
+    } catch (e: any) { toast.error(e.message); setResetPreview(null); }
+    finally { setBusy(false); }
+  }
   async function refresh() {
     try {
       setData(await api("admin"));
@@ -91,7 +118,20 @@ export default function Admin({ initialView = "businesses" }: { initialView?: st
             <Megaphone size={16} /> Kampanyalar
           </Link>
           <Link className="button" href="/admin/ek-paketler">Ek paketler</Link>
+          <button className="button" onClick={previewReset} disabled={busy}>Test verilerini sıfırla</button>
         </div>
+        {resetPreview && <section className="panel" role="dialog" aria-label="Veri sıfırlama onayı">
+          <h2>Test verilerini sıfırla</h2>
+          <p>Kullanıcılar: {resetPreview.users} · İşletmeler: {resetPreview.businesses} · Randevular: {resetPreview.appointments}</p>
+          <p>İşlem öncesinde sunucuda veritabanı yedeği alınır. Gerçek ödeme kaydı varsa işlem engellenir. Bu işlem mevcut kullanıcıların oturumlarını kapatır.</p>
+          <label htmlFor="reset-confirmation">Onaylamak için TÜM TEST VERİLERİNİ SIFIRLA yazın</label>
+          <input id="reset-confirmation" value={resetText} onChange={(e) => setResetText(e.target.value)} autoComplete="off" />
+          <div className="button-group">
+            <button className="button" onClick={() => setResetPreview(null)}>Vazgeç</button>
+            <button className="button" disabled={busy || resetPreview.realPayments > 0 || resetText !== "TÜM TEST VERİLERİNİ SIFIRLA"} onClick={resetData}>Yedek al ve sıfırla</button>
+          </div>
+          {resetPreview.realPayments > 0 && <p className="error-message">Gerçek ödeme kaydı bulundu. Sıfırlama kapalı.</p>}
+        </section>}
         {error ? (
           <section className="panel">
             <Blank
