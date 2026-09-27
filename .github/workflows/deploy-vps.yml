@@ -153,9 +153,23 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER || 'root' }}
         run: |
           set -euo pipefail
-          SCP_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
-          timeout 8m scp $SCP_OPTS /tmp/neta-release-artifact/neta-vps-release.tar.gz "$VPS_USER@$VPS_HOST:/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
-          timeout 2m scp $SCP_OPTS /tmp/neta-release-artifact/neta-nginx.conf "$VPS_USER@$VPS_HOST:/tmp/neta-nginx-${GITHUB_SHA}.conf"
+          SCP_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectionAttempts=5 -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
+          cp /tmp/neta-release-artifact/neta-vps-release.tar.gz "/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz"
+          cp /tmp/neta-release-artifact/neta-nginx.conf "/tmp/neta-nginx-${GITHUB_SHA}.conf"
+
+          uploaded=0
+          for attempt in 1 2 3; do
+            if timeout 8m scp $SCP_OPTS \
+              "/tmp/neta-vps-release-${GITHUB_SHA}.tar.gz" \
+              "/tmp/neta-nginx-${GITHUB_SHA}.conf" \
+              "$VPS_USER@$VPS_HOST:/tmp/"; then
+              uploaded=1
+              break
+            fi
+            echo "::warning::SSH/SCP bağlantısı deneme ${attempt}/3 başarısız; 20 saniye sonra tekrar denenecek."
+            sleep 20
+          done
+          test "$uploaded" = "1" || { echo "::error::VDS SSH banner/bağlantı zaman aşımı üç denemede de aşılamadı."; exit 1; }
 
       - name: Deploy with rollback and local verification
         env:
@@ -164,7 +178,7 @@ jobs:
           LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         run: |
           set -euo pipefail
-          SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
+          SSH_OPTS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectionAttempts=5 -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
           timeout 18m ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "bash -s -- '$GITHUB_SHA' '$LETSENCRYPT_EMAIL'" <<'REMOTE'
           set -euo pipefail
           release_sha="$1"
