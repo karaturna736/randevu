@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { equalSecret } from "./security";
-import { ApiError, all, now, one, q } from "./server";
+import { ApiError, all, now, one, paidTenant, q } from "./server";
 
 const ALGORITHM = "pbkdf2-sha256";
 const ITERATIONS = 310_000;
@@ -110,18 +110,16 @@ export async function verifyBranchPassword(
 }
 
 export async function branchPasswordSetupTarget(userId: string) {
+  const business = await paidTenant(userId);
+  if (!business || business.demo) return null;
   return one(
     `SELECT b.id tenant_id,b.name business_name,br.id branch_id,br.name branch_name
      FROM businesses b
-     JOIN members m ON m.tenant_id=b.id
      JOIN branches br ON br.tenant_id=b.id AND br.active=1 AND br.is_primary=1
      LEFT JOIN branch_credentials bc ON bc.tenant_id=br.tenant_id AND bc.branch_id=br.id
-     WHERE m.user_id=? AND m.role='owner' AND m.disabled=0
-       AND b.demo=0 AND b.status NOT IN ('deleted','suspended')
-       AND bc.branch_id IS NULL
-     ORDER BY b.created_at DESC
+     WHERE b.id=? AND bc.branch_id IS NULL
      LIMIT 1`,
-    userId,
+    business.id,
   );
 }
 
