@@ -276,6 +276,7 @@ export function Management({ w, view, refresh, requireReal }: any) {
         </section>
       )}
       {team && <TeamAccessPanel w={w} />}
+      {team && !w.preview && <p className="margin-top"><a href="/panel/mudurler">Müdür erişimlerini yönet →</a></p>}
       <Modal
         open={!!edit}
         onClose={() => setEdit(null)}

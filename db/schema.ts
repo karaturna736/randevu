@@ -56,6 +56,7 @@ export const members = sqliteTable(
     name: text("name").notNull(),
     role: text("role").notNull().default("owner"),
     staffId: text("staff_id"),
+    branchId: text("branch_id"),
     disabled: integer("disabled").notNull().default(0),
   },
   (t) => [
@@ -67,6 +68,13 @@ export const members = sqliteTable(
     }),
   ],
 );
+export const tenantAddons = sqliteTable("tenant_addons", {
+  tenantId: text("tenant_id").notNull().references(() => businesses.id),
+  code: text("code").notNull(),
+  enabled: integer("enabled").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+  updatedBy: text("updated_by").notNull(),
+}, (t) => [primaryKey({ columns: [t.tenantId, t.code] })]);
 export const services = sqliteTable(
   "services",
   {
