@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   applicationName: "Neta",
   creator: "Neta",
   publisher: "Neta",
-  category: "business software",
+  category: "appointment scheduling software",
   referrer: "no-referrer",
   verification: {
     google: "1hnJ476D3u8p2fGOXouJHeqrGjkkR7TO1qa-Bb7OmF8",

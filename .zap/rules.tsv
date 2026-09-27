@@ -3,8 +3,11 @@
 # must break the pipeline remain FAIL. Compatibility/behaviour findings below
 # are explicitly documented and ignored only after review.
 10015	IGNORE	(Public/dynamic route cache directives are application-controlled; API responses are separately required to be no-store)
+10019	IGNORE	(Next.js canonical trailing-slash redirects such as /admin/ and /api/ return empty 308 responses; an empty redirect body has no media type to declare)
 10036	FAIL	(Server software version must not be exposed)
+10044	IGNORE	(Next.js App Router server redirects include framework/RSC redirect payloads; reviewed protected routes redirect before rendering sensitive page content)
 10049	IGNORE	(Dynamic Next.js responses may be intentionally non-storable)
 10055	IGNORE	(Next.js hydration currently requires inline bootstrap scripts; inline event-handler attributes are blocked with script-src-attr 'none', and third-party script origins are restricted to iyzico/iyzipay)
 10109	IGNORE	(Modern web application detection is informational)
+90003	IGNORE	(Cloudflare Turnstile is loaded from Cloudflare's required versionless dynamic endpoint; pinning SRI would break when Cloudflare updates the script, while CSP restricts the allowed script origin)
 90004	IGNORE	(COEP is not forced because hosted payment and external identity flows require cross-origin compatibility; COOP and CORP remain enabled)
