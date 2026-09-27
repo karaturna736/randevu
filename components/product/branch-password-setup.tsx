@@ -51,9 +51,9 @@ export default function BranchPasswordSetup({ target }: { target: any }) {
       <section className="panel form-stack" style={{ maxWidth: 620, margin: "48px auto" }}>
         <span className="account-gate-icon"><KeyRound size={30} /></span>
         <span className="eyebrow">ŞUBE GÜVENLİĞİ</span>
-        <h1>Merkez şubeniz için bir şifre belirleyin.</h1>
+        <h1>{target.branch_name} için bir şifre belirleyin.</h1>
         <p className="muted">
-          {target.business_name} · {target.branch_name}. Müdür erişiminde bu şube diğer şubelerden ayrı doğrulanacak.
+          {target.business_name} · {target.branch_name}. Her şubenin müdür erişimi diğer şubelerden ayrı doğrulanır.
         </p>
         <form className="form-stack" onSubmit={submit}>
           <Field label="Şube şifresi">
