@@ -3,6 +3,7 @@ import { all, one, q, user, tenant, admin, now, date, uid, ApiError } from "./se
 import { SELECT_APPOINTMENTS, change } from "./booking";
 import { adminAccessConfigured, hasAdminAccess } from "./admin-access";
 import { branchPasswordAddon } from "./branch-access";
+import { PHONE_OPERATOR_ADDON, phoneOperatorAddon } from "./phone-operator";
 
 const ADDON = "management";
 const PASSWORD_ITERATIONS = 210000;
@@ -148,6 +149,14 @@ export async function businessAddons(tenantId: string) {
       enabled: await branchPasswordAddon(tenantId),
       price: (await one("SELECT price FROM addon_catalog WHERE code='branch_password'"))?.price ?? 150000,
       purchasable: false,
+    }, {
+      code: PHONE_OPERATOR_ADDON,
+      name: "Akıllı telefon operatörü",
+      description: "Telefon menüsü, bilgi aktarımı, WhatsApp randevu bağlantısı ve çağrı raporları.",
+      included: false,
+      enabled: await phoneOperatorAddon(tenantId),
+      price: (await one("SELECT price FROM addon_catalog WHERE code=?", PHONE_OPERATOR_ADDON))?.price ?? null,
+      purchasable: false,
     }],
     employee: { name: "Çalışan paneli", included: true, price: 0 },
   };
@@ -233,17 +242,18 @@ async function verifiedAdmin() {
 export async function adminAddonOverview() {
   await verifiedAdmin();
   return {
-    catalog: await all("SELECT code,price,updated_at FROM addon_catalog WHERE code IN ('management','branch_password') ORDER BY code"),
-    businesses: await all(`SELECT b.id,b.name,b.slug,b.status,b.demo,COALESCE(a.enabled,0) enabled,COALESCE(p.enabled,0) password_enabled,a.updated_at
+    catalog: await all("SELECT code,price,updated_at FROM addon_catalog WHERE code IN ('management','branch_password','phone_operator') ORDER BY code"),
+    businesses: await all(`SELECT b.id,b.name,b.slug,b.status,b.demo,COALESCE(a.enabled,0) enabled,COALESCE(p.enabled,0) password_enabled,COALESCE(po.enabled,0) phone_operator_enabled,a.updated_at
       FROM businesses b LEFT JOIN tenant_addons a ON a.tenant_id=b.id AND a.code='management'
       LEFT JOIN tenant_addons p ON p.tenant_id=b.id AND p.code='branch_password'
+      LEFT JOIN tenant_addons po ON po.tenant_id=b.id AND po.code='phone_operator'
       WHERE b.status NOT IN ('deleted','suspended') ORDER BY b.created_at DESC LIMIT 500`),
   };
 }
 
 export async function adminSetAddonPrice(input: unknown) {
   const u = await verifiedAdmin();
-  const x = z.object({ code: z.enum(["management", "branch_password"]).default("management"), price: z.number().int().min(0).max(100000000).nullable() }).parse(input);
+  const x = z.object({ code: z.enum(["management", "branch_password", "phone_operator"]).default("management"), price: z.number().int().min(0).max(100000000).nullable() }).parse(input);
   await q("UPDATE addon_catalog SET price=?,updated_at=?,updated_by=? WHERE code=?", x.price, now(), u.userId, x.code).run();
   await q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)", uid(), u.userId, "addon.price.updated", x.code, now()).run();
   return { ok: true, price: x.price };
@@ -252,7 +262,7 @@ export async function adminSetAddonPrice(input: unknown) {
 // Only the platform administrator can provision an addon. This is not a payment callback.
 export async function adminSetManagerAddon(input: unknown) {
   const u = await verifiedAdmin();
-  const x = z.object({ tenant_id: z.string().min(1), code: z.enum(["management", "branch_password"]).default("management"), enabled: z.boolean() }).parse(input);
+  const x = z.object({ tenant_id: z.string().min(1), code: z.enum(["management", "branch_password", "phone_operator"]).default("management"), enabled: z.boolean() }).parse(input);
   if (!(await one("SELECT id FROM businesses WHERE id=?", x.tenant_id))) throw new ApiError("İşletme bulunamadı.", 404);
   await q(`INSERT INTO tenant_addons(tenant_id,code,enabled,updated_at,updated_by) VALUES(?,?,?,?,?)
     ON CONFLICT(tenant_id,code) DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,

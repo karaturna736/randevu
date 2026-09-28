@@ -89,6 +89,7 @@ import {
   serviceAnalytics,
 } from "@/lib/demand";
 import { earlyInbox } from "@/lib/early";
+import { phoneOperatorSnapshot, savePhoneOperator, simulatePhoneOperator } from "@/lib/phone-operator";
 import { managerDirectory, setManager, managerBusinesses, managerAppointment, businessAddons, adminAddonOverview, adminSetAddonPrice, adminSetManagerAddon } from "@/lib/manager";
 import { teamAccess, setTeamAccess, teamJobs, finishTeamJob } from "@/lib/team";
 import {
@@ -260,6 +261,7 @@ export async function GET(req: Request) {
     if (p[0] === "team-access") return ok(await teamAccess(id));
     if (p[0] === "managers") return ok(await managerDirectory(id));
     if (p[0] === "business-addons") return ok(await businessAddons(id));
+    if (p[0] === "phone-operator") return ok(await phoneOperatorSnapshot(id));
     if (p[0] === "admin-addons") return ok(await adminAddonOverview());
     if (p[0] === "manager-businesses") return ok({ businesses: await managerBusinesses() });
     if (p[0] === "team-jobs")
@@ -518,6 +520,10 @@ export async function POST(req: Request) {
     if (p[0] === "admin-manager-addon") {
       await limit(req, "manager-addon", 30);
       return ok(await adminSetManagerAddon(x));
+    }
+    if (p[0] === "phone-operator") {
+      await limit(req, "phone-operator", 60);
+      return ok(x.action === "simulate" ? await simulatePhoneOperator(id, x) : await savePhoneOperator(id, x));
     }
     if (p[0] === "team-jobs") return ok(await finishTeamJob(id, x));
     if (p[0] === "account") {
