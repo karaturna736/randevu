@@ -24,3 +24,121 @@ CREATE TABLE IF NOT EXISTS notification_reads (
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS notification_reads_user
   ON notification_reads (user_id, read_at DESC);
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS notification_appointment_created
+AFTER INSERT ON appointments
+WHEN NEW.status='confirmed'
+BEGIN
+  INSERT INTO notification_events
+    (id,tenant_id,appointment_id,type,title,message,payload,created_at)
+  VALUES (
+    lower(hex(randomblob(16))),
+    NEW.tenant_id,
+    NEW.id,
+    'appointment.created',
+    'Yeni randevu oluşturuldu',
+    COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),'Müşteri') ||
+      ' · ' || COALESCE(NULLIF(NEW.service_name_snapshot,''),(SELECT name FROM services WHERE tenant_id=NEW.tenant_id AND id=NEW.service_id),'Hizmet') ||
+      ' · ' || NEW.date || ' ' || printf('%02d:%02d', CAST(NEW.minute / 60 AS INTEGER), NEW.minute % 60),
+    json_object(
+      'customer_name',COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),''),
+      'customer_phone',COALESCE((SELECT phone FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),''),
+      'service_name',COALESCE(NULLIF(NEW.service_name_snapshot,''),(SELECT name FROM services WHERE tenant_id=NEW.tenant_id AND id=NEW.service_id),''),
+      'staff_name',COALESCE((SELECT name FROM staff WHERE tenant_id=NEW.tenant_id AND id=NEW.staff_id),''),
+      'date',NEW.date,
+      'minute',NEW.minute,
+      'status',NEW.status,
+      'source',NEW.source,
+      'price',NEW.price
+    ),
+    strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  );
+END;
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS notification_appointment_cancelled
+AFTER UPDATE OF status ON appointments
+WHEN OLD.status<>NEW.status AND NEW.status='cancelled'
+BEGIN
+  INSERT INTO notification_events
+    (id,tenant_id,appointment_id,type,title,message,payload,created_at)
+  VALUES (
+    lower(hex(randomblob(16))),
+    NEW.tenant_id,
+    NEW.id,
+    'appointment.cancelled',
+    'Randevu iptal edildi',
+    COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),'Müşteri') ||
+      ' · ' || COALESCE(NULLIF(NEW.service_name_snapshot,''),(SELECT name FROM services WHERE tenant_id=NEW.tenant_id AND id=NEW.service_id),'Hizmet') ||
+      ' · ' || NEW.date || ' ' || printf('%02d:%02d', CAST(NEW.minute / 60 AS INTEGER), NEW.minute % 60),
+    json_object(
+      'customer_name',COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),''),
+      'customer_phone',COALESCE((SELECT phone FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),''),
+      'service_name',COALESCE(NULLIF(NEW.service_name_snapshot,''),(SELECT name FROM services WHERE tenant_id=NEW.tenant_id AND id=NEW.service_id),''),
+      'staff_name',COALESCE((SELECT name FROM staff WHERE tenant_id=NEW.tenant_id AND id=NEW.staff_id),''),
+      'date',NEW.date,
+      'minute',NEW.minute,
+      'status',NEW.status,
+      'source',NEW.source,
+      'price',NEW.price
+    ),
+    strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  );
+END;
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS notification_appointment_rescheduled
+AFTER UPDATE OF date,minute,staff_id ON appointments
+WHEN NEW.status='confirmed' AND (
+  OLD.date<>NEW.date OR OLD.minute<>NEW.minute OR OLD.staff_id<>NEW.staff_id
+)
+BEGIN
+  INSERT INTO notification_events
+    (id,tenant_id,appointment_id,type,title,message,payload,created_at)
+  VALUES (
+    lower(hex(randomblob(16))),
+    NEW.tenant_id,
+    NEW.id,
+    'appointment.updated',
+    'Randevu değiştirildi',
+    COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),'Müşteri') ||
+      ' · yeni zaman: ' || NEW.date || ' ' || printf('%02d:%02d', CAST(NEW.minute / 60 AS INTEGER), NEW.minute % 60),
+    json_object(
+      'customer_name',COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),''),
+      'customer_phone',COALESCE((SELECT phone FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),''),
+      'service_name',COALESCE(NULLIF(NEW.service_name_snapshot,''),(SELECT name FROM services WHERE tenant_id=NEW.tenant_id AND id=NEW.service_id),''),
+      'staff_name',COALESCE((SELECT name FROM staff WHERE tenant_id=NEW.tenant_id AND id=NEW.staff_id),''),
+      'date',NEW.date,
+      'minute',NEW.minute,
+      'status',NEW.status,
+      'source',NEW.source,
+      'price',NEW.price
+    ),
+    strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  );
+END;
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS notification_appointment_payment_updated
+AFTER UPDATE OF payment_status ON appointments
+WHEN COALESCE(OLD.payment_status,'')<>COALESCE(NEW.payment_status,'')
+BEGIN
+  INSERT INTO notification_events
+    (id,tenant_id,appointment_id,type,title,message,payload,created_at)
+  VALUES (
+    lower(hex(randomblob(16))),
+    NEW.tenant_id,
+    NEW.id,
+    'appointment.payment_updated',
+    'Randevu ödeme durumu değişti',
+    COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),'Müşteri') ||
+      ' · ' || COALESCE(NEW.payment_status,'güncellendi'),
+    json_object(
+      'customer_name',COALESCE((SELECT name FROM customers WHERE tenant_id=NEW.tenant_id AND id=NEW.customer_id),''),
+      'service_name',COALESCE(NULLIF(NEW.service_name_snapshot,''),(SELECT name FROM services WHERE tenant_id=NEW.tenant_id AND id=NEW.service_id),''),
+      'date',NEW.date,
+      'minute',NEW.minute,
+      'status',NEW.status,
+      'payment_status',NEW.payment_status,
+      'price',NEW.price
+    ),
+    strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  );
+END;
