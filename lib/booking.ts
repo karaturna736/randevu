@@ -29,7 +29,10 @@ export function range(b: any, p: any, d: string) {
   const k = String(new Date(d + "T12:00:00Z").getUTCDay()),
     bh = JSON.parse(b.hours)[k],
     ph = JSON.parse(p.hours)[k];
-  return bh && ph ? [Math.max(bh[0], ph[0]), Math.min(bh[1], ph[1])] : null;
+  if (!bh || !ph) return null;
+  const start = Math.ceil(Math.max(bh[0], ph[0]) / 15) * 15,
+    end = Math.min(bh[1], ph[1]);
+  return start < end ? [start, end] : null;
 }
 export async function available(
   b: any,
