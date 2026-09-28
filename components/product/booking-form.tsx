@@ -169,10 +169,15 @@ export default function BookingForm({
   }
   if (!services.length || !staff.length)
     return (
-      <Blank
-        title="Randevuya hazırlık gerekiyor"
-        description="Önce en az bir aktif hizmet ve personel ekleyin."
-      />
+      <div className="form-stack">
+        <Blank
+          title="Randevuya hazırlık gerekiyor"
+          description={!services.length
+            ? "Bu işletme henüz randevu alınabilecek bir hizmet eklemedi. Daha sonra tekrar deneyin."
+            : "Bu işletmenin randevu alınabilecek personeli henüz bulunmuyor. Daha sonra tekrar deneyin."}
+        />
+        <a className="button" href="/kesfet">Diğer işletmeleri keşfet</a>
+      </div>
     );
   if (result)
     return (

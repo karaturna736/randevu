@@ -21,6 +21,7 @@ import { AccountGate, useSession } from "./session";
 import { Hours } from "./management";
 import { api, Field, Pick, Busy } from "./common";
 import { CATEGORIES, HOURS, money, time, today } from "@/lib/types";
+import { bookingReadiness } from "@/lib/booking-readiness";
 
 const slugify = (s: string) =>
   s
@@ -641,25 +642,7 @@ export function WelcomeWorkspace({ isAdmin }: any) {
 
 export function BusinessChecklist({ w, onNavigate, onSelect }: any) {
   if (w.preview || w.business.demo) return null;
-  const steps = [
-    {
-      label: "İşletme bilgileri",
-      done: !!(w.business.address && w.business.phone),
-      view: "settings",
-    },
-    {
-      label: "İlk hizmet",
-      done: w.services.some((s: any) => s.active),
-      view: "services",
-    },
-    {
-      label: "Ekip ve saatler",
-      done: w.staff.some(
-        (s: any) => s.active && Object.keys(JSON.parse(s.hours)).length,
-      ),
-      view: "staff",
-    },
-  ];
+  const { steps } = bookingReadiness(w);
   const complete = steps.filter((s) => s.done).length,
     overdue = w.appointments.filter(
       (a: any) =>
