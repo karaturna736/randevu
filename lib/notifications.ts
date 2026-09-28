@@ -77,10 +77,16 @@ export async function notificationSnapshot(tenantId: string) {
   };
 }
 
+const notificationId = z
+  .string()
+  .min(16)
+  .max(64)
+  .regex(/^[a-f0-9-]+$/i, "Geçersiz bildirim kimliği.");
+
 const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("read"),
-    id: z.string().uuid(),
+    id: notificationId,
   }),
   z.object({
     action: z.literal("read-all"),
