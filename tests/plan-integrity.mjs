@@ -207,6 +207,10 @@ try {
     "Standart referral access does not unlock the Growth module",
   );
   check(
+    normal.public_site_ready === true,
+    "Standart receives public booking availability independently of Growth access",
+  );
+  check(
     pro.entitlements.plan === "pro" &&
       pro.entitlements.whatsappMonthly === 1000 &&
       pro.entitlements.aiDaily === 50 &&
