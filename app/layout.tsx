@@ -13,6 +13,7 @@ import "./hide-neta-prices.css";
 import { ReferralCapture } from "@/components/product/growth";
 import { SessionProvider } from "@/components/product/session";
 import { AutomaticCampaign } from "@/components/product/automatic-campaign";
+import { NotificationCenter } from "@/components/product/notification-center";
 
 const SITE_URL = "https://netarandevu.com";
 
@@ -83,6 +84,7 @@ export default function RootLayout({
         <SessionProvider>
           <ReferralCapture />
           <AutomaticCampaign />
+          <NotificationCenter />
           {children}
         </SessionProvider>
       </body>

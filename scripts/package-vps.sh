@@ -14,43 +14,59 @@ cp drizzle/*.sql "$stage/drizzle/"
 cp deploy/release-vps.sh deploy/neta-slot@.service "$stage/deploy/"
 chmod +x "$stage/deploy/release-vps.sh"
 
-# Each active VPS slot runs a standalone Node process. Keep the appointment
-# notification outbox moving from inside the process so manual appointment changes do not
-# depend on an external cron service. The endpoint is still protected by the
-# server-only AUTOMATION_SECRET and the runner only talks to loopback.
+# Each active VPS slot runs the appointment outbox and the revenue-recovery
+# matcher from inside the standalone process. Provider calls stay protected by
+# AUTOMATION_SECRET and are made only over loopback. Recovery itself still
+# honors RECOVERY_SCHEDULER_READY, so environments can disable it explicitly.
 cat >> "$stage/server.js" <<'NODE'
 
 ;(() => {
   const secret = process.env.AUTOMATION_SECRET;
   if (!secret) return;
   const port = process.env.PORT || '3000';
-  const endpoint = `http://127.0.0.1:${port}/api/automation/outbox`;
-  let running = false;
+  const base = `http://127.0.0.1:${port}`;
+  let outboxRunning = false;
+  let recoveryRunning = false;
 
-  async function runNetaAppointmentOutbox() {
-    if (running) return;
-    running = true;
+  async function postAutomation(path, label) {
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(base + path, {
         method: 'POST',
         headers: { Authorization: `Bearer ${secret}` },
         signal: AbortSignal.timeout(12000),
       });
       const body = await response.text();
       if (!response.ok) {
-        console.error(`Neta appointment notification worker returned HTTP ${response.status}: ${body.slice(0, 300)}`);
+        console.error(`Neta ${label} worker returned HTTP ${response.status}: ${body.slice(0, 300)}`);
       }
     } catch (error) {
-      console.error('Neta appointment notification worker failed:', error instanceof Error ? error.message : String(error));
-    } finally {
-      running = false;
+      console.error(`Neta ${label} worker failed:`, error instanceof Error ? error.message : String(error));
     }
   }
 
-  const first = setTimeout(runNetaAppointmentOutbox, 5000);
-  first.unref?.();
-  const timer = setInterval(runNetaAppointmentOutbox, 15000);
-  timer.unref?.();
+  async function runOutbox() {
+    if (outboxRunning) return;
+    outboxRunning = true;
+    try { await postAutomation('/api/automation/outbox', 'appointment notification'); }
+    finally { outboxRunning = false; }
+  }
+
+  async function runRecovery() {
+    if (process.env.RECOVERY_SCHEDULER_READY !== 'true' || recoveryRunning) return;
+    recoveryRunning = true;
+    try { await postAutomation('/api/automation/recovery', 'waitlist recovery'); }
+    finally { recoveryRunning = false; }
+  }
+
+  const firstOutbox = setTimeout(runOutbox, 5000);
+  firstOutbox.unref?.();
+  const outboxTimer = setInterval(runOutbox, 15000);
+  outboxTimer.unref?.();
+
+  const firstRecovery = setTimeout(runRecovery, 7000);
+  firstRecovery.unref?.();
+  const recoveryTimer = setInterval(runRecovery, 15000);
+  recoveryTimer.unref?.();
 })();
 NODE
 

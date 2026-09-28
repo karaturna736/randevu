@@ -32,13 +32,20 @@ async function graph(c:any,to:string,payload:any){
   return String(result.messages[0].id);
 }
 
-function messageFor(row:any){
+function customerMessageFor(row:any){
   const when=`${displayDate(row.date)} ${time(row.minute)}`;
   const link=appOrigin()+'/'+row.slug;
   if(row.event==='created')return `Neta Randevu\nRandevunuz oluşturuldu.\n${row.service_name} · ${money(row.price)}\n${when} · ${row.staff_name}\nİşletme sayfası: ${link}\nRandevu yönetim bağlantınız onay ekranında gösterildi.`;
   if(row.event==='rescheduled')return `Neta Randevu\nMerhaba ${row.customer_name||'Müşterimiz'}, randevunuz işletme tarafından değiştirildi.\n${row.business_name} · ${row.service_name}\nYeni tarih ve saat: ${when}\nPersonel: ${row.staff_name}\nDetay: ${link}`;
   if(row.event==='cancelled')return `Neta Randevu\nRandevunuz iptal edildi.\n${row.service_name} · ${when}\nYeni randevu: ${appOrigin()}/${row.slug}`;
   return `Neta Randevu\nHatırlatma: yarın ${when} saatinde ${row.service_name} randevunuz var.\n${row.staff_name} · ${money(row.price)}\nİşletme sayfası: ${link}`;
+}
+
+function ownerMessageFor(row:any){
+  const when=`${displayDate(row.date)} ${time(row.minute)}`;
+  if(row.event==='created')return `Neta Yönetici Bildirimi\nYeni randevu oluşturuldu.\nMüşteri: ${row.customer_name||'Müşteri'}\nHizmet: ${row.service_name}\nTarih: ${when}\nPersonel: ${row.staff_name}`;
+  if(row.event==='cancelled')return `Neta Yönetici Bildirimi\nRandevu iptal edildi.\nMüşteri: ${row.customer_name||'Müşteri'}\nHizmet: ${row.service_name}\nTarih: ${when}\nPersonel: ${row.staff_name}`;
+  return '';
 }
 
 function payloadFor(c:any,row:any,body:string){
@@ -106,16 +113,28 @@ async function processAppointmentNotifications(){
     if(row.event==='rescheduled'&&age>60*60000){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
     if(row.event!=='reminder'&&age>7*86400000){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
     if(row.event==='reminder'&&row.status!=='confirmed'){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
-    // The WhatsApp bot already sends a confirmation while creating a booking.
-    // Avoid a duplicate created notification for that same appointment.
-    if(row.event==='created'&&await one('SELECT id FROM wa_messages WHERE tenant_id=? AND appointment_id=?',row.tenant_id,row.appointment_id)){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
-    const body=messageFor(row);
-    // A manual reschedule is a customer-facing operational notice. The owner
-    // already sees the change in the panel, so do not send a duplicate owner alert.
-    const recipients=(row.event==='rescheduled'?[phone(row.customer_phone)]:[phone(row.customer_phone),phone((c as any).owner_number)]).filter((v,i,a):v is string=>!!v&&a.indexOf(v)===i);
-    if(!recipients.length){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
+
+    const customer=phone(row.customer_phone);
+    const owner=phone((c as any).owner_number);
+    const customerAlreadyNotified=row.event==='created'&&!!(await one('SELECT id FROM wa_messages WHERE tenant_id=? AND appointment_id=? AND phone=?',row.tenant_id,row.appointment_id,customer||''));
+    const deliveries:{to:string;body:string}[]=[];
+
+    if(customer&&!customerAlreadyNotified)deliveries.push({to:customer,body:customerMessageFor(row)});
+    if((row.event==='created'||row.event==='cancelled')&&owner&&owner!==customer){
+      deliveries.push({to:owner,body:ownerMessageFor(row)});
+    }
+
+    if(!deliveries.length){
+      await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();
+      skipped++;
+      continue;
+    }
+
     let sent=0,quotaHit=false;
-    for(const recipient of recipients){try{if(await send(c,row,recipient,body))sent++;}catch(e){if(e instanceof ApiError&&e.status===429){quotaHit=true;break}throw e;}}
+    for(const delivery of deliveries){
+      try{if(await send(c,row,delivery.to,delivery.body))sent++;}
+      catch(e){if(e instanceof ApiError&&e.status===429){quotaHit=true;break}throw e;}
+    }
     if(quotaHit){await q("UPDATE outbox SET state='quota' WHERE id=? AND state='sending'",row.id).run();quota++;continue;}
     if(sent){await q("UPDATE outbox SET state='accepted' WHERE id=? AND state='sending'",row.id).run();accepted++;}
     else{await q("UPDATE outbox SET state='failed' WHERE id=? AND state='sending'",row.id).run();failed++;}
