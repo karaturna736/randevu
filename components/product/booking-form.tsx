@@ -286,6 +286,8 @@ export default function BookingForm({
               .map((v: any) => (
                 <button
                   key={v.id}
+                  type="button"
+                  aria-pressed={serviceIds.includes(v.id)}
                   className={
                     "service-option " + (serviceIds.includes(v.id) ? "selected" : "")
                   }
@@ -293,7 +295,7 @@ export default function BookingForm({
                     if (current.includes(v.id)) return current.length === 1 ? current : current.filter(id => id !== v.id);
                     if (current.length >= 10) { toast.error("En fazla 10 işlem seçebilirsiniz."); return current; }
                     const first = services.find((item: any) => item.id === current[0]);
-                    if (first?.delivery_mode !== v.delivery_mode || v.delivery_mode !== "in_person") {
+                    if ((first?.delivery_mode || "in_person") !== (v.delivery_mode || "in_person") || (v.delivery_mode || "in_person") !== "in_person") {
                       toast.error("Birden fazla işlem aynı personel tarafından yüz yüze yapılmalıdır.");
                       return current;
                     }
