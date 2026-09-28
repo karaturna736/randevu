@@ -41,6 +41,14 @@ function messageFor(row:any){
   return `Neta Randevu\nHatırlatma: yarın ${when} saatinde ${row.service_name} randevunuz var.\n${row.staff_name} · ${money(row.price)}\nİşletme sayfası: ${link}`;
 }
 
+function ownerMessageFor(row:any){
+  const when=`${displayDate(row.date)} ${time(row.minute)}`;
+  if(row.event==='created')return `Neta Yönetici\nYeni randevu oluşturuldu.\nMüşteri: ${row.customer_name||'Müşteri'}\nHizmet: ${row.service_name}\nTarih: ${when}\nPersonel: ${row.staff_name}\nTutar: ${money(row.price)}`;
+  if(row.event==='cancelled')return `Neta Yönetici\nRandevu iptal edildi.\nMüşteri: ${row.customer_name||'Müşteri'}\nHizmet: ${row.service_name}\nTarih: ${when}\nPersonel: ${row.staff_name}`;
+  if(row.event==='reminder')return `Neta Yönetici\nYarınki randevu hatırlatması.\nMüşteri: ${row.customer_name||'Müşteri'}\n${row.service_name} · ${when}\nPersonel: ${row.staff_name}`;
+  return messageFor(row);
+}
+
 function payloadFor(c:any,row:any,body:string){
   if(row.event!=='rescheduled')return {type:'text',text:{preview_url:false,body}};
   const template=String(cfg().WHATSAPP_RESCHEDULE_TEMPLATE||RESCHEDULE_TEMPLATE_DEFAULT).trim();
@@ -106,16 +114,27 @@ async function processAppointmentNotifications(){
     if(row.event==='rescheduled'&&age>60*60000){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
     if(row.event!=='reminder'&&age>7*86400000){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
     if(row.event==='reminder'&&row.status!=='confirmed'){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
-    // The WhatsApp bot already sends a confirmation while creating a booking.
-    // Avoid a duplicate created notification for that same appointment.
-    if(row.event==='created'&&await one('SELECT id FROM wa_messages WHERE tenant_id=? AND appointment_id=?',row.tenant_id,row.appointment_id)){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
-    const body=messageFor(row);
-    // A manual reschedule is a customer-facing operational notice. The owner
-    // already sees the change in the panel, so do not send a duplicate owner alert.
-    const recipients=(row.event==='rescheduled'?[phone(row.customer_phone)]:[phone(row.customer_phone),phone((c as any).owner_number)]).filter((v,i,a):v is string=>!!v&&a.indexOf(v)===i);
+
+    const customerRecipient=phone(row.customer_phone);
+    const ownerRecipient=phone((c as any).owner_number);
+    const customerAlreadyNotified=row.event==='created'&&customerRecipient
+      ?!!(await one("SELECT id FROM wa_messages WHERE tenant_id=? AND appointment_id=? AND phone=? AND status IN ('sending','accepted') LIMIT 1",row.tenant_id,row.appointment_id,customerRecipient))
+      :false;
+
+    const recipients:{to:string;owner:boolean}[]=[];
+    if(row.event==='rescheduled'){
+      if(customerRecipient)recipients.push({to:customerRecipient,owner:false});
+    }else{
+      if(customerRecipient&&!customerAlreadyNotified)recipients.push({to:customerRecipient,owner:false});
+      if(ownerRecipient&&ownerRecipient!==customerRecipient)recipients.push({to:ownerRecipient,owner:true});
+    }
+
     if(!recipients.length){await q("UPDATE outbox SET state='skipped' WHERE id=? AND state='sending'",row.id).run();skipped++;continue;}
     let sent=0,quotaHit=false;
-    for(const recipient of recipients){try{if(await send(c,row,recipient,body))sent++;}catch(e){if(e instanceof ApiError&&e.status===429){quotaHit=true;break}throw e;}}
+    for(const recipient of recipients){
+      const body=recipient.owner?ownerMessageFor(row):messageFor(row);
+      try{if(await send(c,row,recipient.to,body))sent++;}catch(e){if(e instanceof ApiError&&e.status===429){quotaHit=true;break}throw e;}
+    }
     if(quotaHit){await q("UPDATE outbox SET state='quota' WHERE id=? AND state='sending'",row.id).run();quota++;continue;}
     if(sent){await q("UPDATE outbox SET state='accepted' WHERE id=? AND state='sending'",row.id).run();accepted++;}
     else{await q("UPDATE outbox SET state='failed' WHERE id=? AND state='sending'",row.id).run();failed++;}
