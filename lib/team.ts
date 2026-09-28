@@ -35,12 +35,16 @@ export async function setTeamAccess(id: string, x: any) {
 }
 
 async function assignments() {
-  const u = await user();
+  const u = await user(), stamp = now();
   return { u, rows: await all(`SELECT b.id,b.name,b.slug,b.category,m.staff_id,p.name staff_name,p.branch_id,br.name branch_name
     FROM members m JOIN businesses b ON b.id=m.tenant_id
     JOIN staff p ON p.tenant_id=m.tenant_id AND p.id=m.staff_id
     JOIN branches br ON br.tenant_id=p.tenant_id AND br.id=p.branch_id AND br.active=1
-    WHERE m.user_id=? AND m.role='staff' AND m.disabled=0 AND p.active=1 AND b.status NOT IN ('deleted','suspended')`, u.userId) };
+    WHERE m.user_id=? AND m.role='staff' AND m.disabled=0 AND p.active=1 AND b.status NOT IN ('deleted','suspended')
+      AND (b.demo=1
+        OR EXISTS(SELECT 1 FROM subscriptions s WHERE s.tenant_id=b.id AND s.paid_until>?)
+        OR EXISTS(SELECT 1 FROM recurring_subscriptions r WHERE r.tenant_id=b.id AND r.test_mode=0 AND r.plan IN ('normal','pro','plus') AND r.paid_until>?)
+        OR EXISTS(SELECT 1 FROM onboarding_payments op JOIN admins a ON a.user_id=op.user_id WHERE op.tenant_id=b.id AND op.state='active' AND op.test_mode=1 AND op.expires_at>?))`, u.userId, stamp, stamp, stamp) };
 }
 
 function operationalAppointment(a: any) {
@@ -75,7 +79,7 @@ export async function teamWorkspace(id: string, d: string, rawPassword: unknown)
   const journeys = modules.journeys ? await all(`SELECT DISTINCT j.id,j.customer_id,j.title,j.template,j.status,j.version,j.updated_at,c.name customer_name FROM journeys j JOIN customers c ON c.tenant_id=j.tenant_id AND c.id=j.customer_id WHERE j.tenant_id=? AND EXISTS(SELECT 1 FROM appointments a WHERE a.tenant_id=j.tenant_id AND a.customer_id=j.customer_id AND a.branch_id=?) ORDER BY j.updated_at DESC LIMIT 300`, b.id, b.branch_id) : [];
   const journeySteps = modules.journeys ? await all(`SELECT s.id,s.journey_id,s.position,s.title,s.due_date,s.completed_at FROM journey_steps s JOIN journeys j ON j.tenant_id=s.tenant_id AND j.id=s.journey_id WHERE s.tenant_id=? AND EXISTS(SELECT 1 FROM appointments a WHERE a.tenant_id=j.tenant_id AND a.customer_id=j.customer_id AND a.branch_id=?) ORDER BY s.journey_id,s.position`, b.id, b.branch_id) : [];
   const wa = waConnection(b.id);
-  const whatsappAppointments = modules.whatsapp ? await all(`SELECT a.id,a.date,a.minute,a.status,c.name customer_name FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id WHERE a.tenant_id=? AND a.branch_id=? AND a.source='whatsapp' ORDER BY a.created_at DESC LIMIT 50`, b.id, b.branch_id) : [];
+  const whatsappAppointments = modules.whatsapp ? await all(`SELECT a.id,a.date,a.minute,a.status,c.name customer_name FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND a.customer_id=c.id WHERE a.tenant_id=? AND a.branch_id=? AND a.source='whatsapp' ORDER BY a.created_at DESC LIMIT 50`, b.id, b.branch_id) : [];
   return { businesses: rows.map((row: any) => ({ id: row.id, name: row.name, branch_name: row.branch_name })), business: { id: b.id, name: b.name, slug: b.slug, branch_id: b.branch_id, branch_name: b.branch_name, staff_id: b.staff_id, staff_name: b.staff_name }, user: u, date: day, password_required: passwordRequired, appointments, customers, services, staff, journeys, journey_steps: journeySteps, whatsapp: { enabled: !!modules.whatsapp, connected: !!modules.whatsapp && waReady(b.id), number: modules.whatsapp ? (wa?.number || null) : null, appointments: whatsappAppointments }, permissions: { settings: false, services_write: false, staff_write: false, customers_write: false, journeys_write: !!modules.journeys, whatsapp_settings: false, booking_link_share: true } };
 }
 
