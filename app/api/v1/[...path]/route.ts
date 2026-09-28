@@ -438,6 +438,10 @@ export async function POST(req: Request) {
       await limit(req, "setup-import", 60);
       return ok(await importSetup(id, x));
     }
+    if (p[0] === "customer-import") {
+      await limit(req, "customer-import", 60);
+      return ok(await importSetup(id, x, "customers"));
+    }
     if (p[0] === "setup-training") {
       await limit(req, "setup-training", 10);
       return ok(await requestTraining(id, x), 201);
