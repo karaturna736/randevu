@@ -292,8 +292,20 @@ export async function GET(req: Request) {
         requestedDate = date.parse(u.searchParams.get("date")),
         person = u.searchParams.get("staff") || "any",
         branchId = u.searchParams.get("branch") || undefined;
-      const slots = await available(b, serviceId, requestedDate, person, "", undefined, branchId);
-      const alternatives = !id && branchId && !slots.length
+      const ids = (u.searchParams.get("services") || serviceId).split(",");
+      if (ids[0] !== serviceId || ids.length > 10 || new Set(ids).size !== ids.length)
+        throw new ApiError("Seçilen hizmetler geçersiz.");
+      const selectedServices: any[] = [];
+      for (const itemId of ids) {
+        const item = await one("SELECT duration,delivery_mode FROM services WHERE tenant_id=? AND id=? AND active=1", b.id, itemId);
+        if (!item) throw new ApiError("Hizmet bulunamadı.", 404);
+        selectedServices.push(item);
+      }
+      const totalDuration = selectedServices.reduce((sum, item) => sum + item.duration, 0);
+      if (totalDuration > 720 || (selectedServices.length > 1 && selectedServices.some(item => item.delivery_mode !== "in_person")))
+        throw new ApiError("Birlikte seçilen hizmetlerin türü veya toplam süresi uygun değil.");
+      const slots = await available(b, serviceId, requestedDate, person, "", totalDuration, branchId);
+      const alternatives = ids.length === 1 && !id && branchId && !slots.length
         ? await crossBranchAlternatives(b, serviceId, requestedDate, "any", branchId)
         : [];
       return ok({ slots, alternatives });
@@ -312,7 +324,7 @@ export async function GET(req: Request) {
         presentation: await publicStyle(b.id),
         website: await publicWebsite(b.id),
         services: await all(
-          "SELECT id,name,description,duration,price,color,active FROM services WHERE tenant_id=? AND active=1",
+          "SELECT id,name,description,duration,price,color,active,delivery_mode FROM services WHERE tenant_id=? AND active=1",
           b.id,
         ),
         staff: await all(

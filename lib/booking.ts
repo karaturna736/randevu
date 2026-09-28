@@ -105,6 +105,7 @@ export async function available(
 const booking = z.object({
   branch_id: z.string().min(1).optional(),
   service_id: z.string(),
+  service_ids: z.array(z.string().min(1)).min(1).max(10).optional(),
   staff_id: z.string(),
   date: dateSchema,
   minute: z.number().int().min(0).max(1425).multipleOf(15),
@@ -175,6 +176,21 @@ export async function book(
       x.service_id,
     );
   if (!service) throw new ApiError("Hizmet bulunamadı.", 404);
+  const ids = x.service_ids || [x.service_id];
+  if (ids[0] !== x.service_id || new Set(ids).size !== ids.length)
+    throw new ApiError("Seçilen hizmetler geçersiz.");
+  const services = [service];
+  for (const serviceId of ids.slice(1)) {
+    const item = await one("SELECT * FROM services WHERE tenant_id=? AND id=? AND active=1", b.id, serviceId);
+    if (!item) throw new ApiError("Hizmet bulunamadı.", 404);
+    services.push(item);
+  }
+  const duration = services.reduce((sum, item) => sum + item.duration, 0);
+  const price = services.reduce((sum, item) => sum + item.price, 0);
+  if (duration > 720 || (services.length > 1 && services.some(item => item.delivery_mode !== "in_person")))
+    throw new ApiError("Birlikte seçilen hizmetlerin türü veya toplam süresi uygun değil.");
+  const serviceName = services.map(item => item.name).join(" + ");
+  const serviceDescription = services.map(item => item.description).filter(Boolean).join(" · ");
   const staff = await one(
     "SELECT * FROM staff WHERE tenant_id=? AND id=? AND active=1",
     b.id,
@@ -196,7 +212,7 @@ export async function book(
     x.date,
     x.staff_id,
     "",
-    service.duration,
+    duration,
     branch.id,
   );
   if (!slots.some((s) => s.minute === x.minute))
@@ -230,18 +246,18 @@ export async function book(
       x.staff_id,
       x.date,
       x.minute,
-      service.duration,
-      service.price,
+      duration,
+      price,
       channel,
       meetingUrl,
       await hash(token),
       now(),
-      service.name,
-      service.description || "",
+      serviceName,
+      serviceDescription,
       x.customer_note,
       x.early_from ?? null,
     ),
-    ...blocks(b.id, x.staff_id, x.date, x.minute, service.duration, id),
+    ...blocks(b.id, x.staff_id, x.date, x.minute, duration, id),
     event(b.id, id, "created"),
   ];
   if (visitId)
@@ -283,14 +299,14 @@ export async function book(
       data: {
         customer_name: x.name,
         customer_phone: x.phone,
-        service_name: service.name,
+        service_name: serviceName,
         staff_name: staff.name,
         branch_name: branch?.name || undefined,
         date: x.date,
         minute: x.minute,
         time: time(x.minute),
         status: "confirmed",
-        price: service.price,
+        price,
       },
     });
   } catch (e) {
@@ -301,8 +317,8 @@ export async function book(
     token,
     date: x.date,
     time: time(x.minute),
-    service: service.name,
-    price: service.price,
+    service: serviceName,
+    price,
     delivery_mode: service.delivery_mode,
     meeting_url: meetingUrl,
     saved_to_account: !!accountId,
