@@ -197,7 +197,10 @@ export function BranchProfitability({ w }: any) {
 
           <div
             className="operations-metrics margin-top"
-            style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}
+            style={{
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
+            }}
           >
             <div className="operation-metric">
               <Crown size={19} />
