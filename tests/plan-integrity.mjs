@@ -253,6 +253,47 @@ try {
     (await call("setup-center?tenant=plan-pro", { user: "pro-owner" })).status === 402,
     "Pro cannot bypass Plus setup center from the API",
   );
+  const customerBatch = {
+    tenant_id: "plan-normal",
+    kind: "customers",
+    batch_id: randomUUID(),
+    rows: [
+      { name: "Eski Müşteri", phone: "05321234567", email: "", consent: false },
+      { name: "Tekrar", phone: "+905321234567", email: "", consent: true },
+      { name: "Eksik", phone: "123", email: "", consent: false },
+    ],
+  };
+  const customerResult = await call("customer-import", { user: "normal-owner", body: customerBatch });
+  check(
+    customerResult.status === 200 && customerResult.data.imported === 1 &&
+      customerResult.data.duplicate_rows === 1 && customerResult.data.skipped === 1,
+    "Standart owner can import valid customers and receives accurate skipped/duplicate counts",
+  );
+  check(
+    (await call("customer-import", { user: "normal-owner", body: customerBatch })).data.duplicate === true,
+    "Retrying the same customer batch is idempotent",
+  );
+  const repeatedCustomer = await call("customer-import", {
+    user: "normal-owner",
+    body: { ...customerBatch, batch_id: randomUUID(), rows: [{ name: "Overwrite", phone: "5321234567", email: "new@example.test", consent: true }] },
+  });
+  const preserved = await db.prepare("SELECT name,email,consent FROM customers WHERE tenant_id=? AND phone=?")
+    .bind("plan-normal", "+905321234567").first();
+  check(
+    repeatedCustomer.data.imported === 0 && repeatedCustomer.data.duplicate_rows === 1 &&
+      preserved?.name === "Eski Müşteri" && preserved?.email === "" && preserved?.consent === 0,
+    "Reimport does not overwrite customer data or grant WhatsApp consent",
+  );
+  check(
+    (await call("customer-import", { user: "pro-owner", body: { ...customerBatch, batch_id: randomUUID() } })).status === 403 &&
+      (await call("customer-import", { body: { ...customerBatch, batch_id: randomUUID() } })).status === 401,
+    "Customer import requires the authenticated owner of the selected business",
+  );
+  check(
+    (await call("customer-import", { user: "normal-owner", body: { ...customerBatch, batch_id: randomUUID(), kind: "services", rows: [{ name: "Unauthorized service", duration: 30, price: 0 }] } })).status === 403 &&
+      (await call("setup-import", { user: "normal-owner", body: customerBatch })).status === 402,
+    "Customer import cannot bypass paid setup center features",
+  );
   check(
     (await call("expense-catalog", { user: "pro-owner", body: { tenant_id: "plan-pro" } })).status === 402,
     "Pro cannot bypass Plus reusable accounting catalog from the API",

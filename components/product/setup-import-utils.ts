@@ -81,33 +81,33 @@ function delimiterOf(line: string) {
   return [",", ";", "\t"].sort((a, b) => count(b) - count(a))[0];
 }
 
-function csvLine(line: string, delimiter: string) {
-  const out: string[] = [];
-  let value = "",
-    quoted = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"' && line[i + 1] === '"') {
-      value += '"';
-      i++;
-    } else if (c === '"') quoted = !quoted;
-    else if (c === delimiter && !quoted) {
-      out.push(value.trim());
-      value = "";
-    } else value += c;
-  }
-  out.push(value.trim());
-  return out;
-}
-
 export function parseSetupCsv(text: string) {
-  const lines = text
-    .replace(/^\ufeff/, "")
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
-  if (!lines.length) return [];
-  const delimiter = delimiterOf(lines[0]);
-  return lines.map((line) => csvLine(line, delimiter));
+  const source = text.replace(/^\ufeff/, "");
+  const delimiter = delimiterOf(source.split(/\r?\n/, 1)[0]);
+  const rows: string[][] = [];
+  let row: string[] = [], field = "", quoted = false;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (c === '"') {
+      if (quoted && source[i + 1] === '"') {
+        field += '"';
+        i++;
+      } else quoted = !quoted;
+    } else if (c === delimiter && !quoted) {
+      row.push(field.trim());
+      field = "";
+    } else if ((c === "\n" || c === "\r") && !quoted) {
+      if (c === "\r" && source[i + 1] === "\n") i++;
+      row.push(field.trim());
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      field = "";
+    } else field += c;
+  }
+  if (quoted) throw new Error("CSV dosyasında kapanmamış tırnak bulundu.");
+  row.push(field.trim());
+  if (row.some(Boolean)) rows.push(row);
+  return rows;
 }
 
 const key = (value: unknown) =>

@@ -91,6 +91,7 @@ import { WelcomeWorkspace, BusinessChecklist } from "./onboarding";
 import { Receivables, Journeys } from "./customer-operations";
 import { BookingLink, Growth, WhatsAppPanel, HelpCenter } from "./growth";
 import { RecoveryEngine, SetupCenter } from "./recovery-setup";
+import { CustomerImport } from "./customer-import";
 import { BranchProfitability } from "./branches";
 import { PlusTools } from "./plus-tools";
 import { useAppointmentRealtime } from "@/hooks/use-appointment-realtime";
@@ -676,6 +677,7 @@ export default function Dashboard({
               w={w}
               retention={activeView === "retention"}
               onSelect={setCustomer}
+              onImported={() => refresh(w.business.id)}
             />
           )}{" "}
           {(activeView === "services" || activeView === "staff") && (
@@ -978,7 +980,7 @@ function Calendar({ w, onSelect, highlightedId }: any) {
   );
 }
 
-function Customers({ w, retention, onSelect }: any) {
+function Customers({ w, retention, onSelect, onImported }: any) {
   const [search, setSearch] = useState("");
   const rows = w.customers.filter(
     (c: any) =>
@@ -988,7 +990,7 @@ function Customers({ w, retention, onSelect }: any) {
         .includes(search.toLocaleLowerCase("tr-TR")),
   );
   return (
-    <section className="panel">
+    <section className="panel customer-list-panel">
       <div className="toolbar">
         <div className="search-input">
           <Search size={17} />
@@ -999,7 +1001,10 @@ function Customers({ w, retention, onSelect }: any) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <span className="muted">{rows.length} müşteri</span>
+        <div className="button-group">
+          <span className="muted">{rows.length} müşteri</span>
+          {!retention && !w.preview && <CustomerImport tenantId={w.business.id} onImported={onImported} />}
+        </div>
       </div>
       {retention && (
         <div className="notice margin-bottom">

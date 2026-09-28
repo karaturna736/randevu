@@ -95,11 +95,20 @@ export async function setupSnapshot(id: string) {
   };
 }
 
-export async function importSetup(id: string, input: any) {
+export async function importSetup(
+  id: string,
+  input: any,
+  scope: "setup" | "customers" = "setup",
+) {
   const b = await tenant(id);
-  await requirePlanModule(id, "setupCenter");
   const u = await user(),
     x = importSchema.parse(input);
+  if (scope === "customers") {
+    if (x.kind !== "customers")
+      throw new ApiError("Müşteri ekranından yalnızca müşteri aktarılabilir.", 403);
+  } else {
+    await requirePlanModule(id, "setupCenter");
+  }
 
   if (
     await one(
@@ -134,12 +143,27 @@ export async function importSetup(id: string, input: any) {
   };
 
   if (x.kind === "customers") {
-    x.rows.forEach((raw, index) => {
+    const seenPhones = new Set<string>();
+    for (let index = 0; index < x.rows.length; index++) {
+      const raw = x.rows[index];
       const r = parse(customer, raw, index);
-      if (!r) return;
+      if (!r) continue;
+      if (scope === "customers") {
+        if (seenPhones.has(r.phone) || await one(
+          "SELECT id FROM customers WHERE tenant_id=? AND phone=?",
+          id,
+          r.phone,
+        )) {
+          duplicateRows++;
+          continue;
+        }
+        seenPhones.add(r.phone);
+      }
       ops.push(
         q(
-          "INSERT INTO customers(id,tenant_id,name,phone,email,consent,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(tenant_id,phone) DO UPDATE SET name=excluded.name,email=CASE WHEN excluded.email<>'' THEN excluded.email ELSE customers.email END,consent=MAX(customers.consent,excluded.consent)",
+          scope === "customers"
+            ? "INSERT INTO customers(id,tenant_id,name,phone,email,consent,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(tenant_id,phone) DO NOTHING"
+            : "INSERT INTO customers(id,tenant_id,name,phone,email,consent,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(tenant_id,phone) DO UPDATE SET name=excluded.name,email=CASE WHEN excluded.email<>'' THEN excluded.email ELSE customers.email END,consent=MAX(customers.consent,excluded.consent)",
           uid(),
           id,
           r.name,
@@ -150,7 +174,7 @@ export async function importSetup(id: string, input: any) {
         ),
       );
       imported++;
-    });
+    }
   }
 
   if (x.kind === "services") {
