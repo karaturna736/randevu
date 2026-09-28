@@ -148,13 +148,18 @@ export const phone = z
 export const hours = z
   .record(
     z.tuple([
-      z.number().int().min(0).max(1425).multipleOf(15),
-      z.number().int().min(15).max(1440).multipleOf(15),
+      z.number().int().min(360, "En erken başlangıç saati 06:00 olabilir.").max(1439),
+      z.number().int().min(0).max(1440),
     ]),
   )
+  .transform((h) =>
+    Object.fromEntries(
+      Object.entries(h).map(([k, [a, b]]) => [k, [a, b === 0 ? 1440 : b]]),
+    ) as Record<string, [number, number]>,
+  )
   .refine(
-    (h) => Object.entries(h).every(([k, [a, b]]) => /^[0-6]$/.test(k) && a < b),
-    "Saatleri kontrol edin.",
+    (h) => Object.entries(h).every(([k, [a, b]]) => /^[0-6]$/.test(k) && a < b && b <= 1440),
+    "Saatleri kontrol edin. Başlangıç 06:00'dan erken, kapanış 00:00'dan geç olamaz.",
   );
 export async function body(req: Request) {
   const origin = req.headers.get("origin"),
