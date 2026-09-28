@@ -63,6 +63,46 @@ export async function recallCandidates(id: string, days: number) {
   );
 }
 
+async function backfillReferralsForReferrer(id: string, inviteCode: string) {
+  if (!referralProgramEnabled()) return;
+
+  // Payment-first onboarding stores the complete server-validated business payload.
+  // Older production signups could lose the browser referral state before the
+  // referrals row was written. Recover those rows from the persisted payload so
+  // already-tested invitations are not lost.
+  const candidates = await all(
+    `SELECT p.tenant_id,p.user_id,p.created_at
+     FROM onboarding_payments p
+     JOIN businesses b ON b.id=p.tenant_id
+     WHERE p.tenant_id IS NOT NULL
+       AND b.demo=0
+       AND json_valid(p.payload)=1
+       AND upper(COALESCE(json_extract(p.payload,'$.ref'),''))=?
+       AND NOT EXISTS(
+         SELECT 1 FROM members self
+         WHERE self.tenant_id=? AND self.user_id=p.user_id
+       )
+     ORDER BY p.created_at ASC
+     LIMIT 100`,
+    inviteCode,
+    id,
+  );
+
+  for (const row of candidates) {
+    if (!row.tenant_id || !row.user_id) continue;
+    await q(
+      `INSERT INTO referrals(referred_tenant,referrer_tenant,owner_id,status,reward,created_at)
+       VALUES(?,?,?,'pending',?,?)
+       ON CONFLICT DO NOTHING`,
+      String(row.tenant_id),
+      id,
+      String(row.user_id),
+      REFERRAL_REWARD,
+      String(row.created_at || now()),
+    ).run();
+  }
+}
+
 async function reconcileReferralsForReferrer(id: string) {
   if (!referralProgramEnabled()) return;
   const pending = await all(
@@ -84,8 +124,7 @@ async function referralData(id: string) {
       id,
     ).run();
 
-  // Eski veya ödeme anında henüz işlenememiş davetleri kullanıcı ekranı açıldığında
-  // idempotent biçimde tekrar uzlaştır. Böylece kredi, manuel admin onayına bağlı kalmaz.
+  await backfillReferralsForReferrer(id, inviteCode);
   await reconcileReferralsForReferrer(id);
 
   return {
@@ -222,42 +261,19 @@ export async function approveReferral(id: string) {
   await db().batch([
     q(
       `INSERT INTO credit_ledger(id,tenant_id,amount,kind,reference,description,created_at)
-       SELECT ?,r.referrer_tenant,r.reward,'referral','referral:'||r.referred_tenant,'Doğrulanmış işletme daveti',?
+       SELECT ?,r.referrer_tenant,r.reward,'referral','referral:'||r.referred_tenant,'Onaylanmış işletme daveti',?
        FROM referrals r
        JOIN businesses b ON b.id=r.referred_tenant
        JOIN businesses f ON f.id=r.referrer_tenant
        WHERE r.referred_tenant=?
          AND r.status='pending'
          AND b.demo=0
-         AND b.status NOT IN ('deleted','suspended')
+         AND b.status='approved'
          AND f.status='approved'
-         AND (
-           (
-             EXISTS(
-               SELECT 1 FROM recurring_subscriptions s
-               WHERE s.tenant_id=b.id
-                 AND s.test_mode=0
-                 AND s.state IN ('ACTIVE','UPGRADED')
-             )
-             AND EXISTS(
-               SELECT 1 FROM recurring_events e
-               WHERE e.tenant_id=b.id AND e.test_mode=0
-             )
-           )
-           OR EXISTS(
-             SELECT 1 FROM onboarding_payments p
-             WHERE p.tenant_id=b.id
-               AND p.provider='neta_zero_test'
-               AND p.state='active'
-               AND p.test_mode=1
-               AND p.expires_at>?
-           )
-         )
        ON CONFLICT(reference) DO NOTHING`,
       uid(),
       stamp,
       id,
-      stamp,
     ),
     q(
       "UPDATE referrals SET status='earned' WHERE referred_tenant=? AND EXISTS(SELECT 1 FROM credit_ledger WHERE reference='referral:'||?)",
