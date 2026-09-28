@@ -10,7 +10,7 @@ const wranglerRequire=createRequire(require.resolve('wrangler/package.json'));
 const {Miniflare}=await import(wranglerRequire.resolve('miniflare'));
 const root=resolve('dist/server');
 const files=['index.js',...readdirSync(root,{recursive:true}).filter(p=>p.endsWith('.js')&&p!=='index.js')];
-const mf=new Miniflare({modules:files.map(p=>({type:'ESModule',path:resolve(root,p)})),modulesRoot:root,compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{PLATFORM_ADMIN_USER_IDS:'qa-admin',CHATGPT_AUTH_ENABLED:'true'},cf:false});
+const mf=new Miniflare({modules:files.map(p=>({type:'ESModule',path:resolve(root,p)})),modulesRoot:root,compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{PLATFORM_ADMIN_USER_IDS:'qa-admin',CHATGPT_AUTH_ENABLED:'true',PUBLIC_SITE_READY:'true'},cf:false});
 let checks=0;
 function check(condition,message){assert.ok(condition,message);checks++;console.log('PASS',message)}
 async function call(path,{user,body,token,headers={}}={}){const h={...headers,...(user?{'oai-authenticated-user-id':user,'oai-authenticated-user-email':user+'@example.test'}:{}),...(body?{'content-type':'application/json',origin:'https://randevu.test'}:{}),...(token?{authorization:'Bearer '+token}:{})};const r=await mf.dispatchFetch('https://randevu.test/api/v1/'+path,{method:body?'POST':'GET',headers:h,...(body?{body:JSON.stringify(body)}:{})});const text=await r.text();let data;try{data=JSON.parse(text)}catch{throw new Error('Non-JSON '+r.status+' '+text.slice(0,300))}return {status:r.status,data}}
@@ -43,9 +43,10 @@ try{
  check((await call('public/test-a')).status===404,'Unapproved business is not publicly bookable');
  check((await call('admin',{user:'qa-a'})).status===403,'Business owner has no platform administrator privileges');
  await call('admin',{user:'qa-admin',body:{action:'business-status',id:A,status:'approved'}});
+ check(!(await call('businesses')).data.businesses.some(b=>b.id===A),'Approved business without setup is hidden from customer discovery');
  const hours=Object.fromEntries([0,1,2,3,4,5,6].map(k=>[k,[540,1080]]));
  for(const [tenant_id,user] of [[A,'qa-a'],[B,'qa-b']]){
-  await call('settings',{user,body:{tenant_id,name:'Test Studio '+user,category:'Kuaför & Berber',city:'Test',address:'Test',phone:'',description:'',hours,cancellation_hours:2}});
+  await call('settings',{user,body:{tenant_id,name:'Test Studio '+user,category:'Kuaför & Berber',city:'Test',address:'Test adresi',phone:'+905551112233',description:'',hours,cancellation_hours:2}});
   await call('services',{user,body:{tenant_id,name:'Saç kesimi',duration:45,price:65000}});
   await call('staff',{user,body:{tenant_id,name:'Test Uzman',title:'Uzman',hours}});
  }
