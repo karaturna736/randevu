@@ -694,7 +694,9 @@ export default function Dashboard({
             <BranchProfitability key={w.business.id} w={w} />
           )}{" "}
           {activeView === "plus-tools" && (
-            <PlusTools key={w.business.id} w={w} />
+            w.preview ? (
+              <div className="panel form-stack"><h2>Plus araçları</h2><p>Web sitesi, Yönetim API’si ve şube otomasyonunu işletmenizi oluşturduktan sonra yönetebilirsiniz.</p></div>
+            ) : <PlusTools key={w.business.id} w={w} />
           )}{" "}
           {activeView === "receivables" && (
             <Receivables key={w.business.id} w={w} requireReal={requireReal} />

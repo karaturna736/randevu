@@ -313,7 +313,7 @@ export async function GET(req: Request) {
     if (p[0] === "businesses")
       return ok({
         businesses: await all(
-          "SELECT b.id,b.name,b.slug,b.category,b.city,b.address,b.description,(SELECT MIN(price) FROM services WHERE tenant_id=b.id AND active=1) min_price FROM businesses b WHERE status='approved' AND demo=0 ORDER BY name LIMIT 100",
+          "SELECT b.id,b.name,b.slug,b.category,COALESCE(NULLIF(TRIM(b.city),''),(SELECT NULLIF(TRIM(br.city),'') FROM branches br WHERE br.tenant_id=b.id AND br.active=1 ORDER BY br.is_primary DESC LIMIT 1),'') city,b.address,b.description,(SELECT MIN(price) FROM services WHERE tenant_id=b.id AND active=1) min_price FROM businesses b WHERE status='approved' AND demo=0 ORDER BY name LIMIT 100",
         ),
       });
     if (p[0] === "public") {

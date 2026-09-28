@@ -50,6 +50,10 @@ try{
   await call('staff',{user,body:{tenant_id,name:'Test Uzman',title:'Uzman',hours}});
  }
  const wa=(await call('workspace?tenant='+A,{user:'qa-a'})).data,wb=(await call('workspace?tenant='+B,{user:'qa-b'})).data;
+ await db.prepare("UPDATE businesses SET city='' WHERE id=?").bind(A).run();
+ await db.prepare("UPDATE branches SET city='İstanbul' WHERE tenant_id=?").bind(A).run();
+ check((await call('businesses')).data.businesses.find(b=>b.id===A)?.city==='İstanbul','Discovery uses the branch city when the business city is blank');
+ await db.prepare("UPDATE businesses SET city='Test' WHERE id=?").bind(A).run();
  check(wa.services.length===1&&wb.services.length===1&&wa.services[0].id!==wb.services[0].id,'Service lists stay scoped to their business');
  check((await call('services',{user:'qa-a',body:{tenant_id:A,name:'Invalid duration',duration:17,price:10000}})).status===400,'Non-aligned service durations are rejected');
  const S=wa.services[0].id,P=wa.staff[0].id,date=day(3);
