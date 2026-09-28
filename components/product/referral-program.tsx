@@ -96,7 +96,7 @@ export function ReferralProgram({ w }: any) {
         </label>
 
         <p className="helper">
-          Davet ettiğiniz işletme bağlantınızdan kayıt olmalı, işletme onayı tamamlanmalı ve ilk gerçek abonelik ödemesi doğrulanmalıdır. Aynı işletme yalnız bir kez ödül kazandırır. Neta Puanı nakde çevrilmez; uygun Neta hizmetlerinde kullanılır.
+          Davet ettiğiniz işletme bağlantınızdan kayıt olmalı ve işletme onayı tamamlanmalıdır. Onaylandığı anda 200 Neta Puanı hesabınıza tek seferlik eklenir. Aynı işletme yalnız bir kez ödül kazandırır. Neta Puanı nakde çevrilmez; uygun Neta hizmetlerinde kullanılır.
         </p>
       </section>
 
