@@ -1,4 +1,6 @@
 import { broadcaster } from "@/lib/events";
+import { env } from "cloudflare:workers";
+import { bookingReadiness } from "@/lib/booking-readiness";
 import { waSnapshot } from "@/lib/whatsapp";
 import { consumePlanQuota } from "@/lib/entitlements";
 import {
@@ -310,12 +312,32 @@ export async function GET(req: Request) {
         : [];
       return ok({ slots, alternatives });
     }
-    if (p[0] === "businesses")
+    if (p[0] === "businesses") {
+      const businesses = await all(
+        "SELECT b.id,b.name,b.slug,b.category,b.status,b.demo,b.hours,COALESCE(NULLIF(TRIM(b.city),''),(SELECT NULLIF(TRIM(br.city),'') FROM branches br WHERE br.tenant_id=b.id AND br.active=1 ORDER BY br.is_primary DESC LIMIT 1),'') city,b.address,b.phone,b.description,(SELECT MIN(price) FROM services WHERE tenant_id=b.id AND active=1) min_price FROM businesses b WHERE status='approved' AND demo=0 ORDER BY name LIMIT 500",
+      );
+      if (!businesses.length) return ok({ businesses: [] });
+      const placeholders = businesses.map(() => "?").join(",");
+      const services = await all(
+        `SELECT tenant_id,active,duration FROM services WHERE active=1 AND tenant_id IN (${placeholders})`,
+        ...businesses.map((business) => business.id),
+      );
+      const staff = await all(
+        `SELECT tenant_id,active,hours FROM staff WHERE active=1 AND tenant_id IN (${placeholders})`,
+        ...businesses.map((business) => business.id),
+      );
       return ok({
-        businesses: await all(
-          "SELECT b.id,b.name,b.slug,b.category,COALESCE(NULLIF(TRIM(b.city),''),(SELECT NULLIF(TRIM(br.city),'') FROM branches br WHERE br.tenant_id=b.id AND br.active=1 ORDER BY br.is_primary DESC LIMIT 1),'') city,b.address,b.description,(SELECT MIN(price) FROM services WHERE tenant_id=b.id AND active=1) min_price FROM businesses b WHERE status='approved' AND demo=0 ORDER BY name LIMIT 100",
-        ),
+        businesses: businesses
+          .filter((business) => bookingReadiness({
+            business,
+            services: services.filter((service) => service.tenant_id === business.id),
+            staff: staff.filter((person) => person.tenant_id === business.id),
+            public_site_ready: (env as any).PUBLIC_SITE_READY === "true",
+          }).ready)
+          .slice(0, 100)
+          .map(({ status, demo, hours, phone, ...business }) => business),
       });
+    }
     if (p[0] === "public") {
       const b = await publicBusiness(p[1]);
       return ok({
