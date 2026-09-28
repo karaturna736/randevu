@@ -199,8 +199,7 @@ export function DiscoverMarketplace() {
   const availableCities = useMemo(() => {
     if (!category) return [];
     return Array.from(new Set(rows.filter((b) => canonicalCategory(b.category) === category).map(normalizedCity)))
-      .filter((item) => item !== "Konum belirtilmemiş")
-      .sort((a, b) => a.localeCompare(b, "tr-TR"));
+      .sort((a, b) => a === "Konum belirtilmemiş" ? 1 : b === "Konum belirtilmemiş" ? -1 : a.localeCompare(b, "tr-TR"));
   }, [rows, category]);
 
   const cityOptions = useMemo(() => {
@@ -274,7 +273,7 @@ export function DiscoverMarketplace() {
           ) : !city ? (
             <section>
               <button className={styles.backButton} type="button" onClick={() => chooseCategory("")}><ArrowLeft size={17} /> Kategorilere dön</button>
-              <div className={styles.sectionHead}><div><span className={styles.eyebrow}>2. ADIM · {category}</span><h2>Hangi şehir?</h2></div><span className={styles.sectionMeta}>81 il arasından seçin</span></div>
+              <div className={styles.sectionHead}><div><span className={styles.eyebrow}>2. ADIM · {category}</span><h2>Hangi şehir?</h2></div><span className={styles.sectionMeta}>İşletme bulunan konumları seçin</span></div>
               <div className={styles.citySelectWrap}><span className={styles.cityIcon}><MapPin size={21} /></span><div className={styles.citySelect}><Pick label="Şehir seçin" value={city} onChange={chooseCity} options={cityOptions.map((item) => ({ value: item, label: item }))} /></div></div>
               {availableCities.length ? (
                 <>
@@ -286,7 +285,7 @@ export function DiscoverMarketplace() {
                     })}
                   </div>
                 </>
-              ) : <Blank title="Bu kategoride henüz işletme yok" description="Yukarıdaki şehir seçicisinden istediğiniz ili seçebilirsiniz. Yeni işletmeler eklendikçe burada görünecek." />}
+              ) : <Blank title="Bu kategoride henüz işletme yok" description="Yeni işletmeler eklendikçe burada görünecek." />}
             </section>
           ) : !business ? (
             <section>
