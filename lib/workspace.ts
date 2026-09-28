@@ -202,6 +202,20 @@ export async function workspace(id?: string) {
       b.id,
     ),
     q(
+      `SELECT c.id,c.appointment_id,c.message,c.status,c.created_at,
+        a.date appointment_date,a.minute appointment_minute,
+        cu.name customer_name,cu.phone customer_phone,
+        COALESCE(NULLIF(a.service_name_snapshot,''),s.name) service_name
+       FROM complaints c
+       JOIN appointments a ON a.tenant_id=c.tenant_id AND a.id=c.appointment_id
+       JOIN customers cu ON cu.tenant_id=a.tenant_id AND cu.id=a.customer_id
+       JOIN services s ON s.tenant_id=a.tenant_id AND s.id=a.service_id
+       WHERE c.tenant_id=?
+       ORDER BY CASE WHEN c.status='resolved' THEN 1 ELSE 0 END,c.created_at DESC
+       LIMIT 200`,
+      b.id,
+    ),
+    q(
       "SELECT * FROM branches WHERE tenant_id=? AND active=1 ORDER BY is_primary DESC,name",
       b.id,
     ),
@@ -227,7 +241,8 @@ export async function workspace(id?: string) {
     customers: rs[3].results,
     closures: rs[4].results,
     reviews: rs[5].results,
-    branches: rs[6].results,
+    complaints: rs[6].results,
+    branches: rs[7].results,
     user: u,
     isAdmin: await isAdmin(u),
     preview: false,
