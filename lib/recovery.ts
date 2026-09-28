@@ -92,7 +92,6 @@ export async function joinWaitlist(input: any) {
   if (existing) {
     if (
       existing.account_user_id &&
-      accountUserId &&
       existing.account_user_id !== accountUserId
     )
       throw new ApiError("Bu bekleme talebi başka bir hesaba bağlı.", 409);
@@ -202,7 +201,7 @@ export async function recoverySnapshot(id: string) {
 }
 
 const OFFER_SELECT =
-  "SELECT o.id,o.status,o.expires_at,w.id waitlist_id,w.account_user_id,w.name,w.phone,w.email,w.service_id,w.staff_id,b.name business_name,s.name service_name,s.price,s.duration,p.name staff_name,r.date,r.minute,r.tenant_id FROM recovery_offers o JOIN recovery_slots r ON r.id=o.recovery_slot_id JOIN waitlist_entries w ON w.id=o.waitlist_id JOIN businesses b ON b.id=r.tenant_id JOIN services s ON s.tenant_id=r.tenant_id AND s.id=r.service_id JOIN staff p ON p.tenant_id=r.tenant_id AND p.id=r.staff_id";
+  "SELECT o.id,o.status,o.expires_at,w.id waitlist_id,w.account_user_id,w.name,w.phone,w.email,w.service_id,r.staff_id,w.staff_id requested_staff_id,b.name business_name,s.name service_name,s.price,s.duration,p.name staff_name,r.date,r.minute,r.tenant_id FROM recovery_offers o JOIN recovery_slots r ON r.id=o.recovery_slot_id JOIN waitlist_entries w ON w.id=o.waitlist_id JOIN businesses b ON b.id=r.tenant_id JOIN services s ON s.tenant_id=r.tenant_id AND s.id=r.service_id JOIN staff p ON p.tenant_id=r.tenant_id AND p.id=r.staff_id";
 
 function withAvailability(row: any) {
   if (!row) return null;
