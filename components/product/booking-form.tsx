@@ -24,6 +24,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import DemandSearch from "./demand-search";
 import { bookingVisit } from "@/lib/demand-client";
+
+function sampleSlots(day: string, duration: number, person: string, staff: any[]) {
+  return Array.from({ length: 16 }, (_, i) => 600 + i * 30)
+    .filter((minute) =>
+      minute + duration <= 1080 &&
+      new Date(`${day}T${time(minute)}:00+03:00`).getTime() > Date.now() + 300000,
+    )
+    .map((minute) => ({
+      minute,
+      time: time(minute),
+      staff_id: person === "any" ? staff[0]?.id : person,
+      staff_name: staff.find((p: any) => p.id === person)?.name || staff[0]?.name,
+    }));
+}
+
 export default function BookingForm({
   data,
   tenantId,
@@ -44,7 +59,7 @@ export default function BookingForm({
     [person, setPerson] = useState(initial?.slot?.staff_id || "any"),
     [branch, setBranch] = useState(initial?.branch_id || branches[0]?.id || ""),
     [alternatives, setAlternatives] = useState<any[]>([]),
-    [date, setDate] = useState(initial?.date || today()),
+    [date, setDate] = useState(initial?.date || (demo && Number(new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/Istanbul", hour: "2-digit", hour12: false }).slice(0, 2)) >= 17 ? addDays(today(), 1) : today())),
     [slots, setSlots] = useState<any[]>([]),
     [selected, setSelected] = useState<any>(initial?.slot || null),
     [loading, setLoading] = useState(false),
@@ -98,15 +113,7 @@ export default function BookingForm({
     setLoading(true);
     setError("");
     if (demo) {
-      setSlots(
-        Array.from({ length: 16 }, (_, i) => ({
-          minute: 600 + i * 30,
-          time: time(600 + i * 30),
-          staff_id: person === "any" ? staff[0]?.id : person,
-          staff_name:
-            staff.find((p: any) => p.id === person)?.name || staff[0]?.name,
-        })),
-      );
+      setSlots(sampleSlots(date, totalDuration, person, staff));
       setLoading(false);
       return;
     }
@@ -410,12 +417,7 @@ export default function BookingForm({
               person={person}
               date={date}
               demo={demo}
-              demoSlots={demo ? Array.from({ length: 16 }, (_, i) => ({
-                minute: 600 + i * 30,
-                time: time(600 + i * 30),
-                staff_id: person === "any" ? staff[0]?.id : person,
-                staff_name: staff.find((p: any) => p.id === person)?.name || staff[0]?.name,
-              })) : []}
+              demoSlots={demo ? sampleSlots(date, totalDuration, person, staff) : []}
               disabled={loading}
               filtered={demand}
               onResult={(r: any) => {
@@ -429,14 +431,7 @@ export default function BookingForm({
                 setLoading(true);
                 try {
                   if (demo)
-                    setSlots(
-                      Array.from({ length: 16 }, (_, i) => ({
-                        minute: 600 + i * 30,
-                        time: time(600 + i * 30),
-                        staff_id: person === "any" ? staff[0]?.id : person,
-                        staff_name: staff.find((p: any) => p.id === person)?.name || staff[0]?.name,
-                      })),
-                    );
+                    setSlots(sampleSlots(date, totalDuration, person, staff));
                   else
                     setSlots(
                       (
