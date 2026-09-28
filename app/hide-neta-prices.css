@@ -1,0 +1,67 @@
+/* Geçici fiyat gizleme.
+   Yalnızca Neta'nın kendi abonelik / ek paket satış fiyatları gizlenir.
+   İşletmenin hizmet fiyatları, gelir-gider raporları ve müşteri bakiyeleri görünmeye devam eder. */
+
+/* Ana sayfadaki fiyatlandırma alanı ve menü bağlantısı */
+.neta-links a[href="#fiyatlar"],
+.neta-pricing {
+  display: none !important;
+}
+
+/* Abonelik kartları ve abonelik içindeki görünür tutarlar */
+.plan-card-price,
+.plan-card.premium .plan-outcome,
+.recurring-section details .collection-row > b,
+.recurring-section > section.panel.margin-top > p.muted,
+.recurring-section .form-stack > p:first-child {
+  display: none !important;
+}
+
+/* Abonelik onayındaki tutarı gizle, koşullar bağlantısını koru */
+.recurring-section .consent-row > span {
+  font-size: 0 !important;
+}
+.recurring-section .consent-row > span > a {
+  font-size: 14px !important;
+}
+.recurring-section .consent-row > span::after {
+  content: " okudum ve aylık otomatik yenilemeyi kabul ediyorum.";
+  font-size: 14px;
+}
+
+/* İlk ödeme / paket seçimi ekranındaki Neta fiyatları */
+.onboarding-page .onboarding-plan > b,
+.onboarding-page .payment-total > strong,
+.onboarding-page .payment-summary > b,
+.onboarding-page .campaign-price-lines,
+.onboarding-page .notice.success small,
+.onboarding-page .member-heading p,
+.onboarding-page .onboarding-plans + .notice,
+.onboarding-page .check-row + .notice {
+  display: none !important;
+}
+
+/* Test akışındaki butonlarda fiyat ifadesi görünmesin */
+.onboarding-page .form-footer .button.primary {
+  font-size: 0 !important;
+}
+.onboarding-page .form-footer .button.primary::after {
+  content: "Devam et";
+  font-size: 14px;
+}
+
+/* Abonelik sayfasındaki kampanya ve ödeme geçmişi tutarları */
+.billing-page .campaign-price-lines,
+.billing-page .notice.success small,
+.billing-page .billing-history th:nth-last-child(2),
+.billing-page .billing-history td:nth-last-child(2) {
+  display: none !important;
+}
+
+/* İşletme ve yönetici ek paket ekranlarındaki Neta fiyat blokları */
+span[class*="priceLabel"],
+span[class*="priceLabel"] + strong,
+form[class*="priceForm"],
+div[class*="infoBox"] {
+  display: none !important;
+}

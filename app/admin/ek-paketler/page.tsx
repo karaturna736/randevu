@@ -11,7 +11,7 @@ type Business = { id: string; name: string; slug: string; status: string; demo: 
 type Overview = { catalog: { code: string; price: number | null; updated_at: string }[]; businesses: Business[] };
 const addonDetails = [
   { code: 'management', name: 'Müdürlük ve şube yönetimi', description: 'Müdür yalnızca atandığı şubeyi, randevuları ve o şubenin tahmini finans özetini görür.' },
-  { code: 'branch_password', name: 'Şifreli şube girişi', description: 'Çalışan ve müdür, kişisel hesabına ek olarak şubesinin şifresini girer. Aylık 1.500 TL.' },
+  { code: 'branch_password', name: 'Şifreli şube girişi', description: 'Çalışan ve müdür, kişisel hesabına ek olarak şubesinin şifresini girer.' },
 ] as const;
 
 export default function AddonsAdmin() {
