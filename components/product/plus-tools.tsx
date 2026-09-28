@@ -47,7 +47,7 @@ export function PlusTools({ w }: any) {
     if (newKey) await navigator.clipboard.writeText(newKey);
   }
 
-  if (!data || !site || !automation) return <div className="panel form-stack"><Busy /><span>Plus araçları hazırlanıyor…</span>{error && <p className="error">{error}</p>}</div>;
+  if (!data || !site || !automation) return <div className="panel form-stack">{error ? <><p className="error">{error}</p><button type="button" className="button" onClick={refresh}>Tekrar dene</button></> : <><Busy /><span>Plus araçları hazırlanıyor…</span></>}</div>;
   const keys = data.management_api?.keys || [];
   return <div className="operations-stack">
     <div className="section-heading"><div><span className="eyebrow">NETA PLUS</span><h2>Web sitesi, Yönetim API’si ve şube otomasyonu</h2><p className="muted">Plus’a özel üç altyapıyı tek yerden yönetin.</p></div></div>
