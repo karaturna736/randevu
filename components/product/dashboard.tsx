@@ -33,6 +33,7 @@ import {
   MessageSquare,
   Check,
   Building2,
+  CircleAlert,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -102,6 +103,7 @@ const NAV = [
   { id: "appointments", title: "Randevular", icon: CalendarDays },
   { id: "calendar", title: "Takvim", icon: CalendarRange },
   { id: "customers", title: "Müşteriler", icon: Users },
+  { id: "complaints", title: "Şikayetler", icon: CircleAlert },
   { id: "services", title: "Hizmetler", icon: Scissors },
   { id: "staff", title: "Ekip", icon: UserRound },
   { id: "receivables", title: "Borç / Veresiye", icon: Wallet },
@@ -202,6 +204,10 @@ const TITLES: Record<string, [string, string]> = {
   customers: [
     "Müşterilerinizi hatırlayan bir sistem.",
     "Her ziyaret, daha iyi bir deneyim için bir adım.",
+  ],
+  complaints: [
+    "Müşteri şikayetleri, doğru işletmede.",
+    "Randevularınızla ilgili müşteri şikayetlerini tek yerde takip edin.",
   ],
   retention: [
     "Yeniden bir araya gelin.",
@@ -680,6 +686,7 @@ export default function Dashboard({
               onImported={() => refresh(w.business.id)}
             />
           )}{" "}
+          {activeView === "complaints" && <Complaints w={w} />}{" "}
           {(activeView === "services" || activeView === "staff") && (
             <Management
               key={w.business.id + view}
@@ -1066,6 +1073,89 @@ function Customers({ w, retention, onSelect, onImported }: any) {
             retention
               ? "90 günden uzun süre gelmeyen müşterileriniz burada görünür."
               : "İlk randevuyla birlikte müşteri kaydı otomatik oluşturulur."
+          }
+        />
+      )}
+    </section>
+  );
+}
+
+function Complaints({ w }: any) {
+  const [status, setStatus] = useState("open");
+  const allRows = Array.isArray(w.complaints) ? w.complaints : [];
+  const rows = allRows.filter((c: any) =>
+    status === "all"
+      ? true
+      : status === "resolved"
+        ? c.status === "resolved"
+        : c.status !== "resolved",
+  );
+  const openCount = allRows.filter((c: any) => c.status !== "resolved").length;
+  return (
+    <section className="panel">
+      <div className="toolbar">
+        <span className="muted">
+          {openCount} açık · {allRows.length} toplam şikayet
+        </span>
+        <Tabs value={status} onValueChange={setStatus}>
+          <TabsList className="filter-tabs">
+            <TabsTrigger value="open">Açık</TabsTrigger>
+            <TabsTrigger value="resolved">Çözüldü</TabsTrigger>
+            <TabsTrigger value="all">Tümü</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      {rows.length ? (
+        <Table className="appointment-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Durum</TableHead>
+              <TableHead>Müşteri</TableHead>
+              <TableHead>Randevu</TableHead>
+              <TableHead>Şikayet</TableHead>
+              <TableHead>Gönderim</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((c: any) => (
+              <TableRow key={c.id}>
+                <TableCell>
+                  <span className={"badge " + (c.status === "resolved" ? "neutral" : "")}>
+                    {c.status === "resolved" ? "Çözüldü" : "Açık"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <strong>{c.customer_name || "Müşteri"}</strong>
+                  <small className="muted">{c.customer_phone || "—"}</small>
+                </TableCell>
+                <TableCell>
+                  <strong>{c.service_name || "Randevu"}</strong>
+                  <small className="muted">
+                    {c.appointment_date ? dateLabel(c.appointment_date) : "—"}
+                    {typeof c.appointment_minute === "number" ? " · " + time(c.appointment_minute) : ""}
+                  </small>
+                </TableCell>
+                <TableCell>{c.message}</TableCell>
+                <TableCell>
+                  {new Date(c.created_at).toLocaleString("tr-TR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <Blank
+          title={status === "open" ? "Açık şikayet yok" : "Bu filtrede şikayet yok"}
+          description={
+            status === "open"
+              ? "Müşteriler randevu bağlantısından şikayet gönderdiğinde burada görünür."
+              : "Başka bir filtre seçerek kayıtları görüntüleyebilirsiniz."
           }
         />
       )}
