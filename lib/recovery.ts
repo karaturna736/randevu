@@ -6,6 +6,7 @@ import {
   one,
   q,
   tenant,
+  user,
   uid,
   now,
   hash,
@@ -20,6 +21,8 @@ import { addDays, time, today } from "./types";
 import { equalSecret } from "./security";
 import { sendRecoveryTemplate, waConnection, waReady } from "./whatsapp";
 import { requirePlanModule } from "./entitlements";
+import { getAppUser, appOrigin } from "./identity";
+import { notificationOp } from "./notifications";
 
 const joinSchema = z.object({
   slug: z.string().min(1),
@@ -42,9 +45,21 @@ const joinSchema = z.object({
   }),
 });
 
+async function currentCustomerAccount() {
+  if (!(await getAppUser())) return undefined;
+  const current = await user();
+  return (await one(
+    "SELECT user_id FROM profiles WHERE user_id=? AND disabled=0",
+    current.userId,
+  ))
+    ? current.userId
+    : undefined;
+}
+
 export async function joinWaitlist(input: any) {
   const x = joinSchema.parse(input),
-    b = await publicBusiness(x.slug);
+    b = await publicBusiness(x.slug),
+    accountUserId = await currentCustomerAccount();
   if (
     x.date < today() ||
     x.date > addDays(today(), 90) ||
@@ -68,20 +83,27 @@ export async function joinWaitlist(input: any) {
   )
     throw new ApiError("Personel bulunamadı.", 404);
   const existing = await one(
-    "SELECT id FROM waitlist_entries WHERE tenant_id=? AND phone=? AND service_id=? AND requested_date=? AND status='waiting'",
+    "SELECT id,account_user_id FROM waitlist_entries WHERE tenant_id=? AND phone=? AND service_id=? AND requested_date=? AND status='waiting'",
     b.id,
     x.phone,
     x.service_id,
     x.date,
   );
   if (existing) {
+    if (
+      existing.account_user_id &&
+      accountUserId &&
+      existing.account_user_id !== accountUserId
+    )
+      throw new ApiError("Bu bekleme talebi başka bir hesaba bağlı.", 409);
     await q(
-      "UPDATE waitlist_entries SET staff_id=?,minute_from=?,minute_to=?,name=?,email=?,consent=1 WHERE id=? AND tenant_id=?",
+      "UPDATE waitlist_entries SET staff_id=?,minute_from=?,minute_to=?,name=?,email=?,consent=1,account_user_id=COALESCE(account_user_id,?) WHERE id=? AND tenant_id=?",
       staff,
       x.minute_from,
       x.minute_to,
       x.name,
       x.email,
+      accountUserId || null,
       existing.id,
       b.id,
     ).run();
@@ -89,7 +111,7 @@ export async function joinWaitlist(input: any) {
   }
   const id = uid();
   await q(
-    "INSERT INTO waitlist_entries(id,tenant_id,service_id,staff_id,requested_date,minute_from,minute_to,name,phone,email,consent,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,1,'waiting',?)",
+    "INSERT INTO waitlist_entries(id,tenant_id,service_id,staff_id,requested_date,minute_from,minute_to,name,phone,email,consent,status,created_at,account_user_id) VALUES(?,?,?,?,?,?,?,?,?,?,1,'waiting',?,?)",
     id,
     b.id,
     x.service_id,
@@ -101,6 +123,7 @@ export async function joinWaitlist(input: any) {
     x.phone,
     x.email,
     now(),
+    accountUserId || null,
   ).run();
   return { id, status: "waiting" };
 }
@@ -178,20 +201,42 @@ export async function recoverySnapshot(id: string) {
   };
 }
 
+const OFFER_SELECT =
+  "SELECT o.id,o.status,o.expires_at,w.id waitlist_id,w.account_user_id,w.name,w.phone,w.email,w.service_id,w.staff_id,b.name business_name,s.name service_name,s.price,s.duration,p.name staff_name,r.date,r.minute,r.tenant_id FROM recovery_offers o JOIN recovery_slots r ON r.id=o.recovery_slot_id JOIN waitlist_entries w ON w.id=o.waitlist_id JOIN businesses b ON b.id=r.tenant_id JOIN services s ON s.tenant_id=r.tenant_id AND s.id=r.service_id JOIN staff p ON p.tenant_id=r.tenant_id AND p.id=r.staff_id";
+
+function withAvailability(row: any) {
+  if (!row) return null;
+  return {
+    ...row,
+    available: row.status === "offered" && row.expires_at > now(),
+  };
+}
+
 export async function recoveryOffer(token: string) {
   if (!/^[a-f0-9]{64}$/.test(token))
     throw new ApiError("Teklif bağlantısı geçersiz.", 404);
-  const r = await one(
-    "SELECT o.id,o.status,o.expires_at,w.name,w.phone,w.email,w.service_id,w.staff_id,b.name business_name,s.name service_name,s.price,s.duration,p.name staff_name,r.date,r.minute,r.tenant_id FROM recovery_offers o JOIN recovery_slots r ON r.id=o.recovery_slot_id JOIN waitlist_entries w ON w.id=o.waitlist_id JOIN businesses b ON b.id=r.tenant_id JOIN services s ON s.tenant_id=r.tenant_id AND s.id=r.service_id JOIN staff p ON p.tenant_id=r.tenant_id AND p.id=r.staff_id WHERE o.token_hash=?",
+  const row = await one(
+    OFFER_SELECT + " WHERE o.token_hash=?",
     await hash(token),
   );
-  if (!r) throw new ApiError("Teklif bağlantısı bulunamadı.", 404);
-  return { ...r, available: r.status === "offered" && r.expires_at > now() };
+  if (!row) throw new ApiError("Teklif bağlantısı bulunamadı.", 404);
+  return withAvailability(row);
 }
 
-export async function acceptRecovery(token: string) {
-  const o = await recoveryOffer(token);
-  if (!o.available)
+export async function accountRecoveryOffer(offerId: string) {
+  const current = await user();
+  const id = z.string().min(1).max(100).parse(offerId);
+  const row = await one(
+    OFFER_SELECT + " WHERE o.id=? AND w.account_user_id=?",
+    id,
+    current.userId,
+  );
+  if (!row) throw new ApiError("Saat teklifi bulunamadı.", 404);
+  return withAvailability(row);
+}
+
+async function acceptOffer(o: any, accountId?: string) {
+  if (!o?.available)
     throw new ApiError(
       "Bu teklif süresi dolmuş veya başka bir müşteri tarafından alınmış.",
       409,
@@ -214,7 +259,7 @@ export async function acceptRecovery(token: string) {
         email: o.email,
         consent: true,
       },
-      undefined,
+      accountId || o.account_user_id || undefined,
       undefined,
       async (id) => [
         q(
@@ -264,6 +309,15 @@ export async function acceptRecovery(token: string) {
       );
     throw e;
   }
+}
+
+export async function acceptRecovery(token: string) {
+  return acceptOffer(await recoveryOffer(token));
+}
+
+export async function acceptAccountRecovery(offerId: string) {
+  const current = await user();
+  return acceptOffer(await accountRecoveryOffer(offerId), current.userId);
 }
 
 export async function runRecovery(req: Request) {
@@ -326,30 +380,61 @@ export async function runRecovery(req: Request) {
       expires,
       now(),
     ).run();
+
+    let provider: string | null = null;
     try {
-      const provider = await sendRecoveryTemplate(slot.tenant_id, w.phone, {
+      provider = await sendRecoveryTemplate(slot.tenant_id, w.phone, {
         name: w.name,
         business: slot.business_name || "",
         service: slot.service_name,
         date: slot.date,
         time: time(slot.minute),
-        link: (await import("./identity")).appOrigin() + "/bekleme#" + token,
+        link: appOrigin() + "/bekleme#" + token,
       });
-      await db().batch([
-        q(
-          "UPDATE recovery_offers SET status='offered',provider_id=? WHERE id=?",
-          provider,
-          id,
-        ),
-        q("UPDATE recovery_slots SET status='offering' WHERE id=?", slot.id),
-      ]);
-      offered++;
     } catch {
+      provider = null;
+    }
+
+    if (!provider && !w.account_user_id) {
       await q(
         "UPDATE recovery_offers SET status='failed' WHERE id=?",
         id,
       ).run();
+      continue;
     }
+
+    const ops = [
+      q(
+        "UPDATE recovery_offers SET status='offered',provider_id=? WHERE id=?",
+        provider,
+        id,
+      ),
+      q("UPDATE recovery_slots SET status='offering' WHERE id=?", slot.id),
+    ];
+    if (w.account_user_id) {
+      ops.push(
+        notificationOp({
+          tenantId: slot.tenant_id,
+          recipientUserId: w.account_user_id,
+          waitlistId: w.id,
+          type: "waitlist.slot_available",
+          title: "İstediğiniz saat boşaldı",
+          message: `${slot.business_name} · ${slot.service_name} · ${slot.date} ${time(slot.minute)}`,
+          data: {
+            offer_id: id,
+            business_name: slot.business_name,
+            service_name: slot.service_name,
+            staff_name: slot.staff_name,
+            date: slot.date,
+            minute: slot.minute,
+            time: time(slot.minute),
+            expires_at: expires,
+          },
+        }),
+      );
+    }
+    await db().batch(ops);
+    offered++;
   }
   return { offered, expired };
 }
