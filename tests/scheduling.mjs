@@ -116,6 +116,7 @@ try{
  check((await call('manage',{token:second.token,body:{action:'complaint',message:'Bu bir test şikâyetidir.'}})).status===200,'Customer can file a complaint using the management link');
  const result=(await call('workspace?tenant='+A,{user:'qa-a'})).data;
  check(result.customers[0].visits===1&&result.customers[0].total_spent===65000,'Customer history aggregates completed visits and spend');
+ check(Array.isArray(result.complaints)&&result.complaints.length===1&&result.complaints[0].appointment_id===second.id&&result.complaints[0].message.includes('test şikâyet'),'Customer complaint is delivered to the matching business workspace');
  const aresult=await call('assistant',{body:{slug:'test-a',message:day(5)+' öğleden sonra saç kesimi'}});
  check(aresult.data.slots.length>0&&aresult.data.slots.every(s=>s.minute>=720),'Turkish assistant returns available afternoon slots');
  // Membership ownership is independent of contact information and account preference.
