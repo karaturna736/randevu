@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./membership.css";
 import "./insights.css";
+import "./mobile-booking.css";
 import "./neta.css";
 import "./operations.css";
 import "./branches.css";
