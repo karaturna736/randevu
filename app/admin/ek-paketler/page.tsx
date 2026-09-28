@@ -7,11 +7,12 @@ import { api } from "@/components/product/common";
 import { money } from "@/lib/types";
 import styles from "./page.module.css";
 
-type Business = { id: string; name: string; slug: string; status: string; demo: number; enabled: number; password_enabled: number; updated_at: string | null };
+type Business = { id: string; name: string; slug: string; status: string; demo: number; enabled: number; password_enabled: number; phone_operator_enabled: number; updated_at: string | null };
 type Overview = { catalog: { code: string; price: number | null; updated_at: string }[]; businesses: Business[] };
 const addonDetails = [
   { code: 'management', name: 'Müdürlük ve şube yönetimi', description: 'Müdür yalnızca atandığı şubeyi, randevuları ve o şubenin tahmini finans özetini görür.' },
-  { code: 'branch_password', name: 'Şifreli şube girişi', description: 'Çalışan ve müdür, kişisel hesabına ek olarak şubesinin şifresini girer.' },
+  { code: 'branch_password', name: 'Şifreli şube girişi', description: 'Çalışan ve müdür, kişisel hesabına ek olarak şubesinin şifresini girer. Aylık 1.500 TL.' },
+  { code: 'phone_operator', name: 'Akıllı telefon operatörü', description: 'Telefon menüsü, bilgi aktarımı, WhatsApp randevu bağlantısı ve çağrı raporları.' },
 ] as const;
 
 export default function AddonsAdmin() {
@@ -93,10 +94,10 @@ export default function AddonsAdmin() {
             </select>
             {selected && <div className={styles.businessSummary}><div className={styles.businessAvatar}><Building2 size={19} /></div>
               <div className={styles.businessName}><strong>{selected.name}</strong><span>{selected.slug}</span></div>
-              <span className={`${styles.badge} ${(item.code === 'management' ? selected.enabled : selected.password_enabled) ? styles.enabled : styles.disabled}`}>
-                {(item.code === 'management' ? selected.enabled : selected.password_enabled) ? "Etkin" : "Kapalı"}</span></div>}
-            {selected && <button type="button" className={(item.code === 'management' ? selected.enabled : selected.password_enabled) ? styles.secondaryButton : styles.primaryButton}
-              disabled={busy} onClick={() => grant(item.code, !(item.code === 'management' ? selected.enabled : selected.password_enabled))}>{(item.code === 'management' ? selected.enabled : selected.password_enabled) ? "Erişimi kapat" : "Pilot erişimi aç"}</button>}
+              <span className={`${styles.badge} ${(item.code === 'management' ? selected.enabled : item.code === 'branch_password' ? selected.password_enabled : selected.phone_operator_enabled) ? styles.enabled : styles.disabled}`}>
+                {(item.code === 'management' ? selected.enabled : item.code === 'branch_password' ? selected.password_enabled : selected.phone_operator_enabled) ? "Etkin" : "Kapalı"}</span></div>}
+            {selected && <button type="button" className={(item.code === 'management' ? selected.enabled : item.code === 'branch_password' ? selected.password_enabled : selected.phone_operator_enabled) ? styles.secondaryButton : styles.primaryButton}
+              disabled={busy} onClick={() => grant(item.code, !(item.code === 'management' ? selected.enabled : item.code === 'branch_password' ? selected.password_enabled : selected.phone_operator_enabled))}>{(item.code === 'management' ? selected.enabled : item.code === 'branch_password' ? selected.password_enabled : selected.phone_operator_enabled) ? "Erişimi kapat" : "Pilot erişimi aç"}</button>}
             <p className={styles.footnote}><LockKeyhole size={15} aria-hidden="true" /> Erişim değişikliği tahsilat kaydı oluşturmaz.</p>
           </> : <p className={styles.empty}>Yönetilecek işletme bulunamadı.</p>}
         </section>
