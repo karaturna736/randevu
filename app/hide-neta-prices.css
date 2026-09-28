@@ -52,6 +52,7 @@
 
 /* Abonelik sayfasındaki kampanya ve ödeme geçmişi tutarları */
 .billing-page .campaign-price-lines,
+.billing-page .notice.success small,
 .billing-page .billing-history th:nth-last-child(2),
 .billing-page .billing-history td:nth-last-child(2) {
   display: none !important;
