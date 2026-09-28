@@ -4,6 +4,10 @@ const ITERATIONS = 210000;
 const ITERATIONS_MIN = 100000;
 const ITERATIONS_MAX = 1000000;
 
+export async function branchPasswordAddon(tenantId: string) {
+  return !!(await one("SELECT 1 ok FROM tenant_addons WHERE tenant_id=? AND code='branch_password' AND enabled=1", tenantId));
+}
+
 export function validateBranchPasswordInput(value: unknown) {
   if (typeof value !== 'string' || value.length < 8 || value.length > 72 || !/\p{L}/u.test(value) || !/\d/.test(value))
     throw new ApiError('Şube şifresi en az 8 karakter olmalı ve en az bir harf ile bir rakam içermeli.', 400);
@@ -28,6 +32,7 @@ async function derive(password: string, salt: Uint8Array, iterations: number) {
 
 export async function setBranchAccessPassword(tenantId: string, branchId: string, rawPassword: unknown) {
   await tenant(tenantId);
+  if (!(await branchPasswordAddon(tenantId))) throw new ApiError('Şifreli giriş ek paketi bu işletmede etkin değil.', 402);
   const password = validateBranchPasswordInput(rawPassword);
   if (!(await one('SELECT 1 ok FROM branches WHERE tenant_id=? AND id=? AND active=1', tenantId, branchId))) throw new ApiError('Şube bulunamadı.', 404);
   const salt = crypto.getRandomValues(new Uint8Array(16));

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const x = z.object({
       tenant_id: z.string().min(1),
       date: z.string().min(1),
-      branch_password: z.string().min(1).max(72),
+      branch_password: z.string().max(72).optional(),
     }).parse(await body(req));
     return ok(await managerSnapshot(x.tenant_id, x.date, x.branch_password));
   } catch (error) {

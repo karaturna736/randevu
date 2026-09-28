@@ -22,8 +22,10 @@ export default function ManagerPage() {
     setError("");
   }, [tenant]);
 
+  useEffect(() => { if (tenant && businesses.find(b => b.id === tenant && !b.password_required)) void loadSnapshot(day); }, [tenant, businesses]);
+
   async function loadSnapshot(nextDay = day) {
-    if (!tenant || !password) return;
+    if (!tenant || (businesses.find(b => b.id === tenant)?.password_required && !password)) return;
     setBusy(true);
     setError("");
     try {
@@ -57,7 +59,7 @@ export default function ManagerPage() {
   }
   return <main className="member-page" style={{maxWidth:1100,margin:"40px auto",padding:24}}>
     <a href="/">Neta</a><h1>Müdür paneli</h1>
-    <p>Google hesabınıza ek olarak yalnızca size atanan şubenin erişim şifresiyle giriş yapabilirsiniz.</p>
+    <p>Kendi hesabınızla yalnızca size atanan şubenin verilerini görürsünüz. Şifreli giriş paketi etkinse ek şube şifresi istenir.</p>
     {error && <p role="alert" className="error-message">{error}</p>}
     {!businesses.length && !error && <p>Henüz size atanmış etkin bir şube yok.</p>}
     {!!businesses.length && <>
@@ -65,13 +67,13 @@ export default function ManagerPage() {
         <label>Şube <select value={tenant} onChange={e=>setTenant(e.target.value)}>{businesses.map(b=><option key={b.id} value={b.id}>{b.name} · {b.branch_name}</option>)}</select></label>
         <label>Gün <input type="date" value={day} onChange={async e=>{const value=e.target.value;setDay(value);if(unlocked) await loadSnapshot(value);}}/></label>
       </div>
-      {!unlocked && <form onSubmit={unlock} className="panel" style={{padding:20,maxWidth:520,display:"grid",gap:12,marginBottom:24}}>
+      {!unlocked && !!businesses.find(b => b.id === tenant)?.password_required && <form onSubmit={unlock} className="panel" style={{padding:20,maxWidth:520,display:"grid",gap:12,marginBottom:24}}>
         <h2>Şube şifresi</h2>
         <p>Bu şifre işletme sahibi tarafından ilgili şube için belirlenir. Tarayıcıda kalıcı olarak saklanmaz.</p>
         <input type="password" autoComplete="current-password" required minLength={8} maxLength={72} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Şube erişim şifresi"/>
         <button className="button primary" disabled={busy}>{busy?"Kontrol ediliyor…":"Şubeyi aç"}</button>
       </form>}
-      {unlocked && <div style={{display:"flex",gap:10,marginBottom:20}}><span className="badge confirmed">Şube doğrulandı</span><button className="text-button" onClick={()=>{setUnlocked(false);setSnapshot(null);setPassword("");}}>Kilitle</button></div>}
+      {unlocked && <div style={{display:"flex",gap:10,marginBottom:20}}><span className="badge confirmed">Yetkili şube</span>{!!businesses.find(b => b.id === tenant)?.password_required && <button className="text-button" onClick={()=>{setUnlocked(false);setSnapshot(null);setPassword("");}}>Kilitle</button>}</div>}
     </>}
     {snapshot && <><h2>{snapshot.access.business_name} · {snapshot.access.branch_name}</h2>
       <section className="panel" style={{padding:20,marginBottom:20}}><h3>Şube finans özeti · {snapshot.finance.month}</h3>

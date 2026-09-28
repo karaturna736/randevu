@@ -36,9 +36,11 @@ try {
   assert.equal((await call('team-access','owner',{tenant_id:id,staff_id:job.staff_id,email:'employee@example.test'})).status,200);
   const beforePassword=await call('team-jobs?tenant='+id+'&date='+job.date,'employee');
   assert.equal(beforePassword.status,200);
-  assert.equal(beforePassword.data.password_required,true);
+  assert.equal(beforePassword.data.password_required,false);
   assert.equal(beforePassword.data.appointments.length,0);
-  assert.equal((await request('/api/team/workspace','employee',{tenant_id:id,date:job.date,branch_password:'Sube12345'})).status,409);
+  assert.equal((await request('/api/team/workspace','employee',{tenant_id:id,date:job.date})).status,200);
+  assert.equal((await request('/api/manager/branch-password','owner',{tenant_id:id,branch_id:branch.id,password:'Sube12345'})).status,402);
+  assert.equal((await call('admin-manager-addon','qa-admin',{tenant_id:id,code:'branch_password',enabled:true})).status,200);
   assert.equal((await request('/api/manager/branch-password','owner',{tenant_id:id,branch_id:branch.id,password:'12345678'})).status,400);
   const branchPassword='Sube12345';
   assert.equal((await request('/api/manager/branch-password','owner',{tenant_id:id,branch_id:branch.id,password:branchPassword})).status,200);
@@ -66,6 +68,7 @@ try {
   assert.equal((await call('admin-addons','owner')).status,403);
   assert.equal((await call('admin-addon-price','qa-admin',{price:34900})).status,200);
   assert.equal((await call('business-addons?tenant='+id,'owner')).data.addons[0].price,34900);
+  assert.equal((await call('business-addons?tenant='+id,'owner')).data.addons[1].price,150000);
   assert.equal((await call('business-addons?tenant='+id,'owner')).data.employee.included,true);
   assert.equal((await call('admin-manager-addon','qa-admin',{tenant_id:id,enabled:true})).status,200);
   assert.equal((await call('managers','owner',{tenant_id:id,action:'assign',email:'manager@example.test',branch_id:branch.id})).status,200);
@@ -84,5 +87,13 @@ try {
   assert.equal((await call('manager-appointment','employee',{tenant_id:id,id:job.id,status:'cancelled',branch_password:branchPassword})).status,403);
   assert.equal((await call('admin-manager-addon','qa-admin',{tenant_id:id,enabled:false})).status,200);
   assert.equal((await request('/api/manager/dashboard','manager',{tenant_id:id,date:day,branch_password:branchPassword})).status,402);
-  console.log('PASS staff password gate, read-only branch workspace, owner-panel denial, manager branch scope and revocation');
+  assert.equal((await call('admin-manager-addon','qa-admin',{tenant_id:id,code:'branch_password',enabled:false})).status,200);
+  assert.equal((await request('/api/team/workspace','employee',{tenant_id:id,date:day})).status,200);
+  const noShow = await call('team-jobs','employee',{tenant_id:id,id:job.id,status:'no_show'});
+  assert.equal(noShow.status,400,JSON.stringify(noShow.data));
+  assert.match(noShow.data.error,/Randevu bitişinden önce/);
+  assert.equal((await call('admin-manager-addon','qa-admin',{tenant_id:id,enabled:true})).status,200);
+  assert.equal((await request('/api/manager/dashboard','manager',{tenant_id:id,date:day})).status,200);
+  assert.equal((await call('manager-appointment','manager',{tenant_id:id,id:foreign?.id||'foreign',status:'cancelled'})).status,404);
+  console.log('PASS optional staff and manager password addon, branch isolation and revocation');
 } finally {await mf.dispose();}

@@ -82,10 +82,12 @@ try{
  check((await call('workspace?tenant='+A,{user:'worker-a'})).status===403&&(await call('demand-insights?tenant='+A,{user:'worker-a'})).status===403,'Staff role cannot read the owner workspace or demand revenue reports');
  check((await call('services',{user:'worker-a',body:{tenant_id:A,name:'Forbidden',duration:30,price:1}})).status===403,'Staff role cannot modify business services');
  const BRANCH=wa.staff.find(p=>p.id===P).branch_id,staffPassword='Sube12345';
+ check((await direct('/api/team/workspace',{user:'worker-a',body:{tenant_id:A,date:day(3)}})).status===200,'Without the addon, staff enters through their own account and branch assignment');
+ check((await call('admin-manager-addon',{user:'qa-admin',body:{tenant_id:A,code:'branch_password',enabled:true}})).status===200,'Platform admin activates optional branch password addon');
  const lockedJobs=(await call('team-jobs?tenant='+A+'&date='+day(3),{user:'worker-a'})).data;
  check(lockedJobs.password_required===true&&lockedJobs.appointments.length===0,'Staff appointment data stays locked until branch password verification');
  check((await direct('/api/team/workspace',{user:'worker-a',body:{tenant_id:A,date:day(3),branch_password:staffPassword}})).status===409,'Staff cannot open a branch before its password is configured');
- check((await direct('/api/manager/branch-password',{user:'owner-a',body:{tenant_id:A,branch_id:BRANCH,password:staffPassword}})).status===200,'Owner can configure the branch password independently of the manager addon');
+ check((await direct('/api/manager/branch-password',{user:'owner-a',body:{tenant_id:A,branch_id:BRANCH,password:staffPassword}})).status===200,'Owner configures the branch password with the password addon active');
  check((await direct('/api/team/workspace',{user:'worker-a',body:{tenant_id:A,date:day(3),branch_password:'Yanlis123'}})).status===403,'Wrong staff branch password is rejected');
  await call('staff',{user:'owner-a',body:{tenant_id:A,name:'İkinci Uzman',title:'Uzman',hours}});
  const P2=(await call('workspace?tenant='+A,{user:'owner-a'})).data.staff.find(p=>p.id!==P).id;

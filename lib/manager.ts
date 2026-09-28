@@ -2,6 +2,7 @@ import { z } from "zod";
 import { all, one, q, user, tenant, admin, now, date, uid, ApiError } from "./server";
 import { SELECT_APPOINTMENTS, change } from "./booking";
 import { adminAccessConfigured, hasAdminAccess } from "./admin-access";
+import { branchPasswordAddon } from "./branch-access";
 
 const ADDON = "management";
 const PASSWORD_ITERATIONS = 210000;
@@ -99,6 +100,7 @@ export async function managerDirectory(tenantId: string) {
   await tenant(tenantId);
   return {
     enabled: await managerAddon(tenantId),
+    password_enabled: await branchPasswordAddon(tenantId),
     branches: await all(
       `SELECT b.id,b.name,CASE WHEN p.password_hash IS NULL THEN 0 ELSE 1 END password_configured
        FROM branches b LEFT JOIN branch_manager_passwords p ON p.tenant_id=b.tenant_id AND p.branch_id=b.id
@@ -111,7 +113,7 @@ export async function managerDirectory(tenantId: string) {
 
 export async function setManagerBranchPassword(tenantId: string, input: unknown) {
   await tenant(tenantId);
-  if (!(await managerAddon(tenantId))) throw new ApiError("Önce müdürlük modülünü etkinleştirin.", 402);
+  if (!(await branchPasswordAddon(tenantId))) throw new ApiError("Şifreli giriş ek paketini etkinleştirin.", 402);
   const x = z.object({ branch_id: z.string().min(1), password: branchPassword }).parse(input);
   const branch = await one("SELECT id FROM branches WHERE tenant_id=? AND id=? AND active=1", tenantId, x.branch_id);
   if (!branch) throw new ApiError("Şube bulunamadı.", 404);
@@ -138,6 +140,14 @@ export async function businessAddons(tenantId: string) {
       enabled: await managerAddon(tenantId),
       price: (await one("SELECT price FROM addon_catalog WHERE code=?", ADDON))?.price ?? null,
       purchasable: false,
+    }, {
+      code: "branch_password",
+      name: "Şifreli şube girişi",
+      description: "Çalışan ve müdür hesaplarında, kişisel hesap girişine ek olarak şube şifresi ister.",
+      included: false,
+      enabled: await branchPasswordAddon(tenantId),
+      price: (await one("SELECT price FROM addon_catalog WHERE code='branch_password'"))?.price ?? 150000,
+      purchasable: false,
     }],
     employee: { name: "Çalışan paneli", included: true, price: 0 },
   };
@@ -154,15 +164,12 @@ export async function setManager(tenantId: string, input: unknown) {
     await q("UPDATE members SET disabled=1 WHERE tenant_id=? AND user_id=? AND role='manager'", tenantId, x.user_id).run();
     return { ok: true };
   }
-  const branch = await one(
-    `SELECT b.id,CASE WHEN p.password_hash IS NULL THEN 0 ELSE 1 END password_configured
-     FROM branches b LEFT JOIN branch_manager_passwords p ON p.tenant_id=b.tenant_id AND p.branch_id=b.id
-     WHERE b.tenant_id=? AND b.id=? AND b.active=1`,
-    tenantId,
-    x.branch_id,
-  );
+  const branch = await one("SELECT id FROM branches WHERE tenant_id=? AND id=? AND active=1", tenantId, x.branch_id);
   if (!branch) throw new ApiError("Şube bulunamadı.", 404);
-  if (!Number(branch.password_configured)) throw new ApiError("Müdür atamadan önce bu şube için erişim şifresi belirleyin.", 409);
+  if (await branchPasswordAddon(tenantId)) {
+    const configured = await one("SELECT 1 ok FROM branch_manager_passwords WHERE tenant_id=? AND branch_id=?", tenantId, x.branch_id);
+    if (!configured) throw new ApiError("Şifreli giriş etkinken önce bu şubenin şifresini belirleyin.", 409);
+  }
   const people = await all("SELECT user_id,email,name FROM profiles WHERE lower(email)=? AND disabled=0 LIMIT 2", x.email.toLowerCase());
   if (people.length !== 1) throw new ApiError("Müdür önce bu e-posta ile üyeliğini tamamlamalı.");
   const person = people[0];
@@ -176,22 +183,21 @@ export async function setManager(tenantId: string, input: unknown) {
 
 export async function managerBusinesses() {
   const u = await user();
-  return all(`SELECT b.id,b.name,br.name branch_name FROM members m JOIN businesses b ON b.id=m.tenant_id
+  return all(`SELECT b.id,b.name,br.name branch_name,CASE WHEN pa.enabled=1 THEN 1 ELSE 0 END password_required FROM members m JOIN businesses b ON b.id=m.tenant_id
     JOIN branches br ON br.tenant_id=b.id AND br.id=m.branch_id AND br.active=1
     JOIN tenant_addons ta ON ta.tenant_id=b.id AND ta.code=? AND ta.enabled=1
+    LEFT JOIN tenant_addons pa ON pa.tenant_id=b.id AND pa.code='branch_password'
     WHERE m.user_id=? AND m.role='manager' AND m.disabled=0 AND b.status NOT IN ('deleted','suspended')`, ADDON, u.userId);
 }
 
 export async function managerSnapshot(tenantId: string, dayInput: string, password?: string) {
   const access = await managerAccess(tenantId);
-  if (!password) throw new ApiError("Şube erişim şifresi gerekli.", 401);
-  const passwordRow = await one(
-    "SELECT password_hash FROM branch_manager_passwords WHERE tenant_id=? AND branch_id=?",
-    tenantId,
-    access.branch_id,
-  );
-  if (!passwordRow?.password_hash) throw new ApiError("Bu şube için müdür erişim şifresi henüz belirlenmemiş.", 409);
-  if (!(await verifyBranchPassword(password, passwordRow.password_hash))) throw new ApiError("Şube şifresi hatalı.", 403);
+  if (await branchPasswordAddon(tenantId)) {
+    if (!password) throw new ApiError("Şube erişim şifresi gerekli.", 401);
+    const passwordRow = await one("SELECT password_hash FROM branch_manager_passwords WHERE tenant_id=? AND branch_id=?", tenantId, access.branch_id);
+    if (!passwordRow?.password_hash) throw new ApiError("Bu şube için müdür erişim şifresi henüz belirlenmemiş.", 409);
+    if (!(await verifyBranchPassword(password, passwordRow.password_hash))) throw new ApiError("Şube şifresi hatalı.", 403);
+  }
   const day = date.parse(dayInput);
   const appointments = await all(
     SELECT_APPOINTMENTS + " WHERE a.tenant_id=? AND a.branch_id=? AND a.date=? ORDER BY a.minute LIMIT 200",
@@ -205,10 +211,12 @@ export async function managerSnapshot(tenantId: string, dayInput: string, passwo
 
 export async function managerAppointment(tenantId: string, input: unknown) {
   const access = await managerAccess(tenantId);
-  const x = z.object({ id: z.string().min(1), status: z.enum(["cancelled", "completed", "no_show"]), branch_password: branchPassword }).parse(input);
-  const passwordRow = await one("SELECT password_hash FROM branch_manager_passwords WHERE tenant_id=? AND branch_id=?", tenantId, access.branch_id);
-  if (!passwordRow?.password_hash || !(await verifyBranchPassword(x.branch_password,passwordRow.password_hash)))
-    throw new ApiError("Şube şifresi hatalı.", 403);
+  const x = z.object({ id: z.string().min(1), status: z.enum(["cancelled", "completed", "no_show"]), branch_password: z.string().optional() }).parse(input);
+  if (await branchPasswordAddon(tenantId)) {
+    const passwordRow = await one("SELECT password_hash FROM branch_manager_passwords WHERE tenant_id=? AND branch_id=?", tenantId, access.branch_id);
+    if (!passwordRow?.password_hash || !(await verifyBranchPassword(x.branch_password || "", passwordRow.password_hash)))
+      throw new ApiError("Şube şifresi hatalı.", 403);
+  }
   const appointment = await one(SELECT_APPOINTMENTS + " WHERE a.tenant_id=? AND a.branch_id=? AND a.id=?", tenantId, access.branch_id, x.id);
   if (!appointment) throw new ApiError("Bu şubede randevu bulunamadı.", 404);
   const business = await one("SELECT * FROM businesses WHERE id=?", tenantId);
@@ -225,29 +233,30 @@ async function verifiedAdmin() {
 export async function adminAddonOverview() {
   await verifiedAdmin();
   return {
-    catalog: await one("SELECT code,price,updated_at FROM addon_catalog WHERE code=?", ADDON),
-    businesses: await all(`SELECT b.id,b.name,b.slug,b.status,b.demo,COALESCE(a.enabled,0) enabled,a.updated_at
-      FROM businesses b LEFT JOIN tenant_addons a ON a.tenant_id=b.id AND a.code=?
-      WHERE b.status NOT IN ('deleted','suspended') ORDER BY b.created_at DESC LIMIT 500`, ADDON),
+    catalog: await all("SELECT code,price,updated_at FROM addon_catalog WHERE code IN ('management','branch_password') ORDER BY code"),
+    businesses: await all(`SELECT b.id,b.name,b.slug,b.status,b.demo,COALESCE(a.enabled,0) enabled,COALESCE(p.enabled,0) password_enabled,a.updated_at
+      FROM businesses b LEFT JOIN tenant_addons a ON a.tenant_id=b.id AND a.code='management'
+      LEFT JOIN tenant_addons p ON p.tenant_id=b.id AND p.code='branch_password'
+      WHERE b.status NOT IN ('deleted','suspended') ORDER BY b.created_at DESC LIMIT 500`),
   };
 }
 
 export async function adminSetAddonPrice(input: unknown) {
   const u = await verifiedAdmin();
-  const x = z.object({ price: z.number().int().min(0).max(100000000).nullable() }).parse(input);
-  await q("UPDATE addon_catalog SET price=?,updated_at=?,updated_by=? WHERE code=?", x.price, now(), u.userId, ADDON).run();
-  await q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)", uid(), u.userId, "addon.price.updated", ADDON, now()).run();
+  const x = z.object({ code: z.enum(["management", "branch_password"]).default("management"), price: z.number().int().min(0).max(100000000).nullable() }).parse(input);
+  await q("UPDATE addon_catalog SET price=?,updated_at=?,updated_by=? WHERE code=?", x.price, now(), u.userId, x.code).run();
+  await q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)", uid(), u.userId, "addon.price.updated", x.code, now()).run();
   return { ok: true, price: x.price };
 }
 
 // Only the platform administrator can provision an addon. This is not a payment callback.
 export async function adminSetManagerAddon(input: unknown) {
   const u = await verifiedAdmin();
-  const x = z.object({ tenant_id: z.string().min(1), enabled: z.boolean() }).parse(input);
+  const x = z.object({ tenant_id: z.string().min(1), code: z.enum(["management", "branch_password"]).default("management"), enabled: z.boolean() }).parse(input);
   if (!(await one("SELECT id FROM businesses WHERE id=?", x.tenant_id))) throw new ApiError("İşletme bulunamadı.", 404);
   await q(`INSERT INTO tenant_addons(tenant_id,code,enabled,updated_at,updated_by) VALUES(?,?,?,?,?)
     ON CONFLICT(tenant_id,code) DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,
-    x.tenant_id, ADDON, x.enabled ? 1 : 0, now(), u.userId).run();
-  await q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)", uid(), u.userId, x.enabled ? "addon.management.enabled" : "addon.management.disabled", x.tenant_id, now()).run();
+    x.tenant_id, x.code, x.enabled ? 1 : 0, now(), u.userId).run();
+  await q("INSERT INTO audit(id,user_id,action,target_id,created_at) VALUES(?,?,?,?,?)", uid(), u.userId, `addon.${x.code}.${x.enabled ? "enabled" : "disabled"}`, x.tenant_id, now()).run();
   return { ok: true, enabled: x.enabled };
 }
