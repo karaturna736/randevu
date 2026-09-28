@@ -231,6 +231,7 @@ export async function workspace(id?: string) {
     user: u,
     isAdmin: await isAdmin(u),
     preview: false,
+    public_site_ready: (env as any).PUBLIC_SITE_READY === "true",
   };
 }
 
