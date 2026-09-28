@@ -40,9 +40,7 @@ export default function BookingForm({
     [early, setEarly] = useState(false),
     [earlyTime, setEarlyTime] = useState("17:00"),
     [step, setStep] = useState(initial ? 2 : 0),
-    [service, setService] = useState(
-      initial?.service_id || services[0]?.id || "",
-    ),
+    [serviceIds, setServiceIds] = useState<string[]>([initial?.service_id || services[0]?.id || ""]),
     [person, setPerson] = useState(initial?.slot?.staff_id || "any"),
     [branch, setBranch] = useState(initial?.branch_id || branches[0]?.id || ""),
     [alternatives, setAlternatives] = useState<any[]>([]),
@@ -73,7 +71,7 @@ export default function BookingForm({
     if (initial || tenantId) return;
     const q = new URLSearchParams(location.search);
     if (services.some((s: any) => s.id === q.get("service")))
-      setService(q.get("service")!);
+      setServiceIds([q.get("service")!]);
     if (staff.some((p: any) => p.id === q.get("person")))
       setPerson(q.get("person")!);
     if (branches.some((b: any) => b.id === q.get("branch")))
@@ -85,7 +83,13 @@ export default function BookingForm({
   useEffect(() => {
     if (selected) setEarlyTime(time(Math.max(0, selected.minute - 60)));
   }, [selected?.minute]);
-  const s = services.find((s: any) => s.id === service);
+  const service = serviceIds[0];
+  const selectedServices = serviceIds.map(id => services.find((item: any) => item.id === id)).filter(Boolean);
+  const s = selectedServices[0];
+  const totalDuration = selectedServices.reduce((sum: number, item: any) => sum + item.duration, 0);
+  const totalPrice = selectedServices.reduce((sum: number, item: any) => sum + item.price, 0);
+  const serviceLabel = selectedServices.map((item: any) => item.name).join(" + ");
+  const availabilityQuery = `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&services=${serviceIds.join(",")}&date=${date}&staff=${person}&branch=${branch}`;
   useEffect(() => {
     if (step !== 1 || !service) return;
     let stopped = false;
@@ -107,7 +111,7 @@ export default function BookingForm({
       return;
     }
     api(
-      `availability?${tenantId ? "tenant=" + tenantId : "slug=" + business.slug}&service=${service}&date=${date}&staff=${person}&branch=${branch}`,
+      availabilityQuery,
     )
       .then((r) => { if (!stopped) { setSlots(r.slots); setAlternatives(r.alternatives || []); } })
       .catch((e) => !stopped && setError(e.message))
@@ -115,7 +119,7 @@ export default function BookingForm({
     return () => {
       stopped = true;
     };
-  }, [step, service, person, date, branch]);
+  }, [step, serviceIds.join(","), person, date, branch]);
   async function submit(e: any) {
     e.preventDefault();
     if (!selected) return;
@@ -126,8 +130,8 @@ export default function BookingForm({
         ? {
             date,
             time: selected.time,
-            service: s.name,
-            price: s.price,
+            service: serviceLabel,
+            price: totalPrice,
             demo: true,
           }
         : await api("bookings", {
@@ -141,6 +145,7 @@ export default function BookingForm({
               : null,
             ...(tenantId ? { tenant_id: tenantId } : { slug: business.slug }),
             service_id: service,
+            service_ids: serviceIds,
             staff_id: selected.staff_id,
             branch_id: branch || undefined,
             date,
@@ -236,7 +241,7 @@ export default function BookingForm({
                   id: result.id,
                   date: result.date,
                   minute: selected.minute,
-                  duration: s.duration,
+                  duration: totalDuration,
                   service_name: result.service,
                 },
                 business,
@@ -282,9 +287,18 @@ export default function BookingForm({
                 <button
                   key={v.id}
                   className={
-                    "service-option " + (service === v.id ? "selected" : "")
+                    "service-option " + (serviceIds.includes(v.id) ? "selected" : "")
                   }
-                  onClick={() => setService(v.id)}
+                  onClick={() => setServiceIds(current => {
+                    if (current.includes(v.id)) return current.length === 1 ? current : current.filter(id => id !== v.id);
+                    if (current.length >= 10) { toast.error("En fazla 10 işlem seçebilirsiniz."); return current; }
+                    const first = services.find((item: any) => item.id === current[0]);
+                    if (first?.delivery_mode !== v.delivery_mode || v.delivery_mode !== "in_person") {
+                      toast.error("Birden fazla işlem aynı personel tarafından yüz yüze yapılmalıdır.");
+                      return current;
+                    }
+                    return [...current, v.id];
+                  })}
                 >
                   <span
                     className="service-icon"
@@ -315,11 +329,12 @@ export default function BookingForm({
                   </span>
                   <b>{money(v.price)}</b>
                   <span className="radio-indicator">
-                    {service === v.id && <Check size={12} />}
+                    {serviceIds.includes(v.id) && <Check size={12} />}
                   </span>
                 </button>
               ))}
           </div>
+          <p className="helper">{serviceIds.length} işlem · {totalDuration} dakika · {money(totalPrice)}. İşlemler aynı personel tarafından sırayla yapılır.</p>
           {branches.length > 1 && (
             <Field label="Şube tercihiniz">
               <Pick
@@ -385,7 +400,7 @@ export default function BookingForm({
               ),
             )}
           </div>
-          {!tenantId && (
+          {!tenantId && serviceIds.length === 1 && (
             <DemandSearch
               key={date + service + person}
               business={business}
@@ -424,7 +439,7 @@ export default function BookingForm({
                     setSlots(
                       (
                         await api(
-                          `availability?slug=${business.slug}&service=${service}&date=${date}&staff=${person}&branch=${branch}`,
+                          availabilityQuery,
                         )
                       ).slots,
                     );
@@ -470,9 +485,9 @@ export default function BookingForm({
                     ? "İstediğiniz aralıkta boş saat yok"
                     : "Bu gün için boş saat yok"
                 }
-                description="Başka bir tarih deneyebilir veya bekleme listesine katılabilirsiniz."
+                description={serviceIds.length === 1 ? "Başka bir tarih deneyebilir veya bekleme listesine katılabilirsiniz." : "Toplam işlem süresi için başka bir tarih veya personel deneyin."}
               />
-              {!tenantId && !demo && (
+              {!tenantId && !demo && serviceIds.length === 1 && (
                 <WaitlistJoin
                   business={business}
                   service={service}
@@ -512,7 +527,7 @@ export default function BookingForm({
           )}
           {selected && (
             <p className="helper">
-              {selected.staff_name} ile {s.duration} dakika
+              {selected.staff_name} ile {totalDuration} dakika
             </p>
           )}
           <div className="form-footer">
@@ -535,12 +550,12 @@ export default function BookingForm({
           <div className="summary-strip">
             <CalendarDays size={22} />
             <div>
-              <strong>{s.name}</strong>
+              <strong>{serviceLabel}</strong>
               <small>
                 {dateLabel(date)} · {selected?.time} · {selected?.staff_name}
               </small>
             </div>
-            <b>{money(s.price)}</b>
+            <b>{money(totalPrice)}</b>
           </div>
           {[
             ["name", "Adınız soyadınız", "text", "Ad Soyad"],
