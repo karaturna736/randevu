@@ -62,13 +62,16 @@ export function Hours({ value, onChange }: any) {
                   key={j}
                   aria-label={label + (j ? " kapanış" : " açılış")}
                   type="time"
-                  step={900}
+                  step={60}
+                  min={j === 0 ? "06:00" : undefined}
+                  max={j === 0 ? "23:59" : undefined}
                   value={time(value[d][j])}
                   onChange={(e) => {
                     const [a, b] = e.target.value.split(":").map(Number),
                       r = [...value[d]];
                     if (Number.isFinite(a + b)) {
-                      r[j] = a * 60 + b;
+                      const minute = a * 60 + b;
+                      r[j] = j === 1 && minute === 0 ? 1440 : minute;
                       onChange({ ...value, [d]: r });
                     }
                   }}
