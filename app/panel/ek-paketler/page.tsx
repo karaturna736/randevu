@@ -32,19 +32,15 @@ export default function BusinessAddons() {
     {!data && !error && <p className={styles.loading}>Paketler yükleniyor…</p>}
     {data && <div className={styles.cards}>
       {data.addons.map(item => <section className={styles.addonCard} key={item.code}>
-        <div className={styles.addonTop}><span className={styles.icon}><Building2 size={23} strokeWidth={1.8} /></span>
+        <div className={styles.addonTop}><span className={styles.icon}>{item.code === 'branch_password' ? <LockKeyhole size={23} strokeWidth={1.8} /> : <Building2 size={23} strokeWidth={1.8} />}</span>
           <span className={item.enabled ? styles.activeBadge : styles.inactiveBadge}>
             {item.enabled ? <><Check size={14} /> İşletmenizde etkin</> : <><LockKeyhole size={13} /> Henüz etkin değil</>}</span></div>
         <h2>{item.name}</h2>
         <p className={styles.description}>{item.description}</p>
-        <div className={styles.features}>
-          <span><Building2 size={16} /> Şube bazlı yönetim</span>
-          <span><CalendarDays size={16} /> Randevu görünümü</span>
-          <span><UsersRound size={16} /> Müdür erişimi</span>
-        </div>
+        <div className={styles.features}>{item.code === 'branch_password' ? <><span><LockKeyhole size={16} /> Şube şifresi</span><span><UsersRound size={16} /> Çalışan ve müdür</span><span><Check size={16} /> Hesaba ek doğrulama</span></> : <><span><Building2 size={16} /> Şube bazlı yönetim</span><span><CalendarDays size={16} /> Randevu görünümü</span><span><UsersRound size={16} /> Müdür erişimi</span></>}</div>
         <div className={styles.addonBottom}><div><span className={styles.priceLabel}>AYLIK PAKET FİYATI</span>
           <strong>{item.price === null ? "Henüz belirlenmedi" : money(item.price) + " / ay"}</strong></div>
-          {item.enabled && <Link className={styles.action} href="/panel/mudurler">Müdürleri yönet <ArrowUpRight size={17} /></Link>}</div>
+          {item.enabled && <Link className={styles.action} href="/panel/mudurler">{item.code === 'branch_password' ? 'Şifreleri yönet' : 'Müdürleri yönet'} <ArrowUpRight size={17} /></Link>}</div>
         {!item.enabled && <p className={styles.note}>Satın alma henüz açılmadı. Bu modülün erişimi Neta yöneticisi tarafından açılır.</p>}
       </section>)}
       <section className={styles.baseCard}><div className={styles.baseIcon}><UsersRound size={23} strokeWidth={1.8} /></div>

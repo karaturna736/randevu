@@ -3,12 +3,12 @@ import { all, one, q, db, uid, now, user, tenant, date, ApiError } from './serve
 import { SELECT_APPOINTMENTS, change } from './booking';
 import { today, addDays } from './types';
 import { PLAN_LIMITS, tenantPlan } from './entitlements';
-import { verifyBranchAccessPassword, validateBranchPasswordInput } from './branch-access';
+import { branchPasswordAddon, verifyBranchAccessPassword } from './branch-access';
 import { waConnection, waReady } from './whatsapp';
 
 export async function teamAccess(id: string) {
   await tenant(id);
-  return { members: await all("SELECT m.user_id,m.email,m.name,m.staff_id,m.disabled,s.branch_id,br.name branch_name,CASE WHEN bp.password_hash IS NULL THEN 0 ELSE 1 END password_configured FROM members m LEFT JOIN staff s ON s.tenant_id=m.tenant_id AND s.id=m.staff_id LEFT JOIN branches br ON br.tenant_id=s.tenant_id AND br.id=s.branch_id LEFT JOIN branch_manager_passwords bp ON bp.tenant_id=s.tenant_id AND bp.branch_id=s.branch_id WHERE m.tenant_id=? AND m.role='staff'", id) };
+  return { password_enabled: await branchPasswordAddon(id), members: await all("SELECT m.user_id,m.email,m.name,m.staff_id,m.disabled,s.branch_id,br.name branch_name,CASE WHEN bp.password_hash IS NULL THEN 0 ELSE 1 END password_configured FROM members m LEFT JOIN staff s ON s.tenant_id=m.tenant_id AND s.id=m.staff_id LEFT JOIN branches br ON br.tenant_id=s.tenant_id AND br.id=s.branch_id LEFT JOIN branch_manager_passwords bp ON bp.tenant_id=s.tenant_id AND bp.branch_id=s.branch_id WHERE m.tenant_id=? AND m.role='staff'", id) };
 }
 
 export async function setTeamAccess(id: string, x: any) {
@@ -55,7 +55,7 @@ export async function teamJobs(id: string, d: string) {
   const b = id ? rows.find((row: any) => row.id === id) : rows[0];
   if (!b) throw new ApiError('Ekip erişimi reddedildi.', 403);
   if (d) date.parse(d);
-  return { businesses: rows.map((row: any) => ({ id: row.id, name: row.name, branch_name: row.branch_name })), business: { id: b.id, name: b.name, branch_name: b.branch_name, staff_name: b.staff_name }, appointments: [], user: u, password_required: true };
+  return { businesses: rows.map((row: any) => ({ id: row.id, name: row.name, branch_name: row.branch_name })), business: { id: b.id, name: b.name, branch_name: b.branch_name, staff_name: b.staff_name }, appointments: [], user: u, password_required: await branchPasswordAddon(b.id) };
 }
 
 export async function teamWorkspace(id: string, d: string, rawPassword: unknown) {
@@ -63,7 +63,8 @@ export async function teamWorkspace(id: string, d: string, rawPassword: unknown)
   if (!rows.length) throw new ApiError('Bu hesaba bağlı çalışan erişimi yok.', 403);
   const b = id ? rows.find((row: any) => row.id === id) : rows[0];
   if (!b) throw new ApiError('Ekip erişimi reddedildi.', 403);
-  await verifyBranchAccessPassword(b.id, b.branch_id, rawPassword);
+  const passwordRequired = await branchPasswordAddon(b.id);
+  if (passwordRequired) await verifyBranchAccessPassword(b.id, b.branch_id, rawPassword);
   const day = date.parse(d || today());
   if (day < addDays(today(), -90) || day > addDays(today(), 90)) throw new ApiError('90 günlük aralıkta bir tarih seçin.');
   const plan = await tenantPlan(b.id), modules = PLAN_LIMITS[plan].modules;
@@ -75,14 +76,13 @@ export async function teamWorkspace(id: string, d: string, rawPassword: unknown)
   const journeySteps = modules.journeys ? await all(`SELECT s.id,s.journey_id,s.position,s.title,s.due_date,s.completed_at FROM journey_steps s JOIN journeys j ON j.tenant_id=s.tenant_id AND j.id=s.journey_id WHERE s.tenant_id=? AND EXISTS(SELECT 1 FROM appointments a WHERE a.tenant_id=j.tenant_id AND a.customer_id=j.customer_id AND a.branch_id=?) ORDER BY s.journey_id,s.position`, b.id, b.branch_id) : [];
   const wa = waConnection(b.id);
   const whatsappAppointments = modules.whatsapp ? await all(`SELECT a.id,a.date,a.minute,a.status,c.name customer_name FROM appointments a JOIN customers c ON c.tenant_id=a.tenant_id AND c.id=a.customer_id WHERE a.tenant_id=? AND a.branch_id=? AND a.source='whatsapp' ORDER BY a.created_at DESC LIMIT 50`, b.id, b.branch_id) : [];
-  return { businesses: rows.map((row: any) => ({ id: row.id, name: row.name, branch_name: row.branch_name })), business: { id: b.id, name: b.name, slug: b.slug, branch_id: b.branch_id, branch_name: b.branch_name, staff_id: b.staff_id, staff_name: b.staff_name }, user: u, date: day, appointments, customers, services, staff, journeys, journey_steps: journeySteps, whatsapp: { enabled: !!modules.whatsapp, connected: !!modules.whatsapp && waReady(b.id), number: modules.whatsapp ? (wa?.number || null) : null, appointments: whatsappAppointments }, permissions: { settings: false, services_write: false, staff_write: false, customers_write: false, journeys_write: !!modules.journeys, whatsapp_settings: false, booking_link_share: true } };
+  return { businesses: rows.map((row: any) => ({ id: row.id, name: row.name, branch_name: row.branch_name })), business: { id: b.id, name: b.name, slug: b.slug, branch_id: b.branch_id, branch_name: b.branch_name, staff_id: b.staff_id, staff_name: b.staff_name }, user: u, date: day, password_required: passwordRequired, appointments, customers, services, staff, journeys, journey_steps: journeySteps, whatsapp: { enabled: !!modules.whatsapp, connected: !!modules.whatsapp && waReady(b.id), number: modules.whatsapp ? (wa?.number || null) : null, appointments: whatsappAppointments }, permissions: { settings: false, services_write: false, staff_write: false, customers_write: false, journeys_write: !!modules.journeys, whatsapp_settings: false, booking_link_share: true } };
 }
 
 export async function finishTeamJob(id: string, x: any) {
   const { rows } = await assignments(), assignment = rows.find((b: any) => b.id === id);
   if (!assignment) throw new ApiError('Ekip erişimi reddedildi.', 403);
-  validateBranchPasswordInput(x.branch_password);
-  await verifyBranchAccessPassword(id, assignment.branch_id, x.branch_password);
+  if (await branchPasswordAddon(id)) await verifyBranchAccessPassword(id, assignment.branch_id, x.branch_password);
   const a = await one(SELECT_APPOINTMENTS + ' WHERE a.tenant_id=? AND a.staff_id=? AND a.branch_id=? AND a.id=?', id, assignment.staff_id, assignment.branch_id, z.string().parse(x.id));
   if (!a) throw new ApiError('İşlem bulunamadı.', 404);
   const status = z.enum(['completed', 'no_show']).parse(x.status), b = await one('SELECT * FROM businesses WHERE id=?', id);
@@ -92,8 +92,7 @@ export async function finishTeamJob(id: string, x: any) {
 export async function advanceTeamJourney(id: string, x: any) {
   const { u, rows } = await assignments(), assignment = rows.find((b: any) => b.id === id);
   if (!assignment) throw new ApiError('Ekip erişimi reddedildi.', 403);
-  validateBranchPasswordInput(x.branch_password);
-  await verifyBranchAccessPassword(id, assignment.branch_id, x.branch_password);
+  if (await branchPasswordAddon(id)) await verifyBranchAccessPassword(id, assignment.branch_id, x.branch_password);
   const plan = await tenantPlan(id), modules = PLAN_LIMITS[plan].modules;
   if (!modules.journeys) throw new ApiError('Hizmet yolculuğu bu pakette aktif değil.', 403);
   const input = z.object({ journey_id: z.string(), version: z.number().int().nonnegative() }).parse(x);
