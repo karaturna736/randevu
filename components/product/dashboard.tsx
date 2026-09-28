@@ -704,7 +704,7 @@ export default function Dashboard({
           {activeView === "journeys" && (
             <Journeys key={w.business.id} w={w} requireReal={requireReal} />
           )}{" "}
-          {activeView === "share" && <BookingLink key={w.business.id} w={w} />}{" "}
+          {activeView === "share" && <BookingLink key={w.business.id} w={w} onNavigate={setView} />}{" "}
           {activeView === "growth" && (
             <Growth key={w.business.id} w={w} requireReal={requireReal} />
           )}{" "}
