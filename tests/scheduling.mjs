@@ -54,6 +54,18 @@ try{
  check((await call('services',{user:'qa-a',body:{tenant_id:A,name:'Invalid duration',duration:17,price:10000}})).status===400,'Non-aligned service durations are rejected');
  const S=wa.services[0].id,P=wa.staff[0].id,date=day(3);
  const book={slug:'test-a',service_id:S,staff_id:P,date,minute:600,name:'Test Müşteri',phone:'05550001234',email:'test@example.test',consent:false};
+ await call('services',{user:'qa-a',body:{tenant_id:A,name:'Saç bakımı',duration:30,price:25000}});
+ const T=(await call('workspace?tenant='+A,{user:'qa-a'})).data.services.find(s=>s.id!==S).id;
+ check((await call(`availability?slug=test-a&service=${S}&services=${S},${T}&date=${date}&staff=${P}`)).data.slots.some(s=>s.minute===900),'Two services use their combined duration for availability');
+ const bundle=await call('bookings',{body:{...book,service_ids:[S,T],minute:900}});
+ check(bundle.status===201&&bundle.data.price===90000&&bundle.data.service.includes('Saç bakımı'),'Multi-service booking saves the combined price and service names');
+ const savedBundle=await db.prepare('SELECT duration,price,service_name_snapshot FROM appointments WHERE id=?').bind(bundle.data.id).first();
+ check(savedBundle.duration===75&&savedBundle.price===90000&&savedBundle.service_name_snapshot.includes('Saç bakımı'),'Combined duration, price and names persist on one appointment');
+ check(!(await call(`availability?slug=test-a&service=${S}&date=${date}&staff=${P}`)).data.slots.some(s=>s.minute===945),'Combined booking blocks the entire service window');
+ check((await call('bookings',{body:{...book,service_ids:[S,T],minute:945,phone:'05550009876'}})).status===409,'Overlapping multi-service booking is rejected');
+ check((await call('bookings',{body:{...book,service_ids:[S,wb.services[0].id],minute:780}})).status===404,'Foreign business service cannot join a booking');
+ check((await call('bookings',{body:{...book,service_ids:[S,S],minute:780}})).status===400,'Duplicate service selection is rejected');
+ check((await call('manage',{token:bundle.data.token,body:{status:'cancelled'}})).status===200,'Guest can cancel a multi-service appointment');
  check((await call(`availability?slug=test-a&service=${S}&date=${date}&staff=${P}`)).data.slots.some(s=>s.minute===600),'Public customer sees actual availability without an account');
  const concurrent=await Promise.all([call('bookings',{body:book}),call('bookings',{body:{...book,name:'İkinci Müşteri',phone:'05550005678'}})]);
  check(concurrent.filter(r=>r.status===201).length===1&&concurrent.filter(r=>r.status===409).length===1,'Concurrent bookings cannot reserve the same staff time twice');
@@ -72,7 +84,7 @@ try{
  check((await call('manage',{token:booked.token,body:{status:'cancelled'}})).status===200,'Guest can cancel within the cancellation window');
  check((await call(`availability?slug=test-a&service=${S}&date=${date}&staff=${P}`)).data.slots.some(s=>s.minute===720),'Cancelled appointment time becomes available again');
  const wafter=(await call('workspace?tenant='+A,{user:'qa-a'})).data;
- check(wafter.customers.length===1&&wafter.appointments.length===1,'Failed booking transaction leaves no orphan customer or appointment');
+ check(wafter.customers.length===1&&wafter.appointments.length===2,'Failed booking transaction leaves no orphan customer or appointment');
  const pendingPnL=(await call('branches?tenant='+A+'&month='+date.slice(0,7),{user:'qa-a'})).data;
  check(pendingPnL.summary.revenue===0,'Customer creation and an uncompleted appointment do not create manual revenue');
  check((await call('closures',{user:'qa-a',body:{tenant_id:A,staff_id:P,date,reason:'Test izin'}})).status===200,'Free staff day can be marked as leave');
