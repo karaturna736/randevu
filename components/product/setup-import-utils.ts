@@ -189,6 +189,13 @@ const aliases: Record<string, string[]> = {
     "amount",
   ],
   status: ["durum", "randevu_durumu", "status"],
+  payment_status: [
+    "odeme_durumu",
+    "tahsilat_durumu",
+    "borc_durumu",
+    "payment_status",
+    "payment_state",
+  ],
   debt: [
     "borc_tl",
     "borc",
@@ -303,6 +310,20 @@ function statusValue(value: unknown, date: string) {
   return date && date < today ? "completed" : "confirmed";
 }
 
+function debtSettled(value: unknown) {
+  return [
+    "odendi",
+    "odenmis",
+    "odeme_tamamlandi",
+    "borc_odendi",
+    "borc_kapandi",
+    "borc_yok",
+    "paid",
+    "paid_in_full",
+    "settled",
+  ].includes(key(value));
+}
+
 function consentValue(value: unknown) {
   return ["evet", "true", "1", "yes", "onayli", "izin_var"].includes(key(value));
 }
@@ -405,6 +426,8 @@ export function buildSetupImport(kind: SetupImportKind, rows: unknown[][]) {
       note: String(get(row, "note") ?? "Eski kayıt aktarımı").trim().slice(0, 300),
     };
   };
+  const isSettledDebt = (row: unknown[]) =>
+    debtSettled(get(row, "payment_status") ?? get(row, "status"));
   const appointment = (row: unknown[]) => {
     const c = customer(row),
       d = dateValue(get(row, "date"));
@@ -426,7 +449,8 @@ export function buildSetupImport(kind: SetupImportKind, rows: unknown[][]) {
       const c = customer(row);
       if (c.name || c.phone) groups.customers.push(c);
       const debt = receivable(row);
-      if (debt.amount > 0 && c.name && c.phone) groups.receivables.push(debt);
+      if (debt.amount > 0 && !isSettledDebt(row) && c.name && c.phone)
+        groups.receivables.push(debt);
       continue;
     }
     if (kind === "services") {
@@ -450,12 +474,13 @@ export function buildSetupImport(kind: SetupImportKind, rows: unknown[][]) {
       const a = appointment(row);
       groups.appointments.push(a);
       const debt = receivable(row);
-      if (debt.amount > 0 && a.name && a.phone) groups.receivables.push(debt);
+      if (debt.amount > 0 && !isSettledDebt(row) && a.name && a.phone)
+        groups.receivables.push(debt);
       continue;
     }
     if (kind === "receivables") {
       const debt = receivable(row);
-      if (debt.amount > 0) groups.receivables.push(debt);
+      if (debt.amount > 0 && !isSettledDebt(row)) groups.receivables.push(debt);
       continue;
     }
 
@@ -467,7 +492,8 @@ export function buildSetupImport(kind: SetupImportKind, rows: unknown[][]) {
       const a = appointment(row);
       if (a.name && a.phone && a.date) groups.appointments.push(a);
       const debt = receivable(row);
-      if (debt.amount > 0 && a.name && a.phone) groups.receivables.push(debt);
+      if (debt.amount > 0 && !isSettledDebt(row) && a.name && a.phone)
+        groups.receivables.push(debt);
     } else if (looksStaff && !looksCustomer) {
       const name = String(get(row, "staff") || get(row, "customer_name") || "").trim();
       if (name)
@@ -489,7 +515,8 @@ export function buildSetupImport(kind: SetupImportKind, rows: unknown[][]) {
       const c = customer(row);
       if (c.name && c.phone) groups.customers.push(c);
       const debt = receivable(row);
-      if (debt.amount > 0 && c.name && c.phone) groups.receivables.push(debt);
+      if (debt.amount > 0 && !isSettledDebt(row) && c.name && c.phone)
+        groups.receivables.push(debt);
     }
   }
 

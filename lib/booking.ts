@@ -366,8 +366,32 @@ export async function change(
   if (x.action === "reschedule") {
     const d = dateSchema.parse(x.date),
       m = z.number().int().min(0).max(1425).multipleOf(15).parse(x.minute),
-      p = String(x.staff_id || a.staff_id);
-    const options = await available(b, a.service_id, d, p, a.id, a.duration);
+      p = String(x.staff_id || a.staff_id),
+      targetStaff = await one(
+        "SELECT id,branch_id,name FROM staff WHERE tenant_id=? AND id=? AND active=1",
+        b.id,
+        p,
+      );
+    if (!targetStaff) throw new ApiError("Uzman bulunamadı.", 404);
+    const targetBranchId = String(targetStaff.branch_id || a.branch_id || "");
+    if (
+      !targetBranchId ||
+      !(await one(
+        "SELECT id FROM branches WHERE tenant_id=? AND id=? AND active=1",
+        b.id,
+        targetBranchId,
+      ))
+    )
+      throw new ApiError("Uzmanın aktif şubesi bulunamadı.", 409);
+    const options = await available(
+      b,
+      a.service_id,
+      d,
+      p,
+      a.id,
+      a.duration,
+      targetBranchId,
+    );
     if (!options.some((s) => s.minute === m))
       throw new ApiError("Bu saat artık müsait değil.", 409);
     const ops = [
@@ -375,10 +399,11 @@ export async function change(
       q("DELETE FROM slots WHERE tenant_id=? AND appointment_id=?", b.id, a.id),
       ...blocks(b.id, p, d, m, a.duration, a.id),
       q(
-        "UPDATE appointments SET date=?,minute=?,staff_id=?,early_from=NULL,version=version+1 WHERE tenant_id=? AND id=?",
+        "UPDATE appointments SET date=?,minute=?,staff_id=?,branch_id=?,early_from=NULL,version=version+1 WHERE tenant_id=? AND id=?",
         d,
         m,
         p,
+        targetBranchId,
         b.id,
         a.id,
       ),
@@ -397,13 +422,13 @@ export async function change(
         type: "appointment.updated",
         appointmentId: a.id,
         tenantId: b.id,
-        branchId: a.branch_id || null,
+        branchId: targetBranchId,
         timestamp: now(),
         data: {
           customer_name: a.customer_name,
           customer_phone: a.customer_phone,
           service_name: a.service_name,
-          staff_name: a.staff_name,
+          staff_name: targetStaff.name,
           date: d,
           minute: m,
           time: time(m),

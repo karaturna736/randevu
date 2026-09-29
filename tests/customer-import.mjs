@@ -22,3 +22,17 @@ assert.equal(xlsxCustomers[0].name, "Ayşe Örnek");
 assert.equal(xlsxCustomers[0].phone, "5321234567");
 assert.equal(xlsxCustomers[0].consent, false);
 console.log("PASS XLSX shared strings and numeric telephone columns map to customer data");
+
+const future = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const semanticRows = [
+  ["Ad Soyad", "Telefon", "Hizmet", "Personel", "Tarih", "Saat", "Durum", "Borç TL", "Ödeme Durumu"],
+  ["Ödenmiş Borç", "05550000001", "Kesim", "Uzman", future, "10:00", "onaylı", "500", "ödendi"],
+  ["İptal Değil", "05550000002", "Kesim", "Uzman", future, "11:00", "iptal değil", "0", ""],
+];
+const semanticGroups = buildSetupImport("appointments", semanticRows),
+  semanticAppointments = semanticGroups.find(([kind]) => kind === "appointments")?.[1] || [],
+  semanticReceivables = semanticGroups.find(([kind]) => kind === "receivables")?.[1] || [];
+assert.equal(semanticAppointments.length, 2);
+assert.equal(semanticAppointments[1].status, "confirmed");
+assert.equal(semanticReceivables.length, 0);
+console.log("PASS paid debt is not reopened and 'iptal değil' is not treated as cancelled");

@@ -281,7 +281,10 @@ export async function importSetup(
       touchedStaff = new Set<string>(),
       pendingAppointments = new Set<string>(),
       pendingSlots = new Set<string>(),
-      pendingReceivables = new Set<string>();
+      pendingReceivables = new Set<string>(),
+      generatedAppointmentCustomers = new Set<string>(),
+      generatedAppointmentServices = new Set<string>(),
+      generatedAppointmentStaff = new Set<string>();
 
     const customerId = async (r: {
       name: string;
@@ -298,6 +301,7 @@ export async function importSetup(
         );
         cid = String(old?.id || uid());
         customerIds.set(r.phone, cid);
+        if (!old && x.kind === "appointments") generatedAppointmentCustomers.add(cid);
       }
       if (!touchedCustomers.has(r.phone)) {
         touchedCustomers.add(r.phone);
@@ -332,20 +336,23 @@ export async function importSetup(
         );
         sid = String(old?.id || uid());
         serviceIds.set(key, sid);
-        if (!old && !touchedServices.has(key)) {
-          touchedServices.add(key);
-          ops.push(
-            q(
-              "INSERT INTO services(id,tenant_id,name,description,duration,price,color,active) VALUES(?,?,?,?,?,?,?,1)",
-              sid,
-              id,
-              r.service_name,
-              "Eski kayıt aktarımıyla oluşturuldu.",
-              r.duration,
-              r.price,
-              "#6f8061",
-            ),
-          );
+        if (!old) {
+          if (x.kind === "appointments") generatedAppointmentServices.add(sid);
+          if (!touchedServices.has(key)) {
+            touchedServices.add(key);
+            ops.push(
+              q(
+                "INSERT INTO services(id,tenant_id,name,description,duration,price,color,active) VALUES(?,?,?,?,?,?,?,1)",
+                sid,
+                id,
+                r.service_name,
+                "Eski kayıt aktarımıyla oluşturuldu.",
+                r.duration,
+                r.price,
+                "#6f8061",
+              ),
+            );
+          }
         }
       }
       return sid;
@@ -367,20 +374,23 @@ export async function importSetup(
         pid = String(old?.id || uid());
         staffIds.set(key, pid);
         staffBranches.set(key, String(old?.branch_id || primaryBranch.id));
-        if (!old && !touchedStaff.has(key)) {
-          touchedStaff.add(key);
-          ops.push(
-            q(
-              "INSERT INTO staff(id,tenant_id,name,title,hours,color,active,branch_id) VALUES(?,?,?,?,?,?,1,?)",
-              pid,
-              id,
-              staffName,
-              "Uzman",
-              b.hours,
-              "#d9e5cc",
-              primaryBranch.id,
-            ),
-          );
+        if (!old) {
+          if (x.kind === "appointments") generatedAppointmentStaff.add(pid);
+          if (!touchedStaff.has(key)) {
+            touchedStaff.add(key);
+            ops.push(
+              q(
+                "INSERT INTO staff(id,tenant_id,name,title,hours,color,active,branch_id) VALUES(?,?,?,?,?,?,1,?)",
+                pid,
+                id,
+                staffName,
+                "Uzman",
+                b.hours,
+                "#d9e5cc",
+                primaryBranch.id,
+              ),
+            );
+          }
         }
       }
       return {
@@ -435,6 +445,7 @@ export async function importSetup(
               break;
             }
           if (dbConflict || localConflict) {
+            pendingAppointments.delete(appointmentKey);
             issue(index, "Bu personelin aynı saatte başka bir aktif randevusu var.");
             continue;
           }
@@ -479,6 +490,39 @@ export async function importSetup(
           }
         imported++;
       }
+
+      for (const cid of generatedAppointmentCustomers)
+        ops.push(
+          q(
+            "DELETE FROM customers WHERE tenant_id=? AND id=? AND NOT EXISTS(SELECT 1 FROM appointments WHERE tenant_id=? AND customer_id=?) AND NOT EXISTS(SELECT 1 FROM receivables WHERE tenant_id=? AND customer_id=?)",
+            id,
+            cid,
+            id,
+            cid,
+            id,
+            cid,
+          ),
+        );
+      for (const sid of generatedAppointmentServices)
+        ops.push(
+          q(
+            "DELETE FROM services WHERE tenant_id=? AND id=? AND NOT EXISTS(SELECT 1 FROM appointments WHERE tenant_id=? AND service_id=?)",
+            id,
+            sid,
+            id,
+            sid,
+          ),
+        );
+      for (const pid of generatedAppointmentStaff)
+        ops.push(
+          q(
+            "DELETE FROM staff WHERE tenant_id=? AND id=? AND NOT EXISTS(SELECT 1 FROM appointments WHERE tenant_id=? AND staff_id=?)",
+            id,
+            pid,
+            id,
+            pid,
+          ),
+        );
     }
 
     if (x.kind === "receivables") {
