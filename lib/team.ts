@@ -35,16 +35,12 @@ export async function setTeamAccess(id: string, x: any) {
 }
 
 async function assignments() {
-  const u = await user(), stamp = now();
+  const u = await user();
   return { u, rows: await all(`SELECT b.id,b.name,b.slug,b.category,m.staff_id,p.name staff_name,p.branch_id,br.name branch_name
     FROM members m JOIN businesses b ON b.id=m.tenant_id
     JOIN staff p ON p.tenant_id=m.tenant_id AND p.id=m.staff_id
     JOIN branches br ON br.tenant_id=p.tenant_id AND br.id=p.branch_id AND br.active=1
-    WHERE m.user_id=? AND m.role='staff' AND m.disabled=0 AND p.active=1 AND b.status NOT IN ('deleted','suspended')
-      AND (b.demo=1
-        OR EXISTS(SELECT 1 FROM subscriptions s WHERE s.tenant_id=b.id AND s.paid_until>?)
-        OR EXISTS(SELECT 1 FROM recurring_subscriptions r WHERE r.tenant_id=b.id AND r.test_mode=0 AND r.plan IN ('normal','pro','plus') AND r.paid_until>?)
-        OR EXISTS(SELECT 1 FROM onboarding_payments op JOIN admins a ON a.user_id=op.user_id WHERE op.tenant_id=b.id AND op.state='active' AND op.test_mode=1 AND op.expires_at>?))`, u.userId, stamp, stamp, stamp) };
+    WHERE m.user_id=? AND m.role='staff' AND m.disabled=0 AND p.active=1 AND b.status NOT IN ('deleted','suspended')`, u.userId) };
 }
 
 function operationalAppointment(a: any) {
