@@ -425,9 +425,11 @@ export default function Dashboard({
       localStorage.setItem("neta_sound_enabled", next ? "true" : "false");
     }
   };
-  const refresh = useCallback(async (id?: string, demo = false) => {
-    setLoading(true);
-    setLoadError("");
+  const refresh = useCallback(async (id?: string, demo = false, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setLoadError("");
+    }
     try {
       const data = demo
         ? await api("demo-workspace", {})
@@ -448,9 +450,9 @@ export default function Dashboard({
       if (e.status === 401) {
         setNeedsOnboarding(false);
         setW(demoWorkspace());
-      } else setLoadError(e.message);
+      } else if (!silent) setLoadError(e.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -477,7 +479,7 @@ export default function Dashboard({
     enabled: !w.preview && !w.business?.demo,
     onRefresh: useCallback(() => {
       if (w.business?.id && !w.preview) {
-        refresh(w.business.id);
+        return refresh(w.business.id, false, true);
       }
     }, [w.business?.id, w.preview, refresh]),
     onHighlight: handleHighlight,
