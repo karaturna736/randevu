@@ -42,15 +42,40 @@ export function useAppointmentRealtime({
   const processedEventsRef = useRef<Set<string>>(new Set());
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const refreshRunningRef = useRef(false);
+  const refreshPendingRef = useRef(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeTenantRef = useRef(tenantId);
+  const scheduleRefreshRef = useRef<() => void>(() => {});
+  activeTenantRef.current = tenantId;
+
+  const scheduleRefresh = useCallback(() => {
+    if (!tenantId || activeTenantRef.current !== tenantId || document.visibilityState !== "visible") return;
+    refreshPendingRef.current = true;
+    if (refreshTimerRef.current || refreshRunningRef.current) return;
+    refreshTimerRef.current = setTimeout(async () => {
+      refreshTimerRef.current = null;
+      if (!refreshPendingRef.current || document.visibilityState !== "visible") return;
+      refreshPendingRef.current = false;
+      refreshRunningRef.current = true;
+      try {
+        await onRefresh(tenantId);
+      } catch (error) {
+        console.error("Appointment refresh failed:", error);
+      } finally {
+        refreshRunningRef.current = false;
+        if (refreshPendingRef.current) scheduleRefreshRef.current();
+      }
+    }, 250);
+  }, [tenantId, onRefresh]);
+  scheduleRefreshRef.current = scheduleRefresh;
 
   const startPolling = useCallback(() => {
     if (pollingTimerRef.current) return;
     pollingTimerRef.current = setInterval(() => {
-      if (tenantId) {
-        onRefresh(tenantId);
-      }
+      scheduleRefresh();
     }, 30000);
-  }, [tenantId, onRefresh]);
+  }, [scheduleRefresh]);
 
   const stopPolling = useCallback(() => {
     if (pollingTimerRef.current) {
@@ -67,6 +92,7 @@ export function useAppointmentRealtime({
     }
 
     let isMounted = true;
+    let openedOnce = false;
     const url = `/api/v1/events?tenant=${encodeURIComponent(tenantId)}`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
@@ -81,8 +107,10 @@ export function useAppointmentRealtime({
       window.clearTimeout(connectionFallbackTimer);
       setIsSSEConnected(true);
       stopPolling();
-      // Reconcile any event that may have been missed while reconnecting.
-      void onRefresh(tenantId);
+      // Initial page load already fetches the workspace. Reconcile only when
+      // reconnecting after an interruption.
+      if (openedOnce) scheduleRefresh();
+      openedOnce = true;
     };
 
     const handleEvent = (e: MessageEvent, type: string) => {
@@ -106,7 +134,7 @@ export function useAppointmentRealtime({
         }
 
         // Trigger refetch
-        onRefresh(tenantId);
+        scheduleRefresh();
 
         if (appointmentId && onHighlight) {
           onHighlight(appointmentId);
@@ -178,12 +206,15 @@ export function useAppointmentRealtime({
       isMounted = false;
       window.clearTimeout(connectionFallbackTimer);
       stopPolling();
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+      refreshPendingRef.current = false;
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
     };
-  }, [tenantId, enabled, onRefresh, onHighlight, startPolling, stopPolling]);
+  }, [tenantId, enabled, onHighlight, scheduleRefresh, startPolling, stopPolling]);
 
   // Handle visibility change tab return
   useEffect(() => {
@@ -191,7 +222,7 @@ export function useAppointmentRealtime({
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        onRefresh(tenantId);
+        scheduleRefresh();
       }
     };
 
@@ -199,7 +230,7 @@ export function useAppointmentRealtime({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [tenantId, enabled, onRefresh]);
+  }, [tenantId, enabled, scheduleRefresh]);
 
   return { isSSEConnected };
 }
