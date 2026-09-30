@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ -n "${PUSH_DISPATCH_SECRET:-}" ]] || exit 0
+[[ -n "${VAPID_PUBLIC_KEY:-}" && -n "${VAPID_PRIVATE_KEY:-}" ]] || exit 0
+curl --silent --show-error --fail --max-time 15 --resolve netarandevu.com:443:127.0.0.1 \
+  -X POST -H "Authorization: Bearer ${PUSH_DISPATCH_SECRET}" \
+  https://netarandevu.com/api/push-dispatch >/dev/null

@@ -187,10 +187,30 @@ jobs:
           archive="/tmp/neta-vps-release-${release_sha}.tar.gz"
           deploy_stage="$(mktemp -d)"
           trap 'rm -rf "$deploy_stage"' EXIT
-          tar -xzf "$archive" -C "$deploy_stage" ./deploy/release-vps.sh ./deploy/neta-slot@.service
+          tar -xzf "$archive" -C "$deploy_stage" ./deploy/release-vps.sh ./deploy/neta-slot@.service ./deploy/neta-push.service ./deploy/neta-push.timer ./deploy/neta-push-dispatch
           sudo install -o root -g root -m 0755 "$deploy_stage/deploy/release-vps.sh" /usr/local/sbin/neta-release
           sudo install -o root -g root -m 0644 "$deploy_stage/deploy/neta-slot@.service" /etc/systemd/system/neta-slot@.service
+          sudo install -o root -g root -m 0755 "$deploy_stage/deploy/neta-push-dispatch" /usr/local/sbin/neta-push-dispatch
+          sudo install -o root -g root -m 0644 "$deploy_stage/deploy/neta-push.service" /etc/systemd/system/neta-push.service
+          sudo install -o root -g root -m 0644 "$deploy_stage/deploy/neta-push.timer" /etc/systemd/system/neta-push.timer
           sudo systemctl daemon-reload
+
+          # Generate once on the VPS; keys stay outside the release archive and GitHub.
+          if ! sudo grep -q '^VAPID_PRIVATE_KEY=' /etc/neta/neta.env; then
+            sudo /usr/bin/node -e '
+              const { createECDH, randomBytes } = require("node:crypto");
+              const fs = require("node:fs");
+              const pair = createECDH("prime256v1"); pair.generateKeys();
+              const values = [
+                "VAPID_PUBLIC_KEY=" + pair.getPublicKey().toString("base64url"),
+                "VAPID_PRIVATE_KEY=" + pair.getPrivateKey().toString("base64url"),
+                "VAPID_SUBJECT=https://netarandevu.com",
+                "PUSH_DISPATCH_SECRET=" + randomBytes(32).toString("hex")
+              ];
+              fs.appendFileSync("/etc/neta/neta.env", "\n" + values.join("\n") + "\n", { mode: 0o600 });
+            '
+            sudo chmod 600 /etc/neta/neta.env
+          fi
 
           test -f /etc/letsencrypt/live/netarandevu.com/fullchain.pem || sudo /usr/local/sbin/neta-enable-ssl "$letsencrypt_email"
 
@@ -214,6 +234,7 @@ jobs:
           # neta-release starts the inactive slot, health-checks it, switches
           # Nginx gracefully, and only then stops the previous process.
           sudo /usr/local/sbin/neta-release "$archive"
+          sudo systemctl enable --now neta-push.timer
           rm -f "/tmp/neta-nginx-${release_sha}.conf"
 
           active_port="$(tr -d '\r\n ' < /var/lib/neta/active-port)"
