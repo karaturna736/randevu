@@ -88,6 +88,9 @@ export function NotificationCenter() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported",
   );
+  const [pushReady, setPushReady] = useState(false);
+  const [pushActive, setPushActive] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   const [accepting, setAccepting] = useState("");
   const known = useRef(new Set<string>());
   const initialized = useRef(false);
@@ -123,6 +126,18 @@ export function NotificationCenter() {
   }, []);
 
   const endpoint = scope === "business" ? "/api/business-notifications" : "/api/customer-notifications";
+
+  useEffect(() => {
+    if (scope !== "business" || !tenantId) return;
+    void requestJson(`/api/push-subscriptions?tenant=${encodeURIComponent(tenantId)}`)
+      .then(async settings => {
+        setPushReady(!!settings.configured);
+        const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration('/neta-push-sw.js') : null;
+        const subscription = await registration?.pushManager.getSubscription();
+        setPushActive(!!subscription && !!settings.endpoints?.includes(subscription.endpoint));
+      })
+      .catch(() => {});
+  }, [scope, tenantId]);
 
   const load = useCallback(
     async (announce = false) => {
@@ -226,14 +241,37 @@ export function NotificationCenter() {
   }
 
   async function requestPermission() {
-    if (!("Notification" in window)) {
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setPermission("unsupported");
+      toast.error("Bu tarayıcı kilit ekranı bildirimlerini desteklemiyor.");
       return;
     }
+    if (scope !== "business" || !tenantId) return;
+    setPushBusy(true);
     try {
-      setPermission(await Notification.requestPermission());
-    } catch {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      if (result !== "granted") {
+        toast.error(result === "denied" ? "Bildirim izni engellenmiş. Telefonun site ayarlarından izin verin." : "Bildirim izni verilmedi.");
+        return;
+      }
+      const settings = await requestJson(`/api/push-subscriptions?tenant=${encodeURIComponent(tenantId)}`);
+      if (!settings.configured || !settings.public_key) throw new Error("Kilit ekranı bildirimleri sunucuda henüz yapılandırılmadı.");
+      const registration = await navigator.serviceWorker.register('/neta-push-sw.js');
+      const bytes = Uint8Array.from(atob(settings.public_key.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(settings.public_key.length / 4) * 4, '=')), c => c.charCodeAt(0));
+      const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes });
+      const json = subscription.toJSON();
+      await requestJson('/api/push-subscriptions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: tenantId, endpoint: subscription.endpoint, keys: json.keys }),
+      });
+      setPushActive(true);
+      toast.success('Kilit ekranı bildirimleri açıldı.');
+    } catch (error: any) {
+      toast.error(error?.message || "Bildirimler etkinleştirilemedi.");
       setPermission(Notification.permission);
+    } finally {
+      setPushBusy(false);
     }
   }
 
@@ -373,10 +411,10 @@ export function NotificationCenter() {
                   </button>
                 )}
               </div>
-              <button
+              {scope === 'business' && <button
                 type="button"
                 onClick={() => void requestPermission()}
-                disabled={permission === "granted"}
+                disabled={pushActive || pushBusy}
                 style={{
                   marginTop: 10,
                   width: "100%",
@@ -385,18 +423,20 @@ export function NotificationCenter() {
                   border: "1px solid rgba(255,255,255,.08)",
                   background: "rgba(255,255,255,.035)",
                   color: "inherit",
-                  cursor: permission === "granted" ? "default" : "pointer",
+                  cursor: pushActive || pushBusy ? "default" : "pointer",
                   textAlign: "left",
                 }}
               >
-                {permission === "granted" ? (
-                  <><CircleCheck size={15} style={{ verticalAlign: "middle", marginRight: 7 }} />Cihaz bildirimleri açık</>
+                {pushActive ? (
+                  <><CircleCheck size={15} style={{ verticalAlign: "middle", marginRight: 7 }} />Kilit ekranı bildirimleri açık</>
+                ) : pushBusy ? (
+                  <>Bildirimler açılıyor…</>
                 ) : permission === "unsupported" ? (
                   <><CircleAlert size={15} style={{ verticalAlign: "middle", marginRight: 7 }} />Bu tarayıcı bildirim desteklemiyor</>
                 ) : (
-                  <><Bell size={15} style={{ verticalAlign: "middle", marginRight: 7 }} />Telefonda / bilgisayarda bildirim izni ver</>
+                  <><Bell size={15} style={{ verticalAlign: "middle", marginRight: 7 }} />{pushReady ? 'Kilit ekranı bildirimlerini aç' : 'Bildirimleri etkinleştir'}</>
                 )}
-              </button>
+              </button>}
             </div>
 
             <div style={{ overflowY: "auto", flex: 1, padding: 12 }}>

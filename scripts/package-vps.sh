@@ -11,7 +11,7 @@ cp -R public "$stage/public"
 cp scripts/migrate-sqlite.mjs scripts/backup-sqlite.mjs scripts/load-test-100.mjs scripts/run-isolated-load-test.sh scripts/configure-whatsapp.sh "$stage/scripts/"
 chmod +x "$stage/scripts/run-isolated-load-test.sh" "$stage/scripts/configure-whatsapp.sh"
 cp drizzle/*.sql "$stage/drizzle/"
-cp deploy/release-vps.sh deploy/neta-slot@.service "$stage/deploy/"
+cp deploy/release-vps.sh deploy/neta-slot@.service deploy/neta-push.service deploy/neta-push.timer deploy/neta-push-dispatch "$stage/deploy/"
 chmod +x "$stage/deploy/release-vps.sh"
 
 # Each active VPS slot runs the appointment outbox and the revenue-recovery

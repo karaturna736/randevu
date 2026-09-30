@@ -1,0 +1,14 @@
+[Unit]
+Description=Neta Web Push bildirimlerini dağıt
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=neta
+Group=neta
+EnvironmentFile=/etc/neta/neta.env
+ExecStart=/usr/local/sbin/neta-push-dispatch
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
