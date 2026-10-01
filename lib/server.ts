@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { appOrigin, getAppUser } from "./identity";
+import { adminAccessConfigured, hasAdminAccess } from "./admin-access";
 import { cookieValue } from "./security";
 import { z } from "zod";
 export class ApiError extends Error {
@@ -67,6 +68,8 @@ export async function admin() {
   const u = await user();
   if (!(await isAdmin(u)))
     throw new ApiError("Yalnızca platform yöneticisi erişebilir.", 403);
+  if (adminAccessConfigured() && !(await hasAdminAccess(u.userId)))
+    throw new ApiError("Yönetici şifresiyle tekrar doğrulama gerekiyor.", 403);
   return u;
 }
 export async function paidTenant(userId: string, id?: string) {
