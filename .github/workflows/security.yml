@@ -15,6 +15,22 @@ permissions:
   contents: read
 
 jobs:
+  proxy-security:
+    if: ${{ github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Nginx for isolated ingress test
+        run: sudo apt-get update && sudo apt-get install -y nginx
+      - name: Reject spoofed client IP headers on all proxy paths
+        run: python3 tests/proxy-ip.py
+      - name: Reject incomplete Strix reports
+        run: python3 tests/strix-run.py
+
   quality:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
