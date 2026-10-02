@@ -40,7 +40,7 @@ export async function user() {
     );
   return { ...u, displayName: profile?.name || u.displayName };
 }
-export async function isAdmin(u: any) {
+export async function isBaseAdmin(u: any) {
   if (await one("SELECT user_id FROM admins WHERE user_id=?", u.userId))
     return true;
   const explicit = String((env as any).PLATFORM_ADMIN_USER_IDS || "")
@@ -64,9 +64,13 @@ export async function isAdmin(u: any) {
   }
   return false;
 }
+export async function isAdmin(u: any) {
+  if (!(await isBaseAdmin(u))) return false;
+  return !adminAccessConfigured() || (await hasAdminAccess(u.userId));
+}
 export async function admin() {
   const u = await user();
-  if (!(await isAdmin(u)))
+  if (!(await isBaseAdmin(u)))
     throw new ApiError("Yalnızca platform yöneticisi erişebilir.", 403);
   if (adminAccessConfigured() && !(await hasAdminAccess(u.userId)))
     throw new ApiError("Yönetici şifresiyle tekrar doğrulama gerekiyor.", 403);

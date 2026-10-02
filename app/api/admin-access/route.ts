@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { user, isAdmin, limit, body, fail, ApiError } from "@/lib/server";
+import { user, isBaseAdmin, limit, body, fail, ApiError } from "@/lib/server";
 import {
   adminAccessConfigured,
   adminAccessCookie,
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   try {
     await limit(req, "admin-access", 6);
     const current = await user();
-    if (!(await isAdmin(current)))
+    if (!(await isBaseAdmin(current)))
       throw new ApiError("Yalnızca platform yöneticisi erişebilir.", 403);
     if (!adminAccessConfigured())
       throw new ApiError("Yönetici şifresi henüz sunucuda ayarlanmadı.", 503);
