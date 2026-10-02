@@ -8,6 +8,7 @@ import {
   Link2,
   MessageSquare,
   RefreshCw,
+  TrendingUp,
   Upload,
   Users,
 } from "lucide-react";
@@ -70,15 +71,18 @@ export function RecoveryEngine({ w }: any) {
         </span>
       </section>
       <div className="operations-metrics">
-        <div className="operation-metric">
+        <div className="panel operation-metric">
+          <Clock3 size={20} />
           <span>Bu ay doldurulan boş saat</span>
           <strong>{d.totals.filled_slots}</strong>
         </div>
-        <div className="operation-metric">
+        <div className="panel operation-metric">
+          <Users size={20} />
           <span>Geri kazanılan müşteri</span>
           <strong>{d.totals.recovered_customers}</strong>
         </div>
-        <div className="operation-metric">
+        <div className="panel operation-metric">
+          <TrendingUp size={20} />
           <span>Neta’nın kurtardığı ciro</span>
           <strong>{money(d.totals.recovered_revenue)}</strong>
         </div>
