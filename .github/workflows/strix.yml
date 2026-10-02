@@ -1,0 +1,83 @@
+name: Strix repository assessment
+
+# Deliberately manual: a scan uses the configured provider's paid API.
+on:
+  workflow_dispatch:
+    inputs:
+      budget_usd:
+        description: "Maximum model cost in USD (1–50)"
+        required: true
+        default: "5"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: strix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  assessment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Verify configuration
+        env:
+          STRIX_LLM: ${{ secrets.STRIX_LLM }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          SCAN_BUDGET: ${{ inputs.budget_usd }}
+        run: |
+          set -euo pipefail
+          test -n "$STRIX_LLM" || { echo "::error::Add the STRIX_LLM repository secret."; exit 1; }
+          test -n "$LLM_API_KEY" || { echo "::error::Add the LLM_API_KEY repository secret."; exit 1; }
+          python3 - <<'PY'
+          from decimal import Decimal
+          import os
+          budget = Decimal(os.environ['SCAN_BUDGET'])
+          assert budget.is_finite() and 1 <= budget <= 50, 'Budget must be between 1 and 50 USD'
+          PY
+          docker info >/dev/null
+      - name: Checkout selected revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Strix in an isolated environment
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/strix-cli"
+          "$RUNNER_TEMP/strix-cli/bin/pip" install --disable-pip-version-check 'strix-agent==1.6.2'
+          "$RUNNER_TEMP/strix-cli/bin/strix" --version
+      - name: Prepare isolated source snapshot
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/neta-strix-source" "$RUNNER_TEMP/neta-strix-results"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/neta-strix-source"
+          git rev-parse HEAD > "$RUNNER_TEMP/neta-strix-results/source-commit.txt"
+      - name: Assess full source tree
+        env:
+          STRIX_LLM: ${{ secrets.STRIX_LLM }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          SCAN_BUDGET: ${{ inputs.budget_usd }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/neta-strix-results"
+          "$RUNNER_TEMP/strix-cli/bin/strix" -n \
+            --target "$RUNNER_TEMP/neta-strix-source" \
+            --scan-mode standard --scope-mode full --max-budget "$SCAN_BUDGET" \
+            --instruction-file "$GITHUB_WORKSPACE/security/strix-scope.txt"
+          python3 "$GITHUB_WORKSPACE/scripts/verify-strix-run.py" strix_runs "$SCAN_BUDGET"
+      - name: Retain reports even when findings fail the scan
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: strix-assessment-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/neta-strix-results/source-commit.txt
+            ${{ runner.temp }}/neta-strix-results/strix_runs/*/penetration_test_report.md
+            ${{ runner.temp }}/neta-strix-results/strix_runs/*/vulnerabilities/*.md
+            ${{ runner.temp }}/neta-strix-results/strix_runs/*/vulnerabilities.json
+            ${{ runner.temp }}/neta-strix-results/strix_runs/*/findings.sarif
+            ${{ runner.temp }}/neta-strix-results/strix_runs/*/run.json

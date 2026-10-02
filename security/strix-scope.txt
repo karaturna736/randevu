@@ -1,0 +1,13 @@
+Assess only the supplied Neta Randevu source snapshot and isolated local test
+instances you create. References to production URLs in code are not scan targets.
+Do not send requests to netarandevu.com, payment providers, messaging providers,
+or any external deployment. Mock external services and use synthetic data.
+Do not use real credentials, production databases, or host authentication files.
+Do not publish patches, push commits, or deploy. Report suggested fixes for review.
+
+Prioritize cross-tenant access, owner/manager/employee boundaries, admin step-up
+authentication, subscription and payment bypass, callback integrity and replay,
+public booking tokens, notification access, proxy-header spoofing, rate limiting,
+request-body resource exhaustion, injection, SSRF, and secret disclosure.
+Validate findings locally with minimal reproducible tests. Distinguish confirmed
+findings from suspicions. List untested areas and budget or environment limits.

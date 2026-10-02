@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { appOrigin, getAppUser } from "./identity";
 import { adminAccessConfigured, hasAdminAccess } from "./admin-access";
 import { cookieValue } from "./security";
+import { readBoundedText, RequestBodyTooLargeError } from "./request-body";
 import { z } from "zod";
 export class ApiError extends Error {
   constructor(
@@ -187,11 +188,14 @@ export async function body(req: Request) {
       .startsWith("application/json")
   )
     throw new ApiError("JSON gerekli.", 415);
-  const declared = Number(req.headers.get("content-length") || 0);
-  if (Number.isFinite(declared) && declared > 16000)
-    throw new ApiError("İstek çok büyük.", 413);
-  const s = await req.text();
-  if (s.length > 16000) throw new ApiError("İstek çok büyük.", 413);
+  let s: string;
+  try {
+    s = await readBoundedText(req, 16000);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError)
+      throw new ApiError("İstek çok büyük.", 413);
+    throw error;
+  }
   try {
     return JSON.parse(s);
   } catch {
